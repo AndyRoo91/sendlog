@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date as DateType, datetime
 from pydantic import BaseModel
 
 
@@ -46,7 +46,7 @@ class EntryPhoto(BaseModel):
 
 class LimitBoulderEntryBase(BaseModel):
     grade: str
-    sent: bool = False
+    send_type: str = "redpoint"
     attempts: int | None = None
     notes: str | None = None
 
@@ -59,6 +59,7 @@ class LimitBoulderEntry(LimitBoulderEntryBase):
     id: int
     session_id: int
     photos: list[EntryPhoto] = []
+    logged_at: datetime | None = None
     model_config = {"from_attributes": True}
 
 
@@ -97,11 +98,12 @@ class LeadRouteEntry(LeadRouteEntryBase):
     id: int
     session_id: int
     photos: list[EntryPhoto] = []
+    logged_at: datetime | None = None
     model_config = {"from_attributes": True}
 
 
 class SessionBase(BaseModel):
-    date: date
+    date: DateType
     location: str | None = None
     duration_minutes: int | None = None
     notes: str | None = None
@@ -125,6 +127,8 @@ class SessionUpdate(SessionBase):
 
 class SessionDetail(SessionBase):
     id: int
+    started_at: datetime | None = None
+    ended_at: datetime | None = None
     warmup_entries: list[WarmupEntry] = []
     fingerboard_entries: list[FingerboardEntry] = []
     boulder_entries: list[LimitBoulderEntry] = []
@@ -134,7 +138,7 @@ class SessionDetail(SessionBase):
 
 
 class SessionPatch(BaseModel):
-    date: date | None = None
+    date: DateType | None = None
     location: str | None = None
     duration_minutes: int | None = None
     notes: str | None = None
@@ -142,11 +146,22 @@ class SessionPatch(BaseModel):
 
 class SessionSummary(SessionBase):
     id: int
+    started_at: datetime | None = None
+    ended_at: datetime | None = None
     model_config = {"from_attributes": True}
 
 
+class RecentCombo(BaseModel):
+    kind: str            # "boulder" | "lead"
+    grade: str
+    grade_system: str
+    send_type: str
+    count: int
+    last_logged_at: datetime | None = None
+
+
 class ProgressPoint(BaseModel):
-    date: date
+    date: DateType
     value: float
     label: str
 

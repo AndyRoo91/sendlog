@@ -7,6 +7,14 @@ import type {
 } from "../api/client";
 import { format } from "date-fns";
 import PhotoUploader from "../components/PhotoUploader";
+import { sendTypeToStyle, STYLE_BY_ID } from "../ui";
+
+const BOULDER_SEND_TYPES = [
+  { value: "flash", label: "Flash" },
+  { value: "redpoint", label: "Send" },
+  { value: "working", label: "Working" },
+  { value: "fall", label: "Fall" },
+];
 
 // ─── Grade constants ──────────────────────────────────────────────────────────
 
@@ -382,14 +390,14 @@ function InlineLeadForm({ form, setForm, saving, onSave, onCancel }: any) {
 function BoulderSection({ sessionId, entries, onChange }: {
   sessionId: number; entries: BoulderEntry[]; onChange: (e: BoulderEntry[]) => void;
 }) {
-  const blank = (): Omit<BoulderEntry,"id"|"session_id"|"photos"> => ({ grade: "V5", sent: false, attempts: null, notes: null });
+  const blank = (): Omit<BoulderEntry,"id"|"session_id"|"photos"> => ({ grade: "V5", send_type: "redpoint", attempts: null, notes: null });
   const [form, setForm] = useState(blank());
   const [editId, setEditId] = useState<number | null>(null);
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
 
   function startEdit(e: BoulderEntry) {
-    setForm({ grade: e.grade, sent: e.sent, attempts: e.attempts??null, notes: e.notes??null });
+    setForm({ grade: e.grade, send_type: e.send_type, attempts: e.attempts??null, notes: e.notes??null });
     setEditId(e.id!); setOpen(true);
   }
 
@@ -431,7 +439,9 @@ function BoulderSection({ sessionId, entries, onChange }: {
         <div key={e.id} style={{ borderLeft: "3px solid var(--accent2)", paddingLeft: 12 }}>
           <div className="gap-row">
             <span style={{ fontWeight: 700, fontSize: 17 }}>{e.grade}</span>
-            <span className={`tag ${e.sent ? "tag-green" : "tag-red"}`}>{e.sent ? "Send" : "Project"}</span>
+            <span className="tag" style={{ background: STYLE_BY_ID[sendTypeToStyle(e.send_type)].color, color: STYLE_BY_ID[sendTypeToStyle(e.send_type)].text }}>
+              {STYLE_BY_ID[sendTypeToStyle(e.send_type)].label}
+            </span>
             {e.attempts && <span className="muted">{e.attempts} attempts</span>}
           </div>
           {e.notes && <p className="muted" style={{ fontSize: 13, marginTop: 4 }}>{e.notes}</p>}
@@ -466,10 +476,9 @@ function InlineBoulderForm({ form, setForm, saving, onSave, onCancel }: any) {
           <select value={form.grade} onChange={(e) => setForm({ ...form, grade: e.target.value })}>
             {BOULDER_GRADES.map((g) => <option key={g}>{g}</option>)}
           </select></div>
-        <div><label>Status</label>
-          <select value={form.sent ? "sent" : "project"} onChange={(e) => setForm({ ...form, sent: e.target.value === "sent" })}>
-            <option value="sent">Send</option>
-            <option value="project">Project / Attempt</option>
+        <div><label>Send type</label>
+          <select value={form.send_type} onChange={(e) => setForm({ ...form, send_type: e.target.value })}>
+            {BOULDER_SEND_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
           </select></div>
         <div><label>Attempts</label>
           <input type="number" value={form.attempts ?? ""} onChange={(e) => setForm({ ...form, attempts: n(e.target.value) })} placeholder="3" min="1" /></div>
@@ -652,7 +661,7 @@ export default function SessionView() {
   return (
     <div className="page">
       <div className="gap-row" style={{ justifyContent: "space-between", marginBottom: 16 }}>
-        <Link to="/sessions" style={{ fontSize: 13 }}>← Sessions</Link>
+        <Link to={`/sessions/${session.id}`} style={{ fontSize: 13 }}>← Quick Log</Link>
         <button className="btn-danger btn-sm" onClick={handleDelete} disabled={deleting}>
           Delete session
         </button>

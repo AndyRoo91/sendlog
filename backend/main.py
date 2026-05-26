@@ -1,6 +1,7 @@
 import os
 import uuid
 from contextlib import asynccontextmanager
+from datetime import datetime
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
@@ -10,7 +11,7 @@ from sqlalchemy.orm import Session as DBSession
 
 import models
 import schemas
-from database import Base, engine, get_db
+from database import Base, engine, get_db, run_migrations
 
 PHOTOS_DIR = Path(os.getenv("PHOTOS_DIR", "./photos"))
 ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp", "image/heic"}
@@ -70,8 +71,15 @@ def get_session_or_404(session_id: int, db: DBSession) -> models.Session:
     return s
 
 
+def auto_start(session: models.Session) -> None:
+    """Start the timer on the first logged tick if not already running."""
+    if session.started_at is None:
+        session.started_at = datetime.utcnow()
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    run_migrations()
     Base.metadata.create_all(bind=engine)
     PHOTOS_DIR.mkdir(parents=True, exist_ok=True)
     yield
@@ -177,6 +185,67 @@ def delete_session(session_id: int, db: DBSession = Depends(get_db)):
 
 
 # ---------------------------------------------------------------------------
+# Session timer + recents
+# ---------------------------------------------------------------------------
+
+@app.post("/api/sessions/{session_id}/start", response_model=schemas.SessionDetail)
+def start_session(session_id: int, db: DBSession = Depends(get_db)):
+    session = get_session_or_404(session_id, db)
+    if session.started_at is None:
+        session.started_at = datetime.utcnow()
+    db.commit()
+    db.refresh(session)
+    attach_photos(session.boulder_entries, "boulder", db)
+    attach_photos(session.lead_route_entries, "lead", db)
+    return session
+
+
+@app.post("/api/sessions/{session_id}/end", response_model=schemas.SessionDetail)
+def end_session(session_id: int, db: DBSession = Depends(get_db)):
+    session = get_session_or_404(session_id, db)
+    session.ended_at = datetime.utcnow()
+    if session.started_at is not None and session.duration_minutes is None:
+        session.duration_minutes = max(1, round((session.ended_at - session.started_at).total_seconds() / 60))
+    db.commit()
+    db.refresh(session)
+    attach_photos(session.boulder_entries, "boulder", db)
+    attach_photos(session.lead_route_entries, "lead", db)
+    return session
+
+
+@app.get("/api/sessions/{session_id}/recent_combos", response_model=list[schemas.RecentCombo])
+def recent_combos(session_id: int, db: DBSession = Depends(get_db)):
+    session = get_session_or_404(session_id, db)
+
+    combos: dict[tuple, schemas.RecentCombo] = {}
+
+    def fold(kind: str, grade: str, grade_system: str, send_type: str, logged_at):
+        key = (kind, grade, grade_system, send_type)
+        existing = combos.get(key)
+        if existing is None:
+            combos[key] = schemas.RecentCombo(
+                kind=kind, grade=grade, grade_system=grade_system,
+                send_type=send_type, count=1, last_logged_at=logged_at,
+            )
+        else:
+            existing.count += 1
+            if logged_at and (existing.last_logged_at is None or logged_at > existing.last_logged_at):
+                existing.last_logged_at = logged_at
+
+    for b in session.boulder_entries:
+        fold("boulder", b.grade, "vscale", b.send_type, b.logged_at)
+    for l in session.lead_route_entries:
+        fold("lead", l.grade, l.grade_system, l.send_type, l.logged_at)
+
+    ordered = sorted(
+        combos.values(),
+        key=lambda c: c.last_logged_at or datetime.min,
+        reverse=True,
+    )
+    return ordered[:4]
+
+
+# ---------------------------------------------------------------------------
 # Warmup entries
 # ---------------------------------------------------------------------------
 
@@ -252,7 +321,8 @@ def delete_fingerboard(entry_id: int, db: DBSession = Depends(get_db)):
 
 @app.post("/api/sessions/{session_id}/boulder", response_model=schemas.LimitBoulderEntry, status_code=201)
 def add_boulder(session_id: int, payload: schemas.LimitBoulderEntryCreate, db: DBSession = Depends(get_db)):
-    get_session_or_404(session_id, db)
+    session = get_session_or_404(session_id, db)
+    auto_start(session)
     entry = models.LimitBoulderEntry(session_id=session_id, **payload.model_dump())
     db.add(entry)
     db.commit()
@@ -294,7 +364,8 @@ def delete_boulder(entry_id: int, db: DBSession = Depends(get_db)):
 
 @app.post("/api/sessions/{session_id}/lead", response_model=schemas.LeadRouteEntry, status_code=201)
 def add_lead(session_id: int, payload: schemas.LeadRouteEntryCreate, db: DBSession = Depends(get_db)):
-    get_session_or_404(session_id, db)
+    session = get_session_or_404(session_id, db)
+    auto_start(session)
     entry = models.LeadRouteEntry(session_id=session_id, **payload.model_dump())
     db.add(entry)
     db.commit()
@@ -383,7 +454,7 @@ def get_progress(db: DBSession = Depends(get_db)):
 
     bl_points: list[schemas.ProgressPoint] = []
     for s in db.query(models.Session).join(models.LimitBoulderEntry).order_by(models.Session.date).all():
-        sent = [e for e in s.boulder_entries if e.sent]
+        sent = [e for e in s.boulder_entries if e.send_type in REDPOINT_SENDS]
         if not sent:
             continue
         best = max(sent, key=lambda e: grade_to_int(e.grade, BOULDER_GRADE_ORDER))
