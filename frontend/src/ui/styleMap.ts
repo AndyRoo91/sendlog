@@ -19,6 +19,14 @@ export const STYLE_BY_ID: Record<StyleId, StyleDef> = Object.fromEntries(
   STYLES.map((s) => [s.id, s])
 ) as Record<StyleId, StyleDef>;
 
+/** The send_type string persisted for each visual style. */
+export const STYLE_TO_SEND_TYPE: Record<StyleId, string> = {
+  flash: "flash",
+  send: "redpoint",
+  proj: "working",
+  fall: "fall",
+};
+
 /**
  * Map the backend `send_type` strings onto the four visual styles.
  *   flash / onsight        → FLASH (mustard)
