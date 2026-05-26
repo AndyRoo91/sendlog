@@ -63,17 +63,17 @@ function ChartCard({
       <h2 style={{ marginBottom: 16 }}>{title}</h2>
       <ResponsiveContainer width="100%" height={220}>
         <LineChart data={chartData} margin={{ top: 4, right: 16, bottom: 4, left: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#2e3350" />
-          <XAxis dataKey="date" stroke="#7880a0" tick={{ fontSize: 12 }} />
+          <CartesianGrid strokeDasharray="3 3" stroke="rgba(26,22,18,0.15)" />
+          <XAxis dataKey="date" stroke="#3a2e22" tick={{ fontSize: 12, fontFamily: "var(--font-banner)" }} />
           <YAxis
-            stroke="#7880a0"
-            tick={{ fontSize: 12 }}
+            stroke="#3a2e22"
+            tick={{ fontSize: 12, fontFamily: "var(--font-banner)" }}
             tickFormatter={yTickFormatter}
             width={44}
           />
           <Tooltip
-            contentStyle={{ background: "#1a1d27", border: "1px solid #2e3350", borderRadius: 8 }}
-            labelStyle={{ color: "#e8eaf0" }}
+            contentStyle={{ background: "#fbf0d4", border: "2px solid #1a1612", borderRadius: 0, fontFamily: "var(--font-body)" }}
+            labelStyle={{ color: "#1a1612", fontWeight: 700 }}
             formatter={(v) => tooltipFormatter ? tooltipFormatter(v as number) : v}
           />
           <Line
@@ -81,9 +81,9 @@ function ChartCard({
             dataKey="value"
             name={title}
             stroke={color}
-            strokeWidth={2}
-            dot={{ r: 4, fill: color }}
-            activeDot={{ r: 6 }}
+            strokeWidth={3}
+            dot={{ r: 4, fill: color, stroke: "#1a1612", strokeWidth: 2 }}
+            activeDot={{ r: 6, stroke: "#1a1612", strokeWidth: 2 }}
           />
         </LineChart>
       </ResponsiveContainer>
@@ -108,7 +108,7 @@ export default function Progress() {
           <ChartCard
             title="Lead — Max Grade (Ewbank, sends)"
             data={data.lead_max_grade_ewbank}
-            color="#c084fc"
+            color="#d63a2a"
             yTickFormatter={(v) => String(Math.round(v + 1))}
             tooltipFormatter={(v) => String(Math.round(v + 1))}
           />
@@ -117,7 +117,7 @@ export default function Progress() {
           <ChartCard
             title="Lead — Max Grade (YDS, sends)"
             data={data.lead_max_grade_yds}
-            color="#f97316"
+            color="#d9558a"
             yTickFormatter={(v) => YDS_GRADES[v] ?? `5.?`}
             tooltipFormatter={(v) => YDS_GRADES[v] ?? `5.?`}
           />
@@ -126,7 +126,7 @@ export default function Progress() {
           <ChartCard
             title="Lead — Max Grade (French, sends)"
             data={data.lead_max_grade_french}
-            color="#f97316"
+            color="#2a4a8a"
             yTickFormatter={(v) => FRENCH_GRADES[v] ?? `?`}
             tooltipFormatter={(v) => FRENCH_GRADES[v] ?? `?`}
           />
@@ -134,21 +134,21 @@ export default function Progress() {
         <ChartCard
           title="Fingerboard Max Added Weight"
           data={data.fingerboard_max_weight}
-          color="#5b8dee"
+          color="#2a4a8a"
           yTickFormatter={(v) => `${v}kg`}
           tooltipFormatter={(v) => `${v} kg`}
         />
         <ChartCard
           title="Limit Boulder Max Grade (Sends)"
           data={data.boulder_max_grade}
-          color="#3ecf8e"
+          color="#2d8a73"
           yTickFormatter={(v) => BOULDER_GRADES[v] ?? `V${v}`}
           tooltipFormatter={(v) => BOULDER_GRADES[v] ?? `V${v}`}
         />
         <ChartCard
           title="Strength Max Added Weight"
           data={data.strength_max_weight}
-          color="#e0a85c"
+          color="#e8a83b"
           yTickFormatter={(v) => `${v}kg`}
           tooltipFormatter={(v) => `${v} kg`}
         />
