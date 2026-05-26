@@ -4,6 +4,7 @@ import SessionList from "./pages/SessionList";
 import SessionForm from "./pages/SessionForm";
 import SessionView from "./pages/SessionView";
 import TickSheet from "./pages/TickSheet";
+import Summary from "./pages/Summary";
 import Progress from "./pages/Progress";
 import Design from "./pages/Design";
 import { Ribbon, TabBar } from "./ui";
@@ -32,6 +33,7 @@ function Shell() {
           <Route path="/sessions" element={<SessionList />} />
           <Route path="/sessions/new" element={<SessionForm />} />
           <Route path="/sessions/:id" element={<TickSheet />} />
+          <Route path="/sessions/:id/summary" element={<Summary />} />
           <Route path="/sessions/:id/edit" element={<SessionView />} />
           <Route path="/progress" element={<Progress />} />
           <Route path="/design" element={<Design />} />
