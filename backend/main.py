@@ -1,0 +1,442 @@
+import os
+import uuid
+from contextlib import asynccontextmanager
+from pathlib import Path
+
+from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+from sqlalchemy.orm import Session as DBSession
+
+import models
+import schemas
+from database import Base, engine, get_db
+
+PHOTOS_DIR = Path(os.getenv("PHOTOS_DIR", "./photos"))
+ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp", "image/heic"}
+
+BOULDER_GRADE_ORDER = [
+    "V0", "V1", "V2", "V3", "V4", "V5", "V6", "V7", "V8", "V9",
+    "V10", "V11", "V12", "V13", "V14", "V15", "V16",
+]
+EWBANK_GRADE_ORDER = [str(n) for n in range(1, 39)]
+YDS_GRADE_ORDER = [
+    "5.6", "5.7", "5.8", "5.9",
+    "5.10a", "5.10b", "5.10c", "5.10d",
+    "5.11a", "5.11b", "5.11c", "5.11d",
+    "5.12a", "5.12b", "5.12c", "5.12d",
+    "5.13a", "5.13b", "5.13c", "5.13d",
+    "5.14a", "5.14b", "5.14c", "5.14d",
+    "5.15a", "5.15b", "5.15c", "5.15d",
+]
+FRENCH_GRADE_ORDER = [
+    "5a", "5b", "5c",
+    "6a", "6a+", "6b", "6b+", "6c", "6c+",
+    "7a", "7a+", "7b", "7b+", "7c", "7c+",
+    "8a", "8a+", "8b", "8b+", "8c", "8c+",
+    "9a", "9a+", "9b", "9b+", "9c",
+]
+REDPOINT_SENDS = {"redpoint", "onsight", "flash", "pinkpoint"}
+GRADE_ORDERS = {"ewbank": EWBANK_GRADE_ORDER, "yds": YDS_GRADE_ORDER, "french": FRENCH_GRADE_ORDER}
+
+
+def grade_to_int(grade: str, order: list[str]) -> int:
+    try:
+        return order.index(grade)
+    except ValueError:
+        return -1
+
+
+def attach_photos(entries: list, entry_type: str, db: DBSession) -> None:
+    if not entries:
+        return
+    ids = [e.id for e in entries]
+    photos = (
+        db.query(models.EntryPhoto)
+        .filter(models.EntryPhoto.entry_type == entry_type, models.EntryPhoto.entry_id.in_(ids))
+        .all()
+    )
+    photo_map: dict[int, list] = {}
+    for p in photos:
+        photo_map.setdefault(p.entry_id, []).append(p)
+    for e in entries:
+        e.photos = photo_map.get(e.id, [])
+
+
+def get_session_or_404(session_id: int, db: DBSession) -> models.Session:
+    s = db.get(models.Session, session_id)
+    if not s:
+        raise HTTPException(status_code=404, detail="Session not found")
+    return s
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    Base.metadata.create_all(bind=engine)
+    PHOTOS_DIR.mkdir(parents=True, exist_ok=True)
+    yield
+
+
+app = FastAPI(title="Climbing Training Log", lifespan=lifespan)
+
+
+# ---------------------------------------------------------------------------
+# Photos
+# ---------------------------------------------------------------------------
+
+@app.post("/api/photos/upload", response_model=schemas.EntryPhoto, status_code=201)
+async def upload_photo(
+    entry_type: str,
+    entry_id: int,
+    file: UploadFile = File(...),
+    db: DBSession = Depends(get_db),
+):
+    if entry_type not in ("lead", "boulder"):
+        raise HTTPException(status_code=400, detail="entry_type must be 'lead' or 'boulder'")
+    if file.content_type not in ALLOWED_IMAGE_TYPES:
+        raise HTTPException(status_code=400, detail="Only JPEG, PNG, WebP and HEIC images are accepted")
+    ext = Path(file.filename or "photo.jpg").suffix.lower() or ".jpg"
+    filename = f"{entry_type}_{entry_id}_{uuid.uuid4().hex}{ext}"
+    (PHOTOS_DIR / filename).write_bytes(await file.read())
+    photo = models.EntryPhoto(entry_type=entry_type, entry_id=entry_id, filename=filename)
+    db.add(photo)
+    db.commit()
+    db.refresh(photo)
+    return photo
+
+
+@app.delete("/api/photos/{photo_id}", status_code=204)
+def delete_photo(photo_id: int, db: DBSession = Depends(get_db)):
+    photo = db.get(models.EntryPhoto, photo_id)
+    if not photo:
+        raise HTTPException(status_code=404, detail="Photo not found")
+    path = PHOTOS_DIR / photo.filename
+    if path.exists():
+        path.unlink()
+    db.delete(photo)
+    db.commit()
+
+
+# ---------------------------------------------------------------------------
+# Sessions (header CRUD)
+# ---------------------------------------------------------------------------
+
+@app.get("/api/sessions", response_model=list[schemas.SessionSummary])
+def list_sessions(db: DBSession = Depends(get_db)):
+    return db.query(models.Session).order_by(models.Session.date.desc()).all()
+
+
+@app.post("/api/sessions", response_model=schemas.SessionDetail, status_code=201)
+def create_session(payload: schemas.SessionCreate, db: DBSession = Depends(get_db)):
+    session = models.Session(
+        date=payload.date,
+        location=payload.location,
+        duration_minutes=payload.duration_minutes,
+        notes=payload.notes,
+    )
+    db.add(session)
+    db.commit()
+    db.refresh(session)
+    return session
+
+
+@app.get("/api/sessions/{session_id}", response_model=schemas.SessionDetail)
+def get_session(session_id: int, db: DBSession = Depends(get_db)):
+    session = get_session_or_404(session_id, db)
+    attach_photos(session.boulder_entries, "boulder", db)
+    attach_photos(session.lead_route_entries, "lead", db)
+    return session
+
+
+@app.patch("/api/sessions/{session_id}", response_model=schemas.SessionDetail)
+def patch_session(
+    session_id: int, payload: schemas.SessionPatch, db: DBSession = Depends(get_db)
+):
+    session = get_session_or_404(session_id, db)
+    for field, value in payload.model_dump(exclude_unset=True).items():
+        setattr(session, field, value)
+    db.commit()
+    db.refresh(session)
+    attach_photos(session.boulder_entries, "boulder", db)
+    attach_photos(session.lead_route_entries, "lead", db)
+    return session
+
+
+@app.delete("/api/sessions/{session_id}", status_code=204)
+def delete_session(session_id: int, db: DBSession = Depends(get_db)):
+    session = get_session_or_404(session_id, db)
+    for entry in list(session.boulder_entries) + list(session.lead_route_entries):
+        etype = "boulder" if isinstance(entry, models.LimitBoulderEntry) else "lead"
+        for photo in db.query(models.EntryPhoto).filter_by(entry_type=etype, entry_id=entry.id).all():
+            p = PHOTOS_DIR / photo.filename
+            if p.exists():
+                p.unlink()
+            db.delete(photo)
+    db.delete(session)
+    db.commit()
+
+
+# ---------------------------------------------------------------------------
+# Warmup entries
+# ---------------------------------------------------------------------------
+
+@app.post("/api/sessions/{session_id}/warmup", response_model=schemas.WarmupEntry, status_code=201)
+def add_warmup(session_id: int, payload: schemas.WarmupEntryCreate, db: DBSession = Depends(get_db)):
+    get_session_or_404(session_id, db)
+    entry = models.WarmupEntry(session_id=session_id, **payload.model_dump())
+    db.add(entry)
+    db.commit()
+    db.refresh(entry)
+    return entry
+
+
+@app.put("/api/warmup/{entry_id}", response_model=schemas.WarmupEntry)
+def update_warmup(entry_id: int, payload: schemas.WarmupEntryCreate, db: DBSession = Depends(get_db)):
+    entry = db.get(models.WarmupEntry, entry_id)
+    if not entry:
+        raise HTTPException(status_code=404, detail="Not found")
+    for field, value in payload.model_dump().items():
+        setattr(entry, field, value)
+    db.commit()
+    db.refresh(entry)
+    return entry
+
+
+@app.delete("/api/warmup/{entry_id}", status_code=204)
+def delete_warmup(entry_id: int, db: DBSession = Depends(get_db)):
+    entry = db.get(models.WarmupEntry, entry_id)
+    if not entry:
+        raise HTTPException(status_code=404, detail="Not found")
+    db.delete(entry)
+    db.commit()
+
+
+# ---------------------------------------------------------------------------
+# Fingerboard entries
+# ---------------------------------------------------------------------------
+
+@app.post("/api/sessions/{session_id}/fingerboard", response_model=schemas.FingerboardEntry, status_code=201)
+def add_fingerboard(session_id: int, payload: schemas.FingerboardEntryCreate, db: DBSession = Depends(get_db)):
+    get_session_or_404(session_id, db)
+    entry = models.FingerboardEntry(session_id=session_id, **payload.model_dump())
+    db.add(entry)
+    db.commit()
+    db.refresh(entry)
+    return entry
+
+
+@app.put("/api/fingerboard/{entry_id}", response_model=schemas.FingerboardEntry)
+def update_fingerboard(entry_id: int, payload: schemas.FingerboardEntryCreate, db: DBSession = Depends(get_db)):
+    entry = db.get(models.FingerboardEntry, entry_id)
+    if not entry:
+        raise HTTPException(status_code=404, detail="Not found")
+    for field, value in payload.model_dump().items():
+        setattr(entry, field, value)
+    db.commit()
+    db.refresh(entry)
+    return entry
+
+
+@app.delete("/api/fingerboard/{entry_id}", status_code=204)
+def delete_fingerboard(entry_id: int, db: DBSession = Depends(get_db)):
+    entry = db.get(models.FingerboardEntry, entry_id)
+    if not entry:
+        raise HTTPException(status_code=404, detail="Not found")
+    db.delete(entry)
+    db.commit()
+
+
+# ---------------------------------------------------------------------------
+# Boulder entries
+# ---------------------------------------------------------------------------
+
+@app.post("/api/sessions/{session_id}/boulder", response_model=schemas.LimitBoulderEntry, status_code=201)
+def add_boulder(session_id: int, payload: schemas.LimitBoulderEntryCreate, db: DBSession = Depends(get_db)):
+    get_session_or_404(session_id, db)
+    entry = models.LimitBoulderEntry(session_id=session_id, **payload.model_dump())
+    db.add(entry)
+    db.commit()
+    db.refresh(entry)
+    entry.photos = []
+    return entry
+
+
+@app.put("/api/boulder/{entry_id}", response_model=schemas.LimitBoulderEntry)
+def update_boulder(entry_id: int, payload: schemas.LimitBoulderEntryCreate, db: DBSession = Depends(get_db)):
+    entry = db.get(models.LimitBoulderEntry, entry_id)
+    if not entry:
+        raise HTTPException(status_code=404, detail="Not found")
+    for field, value in payload.model_dump().items():
+        setattr(entry, field, value)
+    db.commit()
+    db.refresh(entry)
+    attach_photos([entry], "boulder", db)
+    return entry
+
+
+@app.delete("/api/boulder/{entry_id}", status_code=204)
+def delete_boulder(entry_id: int, db: DBSession = Depends(get_db)):
+    entry = db.get(models.LimitBoulderEntry, entry_id)
+    if not entry:
+        raise HTTPException(status_code=404, detail="Not found")
+    for photo in db.query(models.EntryPhoto).filter_by(entry_type="boulder", entry_id=entry_id).all():
+        p = PHOTOS_DIR / photo.filename
+        if p.exists():
+            p.unlink()
+        db.delete(photo)
+    db.delete(entry)
+    db.commit()
+
+
+# ---------------------------------------------------------------------------
+# Lead route entries
+# ---------------------------------------------------------------------------
+
+@app.post("/api/sessions/{session_id}/lead", response_model=schemas.LeadRouteEntry, status_code=201)
+def add_lead(session_id: int, payload: schemas.LeadRouteEntryCreate, db: DBSession = Depends(get_db)):
+    get_session_or_404(session_id, db)
+    entry = models.LeadRouteEntry(session_id=session_id, **payload.model_dump())
+    db.add(entry)
+    db.commit()
+    db.refresh(entry)
+    entry.photos = []
+    return entry
+
+
+@app.put("/api/lead/{entry_id}", response_model=schemas.LeadRouteEntry)
+def update_lead(entry_id: int, payload: schemas.LeadRouteEntryCreate, db: DBSession = Depends(get_db)):
+    entry = db.get(models.LeadRouteEntry, entry_id)
+    if not entry:
+        raise HTTPException(status_code=404, detail="Not found")
+    for field, value in payload.model_dump().items():
+        setattr(entry, field, value)
+    db.commit()
+    db.refresh(entry)
+    attach_photos([entry], "lead", db)
+    return entry
+
+
+@app.delete("/api/lead/{entry_id}", status_code=204)
+def delete_lead(entry_id: int, db: DBSession = Depends(get_db)):
+    entry = db.get(models.LeadRouteEntry, entry_id)
+    if not entry:
+        raise HTTPException(status_code=404, detail="Not found")
+    for photo in db.query(models.EntryPhoto).filter_by(entry_type="lead", entry_id=entry_id).all():
+        p = PHOTOS_DIR / photo.filename
+        if p.exists():
+            p.unlink()
+        db.delete(photo)
+    db.delete(entry)
+    db.commit()
+
+
+# ---------------------------------------------------------------------------
+# Strength entries
+# ---------------------------------------------------------------------------
+
+@app.post("/api/sessions/{session_id}/strength", response_model=schemas.StrengthEntry, status_code=201)
+def add_strength(session_id: int, payload: schemas.StrengthEntryCreate, db: DBSession = Depends(get_db)):
+    get_session_or_404(session_id, db)
+    entry = models.StrengthEntry(session_id=session_id, **payload.model_dump())
+    db.add(entry)
+    db.commit()
+    db.refresh(entry)
+    return entry
+
+
+@app.put("/api/strength/{entry_id}", response_model=schemas.StrengthEntry)
+def update_strength(entry_id: int, payload: schemas.StrengthEntryCreate, db: DBSession = Depends(get_db)):
+    entry = db.get(models.StrengthEntry, entry_id)
+    if not entry:
+        raise HTTPException(status_code=404, detail="Not found")
+    for field, value in payload.model_dump().items():
+        setattr(entry, field, value)
+    db.commit()
+    db.refresh(entry)
+    return entry
+
+
+@app.delete("/api/strength/{entry_id}", status_code=204)
+def delete_strength(entry_id: int, db: DBSession = Depends(get_db)):
+    entry = db.get(models.StrengthEntry, entry_id)
+    if not entry:
+        raise HTTPException(status_code=404, detail="Not found")
+    db.delete(entry)
+    db.commit()
+
+
+# ---------------------------------------------------------------------------
+# Progress
+# ---------------------------------------------------------------------------
+
+@app.get("/api/progress", response_model=schemas.ProgressData)
+def get_progress(db: DBSession = Depends(get_db)):
+    fb_points: list[schemas.ProgressPoint] = []
+    for s in db.query(models.Session).join(models.FingerboardEntry).order_by(models.Session.date).all():
+        if not s.fingerboard_entries:
+            continue
+        best = max(s.fingerboard_entries, key=lambda e: (e.added_weight_kg or 0))
+        fb_points.append(schemas.ProgressPoint(
+            date=s.date, value=best.added_weight_kg or 0,
+            label=f"{best.added_weight_kg}kg on {best.edge_mm}mm",
+        ))
+
+    bl_points: list[schemas.ProgressPoint] = []
+    for s in db.query(models.Session).join(models.LimitBoulderEntry).order_by(models.Session.date).all():
+        sent = [e for e in s.boulder_entries if e.sent]
+        if not sent:
+            continue
+        best = max(sent, key=lambda e: grade_to_int(e.grade, BOULDER_GRADE_ORDER))
+        bl_points.append(schemas.ProgressPoint(
+            date=s.date, value=grade_to_int(best.grade, BOULDER_GRADE_ORDER), label=best.grade,
+        ))
+
+    st_points: list[schemas.ProgressPoint] = []
+    for s in db.query(models.Session).join(models.StrengthEntry).order_by(models.Session.date).all():
+        if not s.strength_entries:
+            continue
+        best = max(s.strength_entries, key=lambda e: (e.added_weight_kg or 0))
+        st_points.append(schemas.ProgressPoint(
+            date=s.date, value=best.added_weight_kg or 0,
+            label=f"{best.exercise} +{best.added_weight_kg}kg",
+        ))
+
+    lead_by_system: dict[str, list[schemas.ProgressPoint]] = {"ewbank": [], "yds": [], "french": []}
+    for s in db.query(models.Session).join(models.LeadRouteEntry).order_by(models.Session.date).all():
+        for system, order in GRADE_ORDERS.items():
+            sends = [
+                e for e in s.lead_route_entries
+                if e.grade_system == system and e.send_type in REDPOINT_SENDS
+            ]
+            if not sends:
+                continue
+            best = max(sends, key=lambda e: grade_to_int(e.grade, order))
+            lead_by_system[system].append(
+                schemas.ProgressPoint(date=s.date, value=grade_to_int(best.grade, order), label=best.grade)
+            )
+
+    return schemas.ProgressData(
+        fingerboard_max_weight=fb_points,
+        boulder_max_grade=bl_points,
+        strength_max_weight=st_points,
+        lead_max_grade_ewbank=lead_by_system["ewbank"],
+        lead_max_grade_yds=lead_by_system["yds"],
+        lead_max_grade_french=lead_by_system["french"],
+    )
+
+
+# ---------------------------------------------------------------------------
+# Serve React SPA
+# ---------------------------------------------------------------------------
+
+static_dir = Path(__file__).parent / "static"
+if static_dir.exists():
+    app.mount("/assets", StaticFiles(directory=static_dir / "assets"), name="assets")
+
+if PHOTOS_DIR.exists():
+    app.mount("/photos", StaticFiles(directory=PHOTOS_DIR), name="photos")
+
+if static_dir.exists():
+    @app.get("/{full_path:path}", include_in_schema=False)
+    def serve_spa(full_path: str):
+        return FileResponse(static_dir / "index.html")
