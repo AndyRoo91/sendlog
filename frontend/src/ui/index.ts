@@ -9,6 +9,8 @@ export { default as FeedEntry } from "./FeedEntry";
 export { default as StyleRibbonRow } from "./StyleRibbonRow";
 export { default as ModeToggle } from "./ModeToggle";
 export { default as RecentChip } from "./RecentChip";
+export { default as AfterCommitOverlay } from "./AfterCommitOverlay";
+export type { CommitTick } from "./AfterCommitOverlay";
 export { ICON } from "./icons";
 export { STYLES, STYLE_BY_ID, sendTypeToStyle } from "./styleMap";
 export type { StyleId, StyleDef } from "./styleMap";

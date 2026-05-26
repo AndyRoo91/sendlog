@@ -27,10 +27,11 @@ export interface BoulderEntry {
   id?: number;
   session_id?: number;
   grade: string;
-  sent: boolean;
+  send_type: string;
   attempts?: number | null;
   notes?: string | null;
   photos?: EntryPhoto[];
+  logged_at?: string | null;
 }
 
 export interface StrengthEntry {
@@ -53,6 +54,16 @@ export interface LeadRouteEntry {
   falls?: number | null;
   notes?: string | null;
   photos?: EntryPhoto[];
+  logged_at?: string | null;
+}
+
+export interface RecentCombo {
+  kind: "boulder" | "lead";
+  grade: string;
+  grade_system: string;
+  send_type: string;
+  count: number;
+  last_logged_at?: string | null;
 }
 
 export interface SessionSummary {
@@ -61,6 +72,8 @@ export interface SessionSummary {
   location?: string | null;
   duration_minutes?: number | null;
   notes?: string | null;
+  started_at?: string | null;
+  ended_at?: string | null;
 }
 
 export interface SessionDetail extends SessionSummary {
@@ -129,6 +142,12 @@ export const api = {
     req<SessionDetail>(`/sessions/${id}`, { method: "PATCH", body: JSON.stringify(payload) }),
   deleteSession: (id: number) =>
     req<void>(`/sessions/${id}`, { method: "DELETE" }),
+  startSession: (id: number) =>
+    req<SessionDetail>(`/sessions/${id}/start`, { method: "POST" }),
+  endSession: (id: number) =>
+    req<SessionDetail>(`/sessions/${id}/end`, { method: "POST" }),
+  getRecentCombos: (id: number) =>
+    req<RecentCombo[]>(`/sessions/${id}/recent_combos`),
   getProgress: () => req<ProgressData>("/progress"),
 
   addWarmup: (sessionId: number, payload: Omit<WarmupEntry, "id" | "session_id">) =>

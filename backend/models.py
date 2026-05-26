@@ -1,5 +1,5 @@
-from datetime import date
-from sqlalchemy import Date, Float, ForeignKey, Integer, String, Boolean, Text
+from datetime import date, datetime
+from sqlalchemy import Date, DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from database import Base
 
@@ -12,6 +12,8 @@ class Session(Base):
     location: Mapped[str | None] = mapped_column(String(100))
     duration_minutes: Mapped[int | None] = mapped_column(Integer)
     notes: Mapped[str | None] = mapped_column(Text)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime)
+    ended_at: Mapped[datetime | None] = mapped_column(DateTime)
 
     warmup_entries: Mapped[list["WarmupEntry"]] = relationship(
         back_populates="session", cascade="all, delete-orphan"
@@ -62,9 +64,10 @@ class LimitBoulderEntry(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     session_id: Mapped[int] = mapped_column(ForeignKey("sessions.id"), nullable=False)
     grade: Mapped[str] = mapped_column(String(10), nullable=False)
-    sent: Mapped[bool] = mapped_column(Boolean, default=False)
+    send_type: Mapped[str] = mapped_column(String(20), nullable=False, default="redpoint")
     attempts: Mapped[int | None] = mapped_column(Integer)
     notes: Mapped[str | None] = mapped_column(Text)
+    logged_at: Mapped[datetime | None] = mapped_column(DateTime, default=datetime.utcnow)
 
     session: Mapped["Session"] = relationship(back_populates="boulder_entries")
 
@@ -94,6 +97,7 @@ class LeadRouteEntry(Base):
     attempts: Mapped[int | None] = mapped_column(Integer)
     falls: Mapped[int | None] = mapped_column(Integer)
     notes: Mapped[str | None] = mapped_column(Text)
+    logged_at: Mapped[datetime | None] = mapped_column(DateTime, default=datetime.utcnow)
 
     session: Mapped["Session"] = relationship(back_populates="lead_route_entries")
 
