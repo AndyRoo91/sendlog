@@ -1,0 +1,196 @@
+/* sendlog redesign — system styles */
+
+@import url('https://fonts.googleapis.com/css2?family=Alfa+Slab+One&family=Bungee&family=Bungee+Shade&family=Outfit:wght@400;500;600;700&family=Permanent+Marker&family=Caveat:wght@400;700&display=swap');
+
+:root {
+  --paper: #f0e4c8;
+  --paper-2: #e7d8b3;
+  --ink: #1a1612;
+  --ink-2: #3a2e22;
+  --red: #d63a2a;
+  --red-deep: #a82a1c;
+  --mustard: #e8a83b;
+  --mustard-deep: #c98b22;
+  --sea: #2d8a73;
+  --sea-deep: #1d6b58;
+  --cobalt: #2a4a8a;
+  --cobalt-deep: #1a3268;
+  --pink: #d9558a;
+  --cream: #fbf0d4;
+
+  --b: 2.5px;          /* outline weight */
+  --bw: 3.5px;         /* heavy outline */
+  --font-display: 'Alfa Slab One', 'Cooper Black', Georgia, serif;
+  --font-banner: 'Bungee', 'Impact', sans-serif;
+  --font-shade: 'Bungee Shade', 'Bungee', sans-serif;
+  --font-body: 'Outfit', system-ui, sans-serif;
+  --font-hand: 'Permanent Marker', 'Caveat', cursive;
+  --font-script: 'Caveat', cursive;
+}
+
+* { box-sizing: border-box; }
+
+/* paper background w/ halftone dots */
+.paper {
+  background:
+    radial-gradient(circle at 1px 1px, rgba(26,22,18,0.12) 1px, transparent 0) 0 0 / 14px 14px,
+    var(--paper);
+  color: var(--ink);
+  font-family: var(--font-body);
+  width: 100%;
+  height: 100%;
+  position: relative;
+  overflow: hidden;
+}
+
+.paper-plain {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-body);
+  width: 100%;
+  height: 100%;
+  position: relative;
+  overflow: hidden;
+}
+
+/* ink outline utility */
+.ink { border: var(--b) solid var(--ink); }
+.ink-heavy { border: var(--bw) solid var(--ink); }
+
+/* chunky button base */
+.chunky {
+  border: var(--b) solid var(--ink);
+  background: var(--cream);
+  color: var(--ink);
+  font-family: var(--font-display);
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  position: relative;
+  transition: transform .08s;
+}
+.chunky:active { transform: translate(1px, 1px); }
+
+/* ribbon banner — used for headers, like a tattoo scroll */
+.ribbon {
+  font-family: var(--font-banner);
+  color: var(--cream);
+  background: var(--ink);
+  padding: 6px 14px;
+  display: inline-block;
+  letter-spacing: 0.04em;
+  position: relative;
+}
+
+/* starburst / sun-ray helper as an SVG bg */
+.rays {
+  background-image: conic-gradient(from 0deg,
+    var(--mustard) 0deg, var(--mustard) 15deg,
+    transparent 15deg, transparent 30deg,
+    var(--mustard) 30deg, var(--mustard) 45deg,
+    transparent 45deg, transparent 60deg,
+    var(--mustard) 60deg, var(--mustard) 75deg,
+    transparent 75deg, transparent 90deg,
+    var(--mustard) 90deg, var(--mustard) 105deg,
+    transparent 105deg, transparent 120deg,
+    var(--mustard) 120deg, var(--mustard) 135deg,
+    transparent 135deg, transparent 150deg,
+    var(--mustard) 150deg, var(--mustard) 165deg,
+    transparent 165deg, transparent 180deg,
+    var(--mustard) 180deg, var(--mustard) 195deg,
+    transparent 195deg, transparent 210deg,
+    var(--mustard) 210deg, var(--mustard) 225deg,
+    transparent 225deg, transparent 240deg,
+    var(--mustard) 240deg, var(--mustard) 255deg,
+    transparent 255deg, transparent 270deg,
+    var(--mustard) 270deg, var(--mustard) 285deg,
+    transparent 285deg, transparent 300deg,
+    var(--mustard) 300deg, var(--mustard) 315deg,
+    transparent 315deg, transparent 330deg,
+    var(--mustard) 330deg, var(--mustard) 345deg,
+    transparent 345deg, transparent 360deg
+  );
+}
+
+/* halftone dots */
+.halftone {
+  background-image: radial-gradient(circle, var(--ink) 1.3px, transparent 1.5px);
+  background-size: 8px 8px;
+}
+
+/* tab bar */
+.tabbar {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 92px;
+  background: var(--ink);
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-around;
+  padding: 14px 8px 28px;
+  border-top: var(--b) solid var(--ink);
+  z-index: 4;
+}
+.tabbar .tab {
+  font-family: var(--font-banner);
+  font-size: 11px;
+  color: var(--paper);
+  opacity: 0.55;
+  letter-spacing: 0.08em;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.tabbar .tab.active { opacity: 1; color: var(--mustard); }
+.tabbar .tab svg { width: 26px; height: 26px; }
+
+/* card stack helpers */
+.card-flat {
+  border: var(--b) solid var(--ink);
+  background: var(--cream);
+  position: relative;
+}
+
+/* shadow offset like screen-printed registration */
+.offset-red { box-shadow: 3px 3px 0 var(--red); }
+.offset-cobalt { box-shadow: 3px 3px 0 var(--cobalt); }
+.offset-sea { box-shadow: 3px 3px 0 var(--sea); }
+.offset-mustard { box-shadow: 3px 3px 0 var(--mustard); }
+.offset-ink { box-shadow: 4px 4px 0 var(--ink); }
+
+/* text strokes & shadows for display type */
+.display-shadow {
+  text-shadow:
+    2px 2px 0 var(--ink),
+    -1px -1px 0 var(--ink),
+    1px -1px 0 var(--ink),
+    -1px 1px 0 var(--ink);
+}
+
+/* recharts-style util for any inline lists */
+.row { display: flex; align-items: center; }
+.col { display: flex; flex-direction: column; }
+.gap-2 { gap: 8px; }
+.gap-3 { gap: 12px; }
+.gap-4 { gap: 16px; }
+
+/* scrollbar hide on overflow cards */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { scrollbar-width: none; }
+
+/* phone-screen wrapper inside ios frame */
+.screen {
+  position: absolute;
+  inset: 0;
+  padding-top: 0;
+}
+
+/* tape strip ornament */
+.tape {
+  position: absolute;
+  width: 80px;
+  height: 22px;
+  background: rgba(232, 168, 59, 0.7);
+  border: 1px solid rgba(26,22,18,0.2);
+  transform: rotate(-4deg);
+}
