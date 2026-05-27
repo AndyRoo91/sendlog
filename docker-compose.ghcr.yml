@@ -1,0 +1,22 @@
+# Portainer stack for sendlog — pulls the prebuilt image from GHCR.
+# Paste this into Portainer → Stacks → Add stack (Web editor), or point a
+# Repository stack at this file. No build happens on the NAS.
+#
+# Before deploying:
+#   1. Make sure the GHCR package is public, OR add GHCR registry creds in
+#      Portainer (see README).
+#   2. Adjust the bind-mount host path below to wherever you keep app data
+#      on the NAS (must already exist, e.g. via File Station).
+
+services:
+  sendlog:
+    image: ghcr.io/andyroo91/sendlog:latest
+    container_name: sendlog
+    ports:
+      - "8000:8000"            # host:container — change the host port if 8000 is taken
+    volumes:
+      - /volume1/docker/sendlog/data:/app/data   # <-- set to your NAS path
+    environment:
+      - DATABASE_URL=sqlite:////app/data/climbing.db
+      - PHOTOS_DIR=/app/data/photos
+    restart: unless-stopped
