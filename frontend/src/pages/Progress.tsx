@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer,
+  LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
+  ResponsiveContainer, Legend,
 } from "recharts";
 import { api } from "../api/client";
-import type { ProgressData } from "../api/client";
+import type { ProgressData, ProgressPoint, LeadPyramidRow } from "../api/client";
 import { format } from "date-fns";
 
 const BOULDER_GRADES = [
@@ -12,33 +12,19 @@ const BOULDER_GRADES = [
   "V10","V11","V12","V13","V14","V15","V16",
 ];
 
-const YDS_GRADES = [
-  "5.6","5.7","5.8","5.9",
-  "5.10a","5.10b","5.10c","5.10d",
-  "5.11a","5.11b","5.11c","5.11d",
-  "5.12a","5.12b","5.12c","5.12d",
-  "5.13a","5.13b","5.13c","5.13d",
-  "5.14a","5.14b","5.14c","5.14d",
-  "5.15a","5.15b","5.15c","5.15d",
-];
+const INK = "#1a1612";
+const FLASH = "#e8a83b"; // mustard
+const SEA = "#2d8a73";   // redpoint / send
 
-const FRENCH_GRADES = [
-  "5a","5b","5c",
-  "6a","6a+","6b","6b+","6c","6c+",
-  "7a","7a+","7b","7b+","7c","7c+",
-  "8a","8a+","8b","8b+","8c","8c+",
-  "9a","9a+","9b","9b+","9c",
-];
+const AXIS = { fontSize: 12, fontFamily: "var(--font-banner)" } as const;
+const GRID = "rgba(26,22,18,0.15)";
+const TOOLTIP_STYLE = { background: "#fbf0d4", border: "2px solid #1a1612", borderRadius: 0, fontFamily: "var(--font-body)" };
 
 function ChartCard({
-  title,
-  data,
-  color,
-  yTickFormatter,
-  tooltipFormatter,
+  title, data, color, yTickFormatter, tooltipFormatter,
 }: {
   title: string;
-  data: { date: string; value: number; label: string }[];
+  data: ProgressPoint[];
   color: string;
   yTickFormatter?: (v: number) => string;
   tooltipFormatter?: (v: number) => string;
@@ -51,41 +37,91 @@ function ChartCard({
       </div>
     );
   }
-
-  const chartData = data.map((p) => ({
-    date: format(new Date(p.date), "MMM d"),
-    value: p.value,
-    label: p.label,
-  }));
-
+  const chartData = data.map((p) => ({ date: format(new Date(p.date), "MMM d"), value: p.value }));
   return (
     <div className="card">
       <h2 style={{ marginBottom: 16 }}>{title}</h2>
       <ResponsiveContainer width="100%" height={220}>
         <LineChart data={chartData} margin={{ top: 4, right: 16, bottom: 4, left: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="rgba(26,22,18,0.15)" />
-          <XAxis dataKey="date" stroke="#3a2e22" tick={{ fontSize: 12, fontFamily: "var(--font-banner)" }} />
-          <YAxis
-            stroke="#3a2e22"
-            tick={{ fontSize: 12, fontFamily: "var(--font-banner)" }}
-            tickFormatter={yTickFormatter}
-            width={44}
-          />
-          <Tooltip
-            contentStyle={{ background: "#fbf0d4", border: "2px solid #1a1612", borderRadius: 0, fontFamily: "var(--font-body)" }}
-            labelStyle={{ color: "#1a1612", fontWeight: 700 }}
-            formatter={(v) => tooltipFormatter ? tooltipFormatter(v as number) : v}
-          />
-          <Line
-            type="monotone"
-            dataKey="value"
-            name={title}
-            stroke={color}
-            strokeWidth={3}
-            dot={{ r: 4, fill: color, stroke: "#1a1612", strokeWidth: 2 }}
-            activeDot={{ r: 6, stroke: "#1a1612", strokeWidth: 2 }}
-          />
+          <CartesianGrid strokeDasharray="3 3" stroke={GRID} />
+          <XAxis dataKey="date" stroke="#3a2e22" tick={AXIS} />
+          <YAxis stroke="#3a2e22" tick={AXIS} tickFormatter={yTickFormatter} width={44} />
+          <Tooltip contentStyle={TOOLTIP_STYLE} labelStyle={{ color: INK, fontWeight: 700 }}
+            formatter={(v) => tooltipFormatter ? tooltipFormatter(v as number) : v} />
+          <Line type="monotone" dataKey="value" name={title} stroke={color} strokeWidth={3}
+            dot={{ r: 4, fill: color, stroke: INK, strokeWidth: 2 }} activeDot={{ r: 6, stroke: INK, strokeWidth: 2 }} />
         </LineChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+/** Two-line lead progression: hardest flash vs hardest redpoint per session (Ewbank). */
+function LeadProgression({ flash, redpoint }: { flash: ProgressPoint[]; redpoint: ProgressPoint[] }) {
+  if (flash.length === 0 && redpoint.length === 0) {
+    return (
+      <div className="card">
+        <h2 style={{ marginBottom: 8 }}>Lead — Flash vs Redpoint (Ewbank)</h2>
+        <p className="muted" style={{ fontSize: 13 }}>No lead sends logged yet.</p>
+      </div>
+    );
+  }
+  // merge both series by date
+  const byDate: Record<string, { date: string; flash?: number; redpoint?: number }> = {};
+  for (const p of flash) {
+    const d = format(new Date(p.date), "MMM d");
+    (byDate[d] ??= { date: d }).flash = p.value;
+  }
+  for (const p of redpoint) {
+    const d = format(new Date(p.date), "MMM d");
+    (byDate[d] ??= { date: d }).redpoint = p.value;
+  }
+  const merged = Object.values(byDate);
+
+  return (
+    <div className="card">
+      <h2 style={{ marginBottom: 16 }}>Lead — Flash vs Redpoint (Ewbank)</h2>
+      <ResponsiveContainer width="100%" height={240}>
+        <LineChart data={merged} margin={{ top: 4, right: 16, bottom: 4, left: 0 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke={GRID} />
+          <XAxis dataKey="date" stroke="#3a2e22" tick={AXIS} />
+          <YAxis stroke="#3a2e22" tick={AXIS} width={36} domain={["dataMin - 1", "dataMax + 1"]} allowDecimals={false} />
+          <Tooltip contentStyle={TOOLTIP_STYLE} labelStyle={{ color: INK, fontWeight: 700 }} />
+          <Legend wrapperStyle={{ fontFamily: "var(--font-banner)", fontSize: 11 }} />
+          <Line type="monotone" dataKey="flash" name="FLASH" stroke={FLASH} strokeWidth={3} connectNulls
+            dot={{ r: 4, fill: FLASH, stroke: INK, strokeWidth: 2 }} activeDot={{ r: 6, stroke: INK, strokeWidth: 2 }} />
+          <Line type="monotone" dataKey="redpoint" name="REDPOINT" stroke={SEA} strokeWidth={3} connectNulls
+            dot={{ r: 4, fill: SEA, stroke: INK, strokeWidth: 2 }} activeDot={{ r: 6, stroke: INK, strokeWidth: 2 }} />
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+/** Aggregate send pyramid — flash + redpoint stacked, hardest grade at top. */
+function LeadPyramid({ rows }: { rows: LeadPyramidRow[] }) {
+  if (rows.length === 0) {
+    return (
+      <div className="card">
+        <h2 style={{ marginBottom: 8 }}>Lead — Send Pyramid (Ewbank)</h2>
+        <p className="muted" style={{ fontSize: 13 }}>No lead sends logged yet.</p>
+      </div>
+    );
+  }
+  const height = Math.max(140, rows.length * 34 + 40);
+  return (
+    <div className="card">
+      <h2 style={{ marginBottom: 16 }}>Lead — Send Pyramid (Ewbank)</h2>
+      <ResponsiveContainer width="100%" height={height}>
+        <BarChart data={rows} layout="vertical" margin={{ top: 4, right: 16, bottom: 4, left: 0 }} barCategoryGap={6}>
+          <CartesianGrid strokeDasharray="3 3" stroke={GRID} horizontal={false} />
+          <XAxis type="number" stroke="#3a2e22" tick={AXIS} allowDecimals={false} />
+          <YAxis type="category" dataKey="grade" stroke="#3a2e22" tick={AXIS} width={36} />
+          <Tooltip contentStyle={TOOLTIP_STYLE} labelStyle={{ color: INK, fontWeight: 700 }} />
+          <Legend wrapperStyle={{ fontFamily: "var(--font-banner)", fontSize: 11 }} />
+          <Bar dataKey="flash" name="FLASH" stackId="a" fill={FLASH} stroke={INK} strokeWidth={2} />
+          <Bar dataKey="redpoint" name="REDPOINT" stackId="a" fill={SEA} stroke={INK} strokeWidth={2} />
+        </BarChart>
       </ResponsiveContainer>
     </div>
   );
@@ -94,9 +130,7 @@ function ChartCard({
 export default function Progress() {
   const [data, setData] = useState<ProgressData | null>(null);
 
-  useEffect(() => {
-    api.getProgress().then(setData);
-  }, []);
+  useEffect(() => { api.getProgress().then(setData); }, []);
 
   if (!data) return <div className="page"><p className="muted">Loading…</p></div>;
 
@@ -104,33 +138,15 @@ export default function Progress() {
     <div className="page">
       <h1 style={{ marginBottom: 24 }}>Progress</h1>
       <div className="gap-col">
-        {data.lead_max_grade_ewbank.length > 0 && (
-          <ChartCard
-            title="Lead — Max Grade (Ewbank, sends)"
-            data={data.lead_max_grade_ewbank}
-            color="#d63a2a"
-            yTickFormatter={(v) => String(Math.round(v + 1))}
-            tooltipFormatter={(v) => String(Math.round(v + 1))}
-          />
-        )}
-        {data.lead_max_grade_yds.length > 0 && (
-          <ChartCard
-            title="Lead — Max Grade (YDS, sends)"
-            data={data.lead_max_grade_yds}
-            color="#d9558a"
-            yTickFormatter={(v) => YDS_GRADES[v] ?? `5.?`}
-            tooltipFormatter={(v) => YDS_GRADES[v] ?? `5.?`}
-          />
-        )}
-        {data.lead_max_grade_french.length > 0 && (
-          <ChartCard
-            title="Lead — Max Grade (French, sends)"
-            data={data.lead_max_grade_french}
-            color="#2a4a8a"
-            yTickFormatter={(v) => FRENCH_GRADES[v] ?? `?`}
-            tooltipFormatter={(v) => FRENCH_GRADES[v] ?? `?`}
-          />
-        )}
+        <LeadProgression flash={data.lead_flash_progression} redpoint={data.lead_redpoint_progression} />
+        <LeadPyramid rows={data.lead_send_pyramid} />
+        <ChartCard
+          title="Limit Boulder Max Grade (Sends)"
+          data={data.boulder_max_grade}
+          color={SEA}
+          yTickFormatter={(v) => BOULDER_GRADES[v] ?? `V${v}`}
+          tooltipFormatter={(v) => BOULDER_GRADES[v] ?? `V${v}`}
+        />
         <ChartCard
           title="Fingerboard Max Added Weight"
           data={data.fingerboard_max_weight}
@@ -139,16 +155,9 @@ export default function Progress() {
           tooltipFormatter={(v) => `${v} kg`}
         />
         <ChartCard
-          title="Limit Boulder Max Grade (Sends)"
-          data={data.boulder_max_grade}
-          color="#2d8a73"
-          yTickFormatter={(v) => BOULDER_GRADES[v] ?? `V${v}`}
-          tooltipFormatter={(v) => BOULDER_GRADES[v] ?? `V${v}`}
-        />
-        <ChartCard
           title="Strength Max Added Weight"
           data={data.strength_max_weight}
-          color="#e8a83b"
+          color={FLASH}
           yTickFormatter={(v) => `${v}kg`}
           tooltipFormatter={(v) => `${v} kg`}
         />

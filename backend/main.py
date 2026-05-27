@@ -472,27 +472,52 @@ def get_progress(db: DBSession = Depends(get_db)):
             label=f"{best.exercise} +{best.added_weight_kg}kg",
         ))
 
-    lead_by_system: dict[str, list[schemas.ProgressPoint]] = {"ewbank": [], "yds": [], "french": []}
+    # --- Lead (Ewbank only) ---
+    # Flash family = clean first-go; redpoint family = worked then sent.
+    FLASH_SENDS = {"flash", "onsight"}
+    RP_SENDS = {"redpoint", "pinkpoint"}
+
+    def ewbank_num(grade: str) -> int:
+        try:
+            return int(grade)
+        except (TypeError, ValueError):
+            return -1
+
+    flash_prog: list[schemas.ProgressPoint] = []
+    rp_prog: list[schemas.ProgressPoint] = []
     for s in db.query(models.Session).join(models.LeadRouteEntry).order_by(models.Session.date).all():
-        for system, order in GRADE_ORDERS.items():
-            sends = [
-                e for e in s.lead_route_entries
-                if e.grade_system == system and e.send_type in REDPOINT_SENDS
-            ]
-            if not sends:
-                continue
-            best = max(sends, key=lambda e: grade_to_int(e.grade, order))
-            lead_by_system[system].append(
-                schemas.ProgressPoint(date=s.date, value=grade_to_int(best.grade, order), label=best.grade)
-            )
+        ewbank = [e for e in s.lead_route_entries if e.grade_system == "ewbank"]
+        flashes = [e for e in ewbank if e.send_type in FLASH_SENDS and ewbank_num(e.grade) >= 0]
+        redpoints = [e for e in ewbank if e.send_type in RP_SENDS and ewbank_num(e.grade) >= 0]
+        if flashes:
+            best = max(flashes, key=lambda e: ewbank_num(e.grade))
+            flash_prog.append(schemas.ProgressPoint(date=s.date, value=ewbank_num(best.grade), label=best.grade))
+        if redpoints:
+            best = max(redpoints, key=lambda e: ewbank_num(e.grade))
+            rp_prog.append(schemas.ProgressPoint(date=s.date, value=ewbank_num(best.grade), label=best.grade))
+
+    # Aggregate send pyramid (all-time), hardest grade first.
+    pyramid: dict[str, dict[str, int]] = {}
+    for e in db.query(models.LeadRouteEntry).filter(models.LeadRouteEntry.grade_system == "ewbank").all():
+        if ewbank_num(e.grade) < 0:
+            continue
+        if e.send_type in FLASH_SENDS:
+            pyramid.setdefault(e.grade, {"flash": 0, "redpoint": 0})["flash"] += 1
+        elif e.send_type in RP_SENDS:
+            pyramid.setdefault(e.grade, {"flash": 0, "redpoint": 0})["redpoint"] += 1
+    pyramid_rows = [
+        schemas.LeadPyramidRow(grade=g, flash=v["flash"], redpoint=v["redpoint"])
+        for g, v in pyramid.items()
+    ]
+    pyramid_rows.sort(key=lambda r: ewbank_num(r.grade), reverse=True)
 
     return schemas.ProgressData(
         fingerboard_max_weight=fb_points,
         boulder_max_grade=bl_points,
         strength_max_weight=st_points,
-        lead_max_grade_ewbank=lead_by_system["ewbank"],
-        lead_max_grade_yds=lead_by_system["yds"],
-        lead_max_grade_french=lead_by_system["french"],
+        lead_flash_progression=flash_prog,
+        lead_redpoint_progression=rp_prog,
+        lead_send_pyramid=pyramid_rows,
     )
 
 
