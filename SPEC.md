@@ -1,7 +1,7 @@
 # sendlog — V1 (Tick Sheet) handoff spec
 
 A coaching doc for the agent working on the codebase. Hi-fi mockups live in
-`index.html` (the "V1 · Tick Sheet — deep dive" section is the canonical
+`docs/mockup/index.html` (the "V1 · Tick Sheet — deep dive" section is the canonical
 reference). Read this top-to-bottom before opening a PR.
 
 ---
@@ -24,7 +24,7 @@ reference). Read this top-to-bottom before opening a PR.
 
 ## States the agent must build
 
-Six screens in `index.html` under "V1 · Tick Sheet — deep dive", in build
+Six screens in `docs/mockup/index.html` under "V1 · Tick Sheet — deep dive", in build
 order:
 
 1. **A — Recommended (Tick Sheet + Recents)** — the main screen. Land here
@@ -49,7 +49,7 @@ order:
 
 ## Visual system (canonical)
 
-### Palette (CSS vars in `styles.css`)
+### Palette (CSS vars in `docs/mockup/styles.css`)
 
 | Token       | Hex       | Use                                                      |
 | ----------- | --------- | -------------------------------------------------------- |
@@ -113,7 +113,7 @@ or 22px (feed entry).
 
 ### Iconography
 
-Monoline, 2.5px stroke, square caps & joins. See `system.jsx#ICON` for the
+Monoline, 2.5px stroke, square caps & joins. See `docs/mockup/system.jsx#ICON` for the
 home / log / charts / list set. No emoji anywhere except inside
 user-entered notes.
 
@@ -121,7 +121,7 @@ user-entered notes.
 
 ## Components to port from the mockup into the codebase
 
-All live in `system.jsx` in this project; copy and re-implement in TS:
+All live in `docs/mockup/system.jsx` in this project; copy and re-implement in TS:
 
 | Component         | Purpose                                                      |
 | ----------------- | ------------------------------------------------------------ |
@@ -219,7 +219,7 @@ named export. Storybook them on a private `/design` route during dev.
 ### Frontend
 
 1. **Replace `src/index.css` entirely.** Adopt all tokens from this
-   project's `styles.css`. Body bg = `--paper` + halftone overlay.
+   project's `docs/mockup/styles.css`. Body bg = `--paper` + halftone overlay.
    Body color = `--ink`. No dark theme.
 2. **Delete the old `.card` / `.btn-*` / `.tag-*` classes.** Replace
    `.card` usages with the new `<GradeChip>`/`<RecentChip>` or chunky
@@ -283,7 +283,7 @@ Minimal changes:
 
 ### PR 1 — Visual system + container
 
-- Adopt `styles.css` tokens. Replace `index.css`.
+- Adopt `docs/mockup/styles.css` tokens. Replace `index.css`.
 - Build the 9 reusable components in `src/ui/`.
 - Storybook page at `/design` listing all of them.
 - Replace the wordmark and nav across the app.
@@ -361,6 +361,6 @@ Minimal changes:
 
 ---
 
-*Visual reference: open `index.html` and drag/scroll through the canvas.
+*Visual reference: open `docs/mockup/index.html` and drag/scroll through the canvas.
 The "V1 · Tick Sheet — deep dive" section is the source of truth for
 this PR.*
