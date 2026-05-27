@@ -504,8 +504,11 @@ static_dir = Path(__file__).parent / "static"
 if static_dir.exists():
     app.mount("/assets", StaticFiles(directory=static_dir / "assets"), name="assets")
 
-if PHOTOS_DIR.exists():
-    app.mount("/photos", StaticFiles(directory=PHOTOS_DIR), name="photos")
+# Serve uploaded photos. Create the dir up front so the mount is always
+# registered — on a fresh bind mount it won't exist yet at import time,
+# and lifespan startup runs after the mounts are wired.
+PHOTOS_DIR.mkdir(parents=True, exist_ok=True)
+app.mount("/photos", StaticFiles(directory=PHOTOS_DIR), name="photos")
 
 if static_dir.exists():
     @app.get("/{full_path:path}", include_in_schema=False)
