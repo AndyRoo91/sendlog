@@ -522,6 +522,153 @@ def get_progress(db: DBSession = Depends(get_db)):
 
 
 # ---------------------------------------------------------------------------
+# Routes (projects) + pins
+# ---------------------------------------------------------------------------
+
+def get_route_or_404(route_id: int, db: DBSession) -> models.Route:
+    r = db.get(models.Route, route_id)
+    if not r:
+        raise HTTPException(status_code=404, detail="Route not found")
+    return r
+
+
+def route_summary(r: models.Route) -> schemas.RouteSummary:
+    dates = [p.date for p in r.pins]
+    return schemas.RouteSummary(
+        id=r.id, name=r.name, grade=r.grade, grade_system=r.grade_system,
+        location=r.location, notes=r.notes, topo_filename=r.topo_filename,
+        pin_count=len(r.pins), last_pin_date=max(dates) if dates else None,
+    )
+
+
+@app.get("/api/routes", response_model=list[schemas.RouteSummary])
+def list_routes(db: DBSession = Depends(get_db)):
+    routes = db.query(models.Route).order_by(models.Route.created_at.desc()).all()
+    return [route_summary(r) for r in routes]
+
+
+@app.post("/api/routes", response_model=schemas.RouteDetail, status_code=201)
+def create_route(payload: schemas.RouteCreate, db: DBSession = Depends(get_db)):
+    route = models.Route(**payload.model_dump())
+    db.add(route)
+    db.commit()
+    db.refresh(route)
+    route.ticks = []
+    return route
+
+
+@app.get("/api/routes/{route_id}", response_model=schemas.RouteDetail)
+def get_route(route_id: int, db: DBSession = Depends(get_db)):
+    route = get_route_or_404(route_id, db)
+    route.ticks = (
+        db.query(models.LeadRouteEntry)
+        .filter(models.LeadRouteEntry.route_id == route_id)
+        .order_by(models.LeadRouteEntry.logged_at)
+        .all()
+    )
+    for t in route.ticks:
+        t.photos = []
+    return route
+
+
+@app.patch("/api/routes/{route_id}", response_model=schemas.RouteDetail)
+def update_route(route_id: int, payload: schemas.RouteUpdate, db: DBSession = Depends(get_db)):
+    route = get_route_or_404(route_id, db)
+    for field, value in payload.model_dump(exclude_unset=True).items():
+        setattr(route, field, value)
+    db.commit()
+    db.refresh(route)
+    route.ticks = (
+        db.query(models.LeadRouteEntry).filter(models.LeadRouteEntry.route_id == route_id).all()
+    )
+    for t in route.ticks:
+        t.photos = []
+    return route
+
+
+@app.delete("/api/routes/{route_id}", status_code=204)
+def delete_route(route_id: int, db: DBSession = Depends(get_db)):
+    route = get_route_or_404(route_id, db)
+    # unlink ticks
+    for t in db.query(models.LeadRouteEntry).filter(models.LeadRouteEntry.route_id == route_id).all():
+        t.route_id = None
+    # remove topo file (only if route-owned, i.e. starts with "route_")
+    if route.topo_filename and route.topo_filename.startswith("route_"):
+        p = PHOTOS_DIR / route.topo_filename
+        if p.exists():
+            p.unlink()
+    db.delete(route)
+    db.commit()
+
+
+@app.post("/api/routes/{route_id}/topo", response_model=schemas.RouteDetail)
+async def upload_topo(route_id: int, file: UploadFile = File(...), db: DBSession = Depends(get_db)):
+    route = get_route_or_404(route_id, db)
+    if file.content_type not in ALLOWED_IMAGE_TYPES:
+        raise HTTPException(status_code=400, detail="Only JPEG, PNG, WebP and HEIC images are accepted")
+    ext = Path(file.filename or "topo.jpg").suffix.lower() or ".jpg"
+    filename = f"route_{route_id}_{uuid.uuid4().hex}{ext}"
+    (PHOTOS_DIR / filename).write_bytes(await file.read())
+    route.topo_filename = filename
+    db.commit()
+    db.refresh(route)
+    route.ticks = []
+    return route
+
+
+@app.post("/api/routes/{route_id}/topo/from-photo", response_model=schemas.RouteDetail)
+def topo_from_photo(route_id: int, photo_id: int, db: DBSession = Depends(get_db)):
+    """Promote an existing entry photo to be this route's topo (copies the file
+    so the route keeps it even if the original tick photo is deleted)."""
+    route = get_route_or_404(route_id, db)
+    photo = db.get(models.EntryPhoto, photo_id)
+    if not photo:
+        raise HTTPException(status_code=404, detail="Photo not found")
+    src = PHOTOS_DIR / photo.filename
+    if not src.exists():
+        raise HTTPException(status_code=404, detail="Photo file missing")
+    ext = Path(photo.filename).suffix or ".jpg"
+    filename = f"route_{route_id}_{uuid.uuid4().hex}{ext}"
+    (PHOTOS_DIR / filename).write_bytes(src.read_bytes())
+    route.topo_filename = filename
+    db.commit()
+    db.refresh(route)
+    route.ticks = []
+    return route
+
+
+@app.post("/api/routes/{route_id}/pins", response_model=schemas.RoutePin, status_code=201)
+def add_pin(route_id: int, payload: schemas.RoutePinCreate, db: DBSession = Depends(get_db)):
+    get_route_or_404(route_id, db)
+    pin = models.RoutePin(route_id=route_id, **payload.model_dump())
+    db.add(pin)
+    db.commit()
+    db.refresh(pin)
+    return pin
+
+
+@app.patch("/api/pins/{pin_id}", response_model=schemas.RoutePin)
+def update_pin(pin_id: int, payload: schemas.RoutePinUpdate, db: DBSession = Depends(get_db)):
+    pin = db.get(models.RoutePin, pin_id)
+    if not pin:
+        raise HTTPException(status_code=404, detail="Pin not found")
+    for field, value in payload.model_dump(exclude_unset=True).items():
+        setattr(pin, field, value)
+    db.commit()
+    db.refresh(pin)
+    return pin
+
+
+@app.delete("/api/pins/{pin_id}", status_code=204)
+def delete_pin(pin_id: int, db: DBSession = Depends(get_db)):
+    pin = db.get(models.RoutePin, pin_id)
+    if not pin:
+        raise HTTPException(status_code=404, detail="Pin not found")
+    db.delete(pin)
+    db.commit()
+
+
+# ---------------------------------------------------------------------------
 # Serve React SPA
 # ---------------------------------------------------------------------------
 
