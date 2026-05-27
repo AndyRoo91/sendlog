@@ -63,6 +63,35 @@ To expose it on your local network, point your router or reverse proxy at port `
 | `DATABASE_URL` | `sqlite:///./climbing.db` | SQLite path |
 | `PHOTOS_DIR` | `./photos` | Directory for uploaded photos |
 
+## Deploying as a Portainer stack (Synology NAS)
+
+The repo ships a prebuilt image to GitHub Container Registry, so the NAS just
+pulls it — no building on the Synology.
+
+**1. Publish the image (one time).** Pushing to `main` runs
+`.github/workflows/docker-publish.yml`, which builds and pushes
+`ghcr.io/andyroo91/sendlog:latest`. After the first successful run, the image
+appears under your GitHub profile → Packages.
+
+**2. Make the package pullable.** Easiest: open the `sendlog` package on GitHub
+→ Package settings → Change visibility → **Public**. (Or keep it private and add
+a GHCR registry in Portainer → Registries, using a GitHub PAT with the
+`read:packages` scope.)
+
+**3. Create the host folder for data.** In File Station make e.g.
+`/volume1/docker/sendlog/data`. The SQLite DB and photos live here and persist
+across redeploys.
+
+**4. Add the stack in Portainer.** Stacks → Add stack → Web editor, paste
+[`docker-compose.ghcr.yml`](docker-compose.ghcr.yml), edit the bind-mount host
+path to match step 3, then Deploy. (Or use a Repository stack pointing at this
+file.)
+
+**5. Updating.** Push to `main` → the Action publishes a new `:latest` → in
+Portainer, **Pull and redeploy** the stack.
+
+The app listens on port `8000`; point your UniFi gateway / reverse proxy there.
+
 ## Tech stack
 
 - **Backend** — Python, FastAPI, SQLAlchemy, SQLite
