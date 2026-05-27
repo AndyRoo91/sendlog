@@ -88,6 +88,7 @@ class LeadRouteEntryBase(BaseModel):
     attempts: int | None = None
     falls: int | None = None
     notes: str | None = None
+    route_id: int | None = None
 
 
 class LeadRouteEntryCreate(LeadRouteEntryBase):
@@ -180,3 +181,67 @@ class ProgressData(BaseModel):
     lead_flash_progression: list[ProgressPoint]
     lead_redpoint_progression: list[ProgressPoint]
     lead_send_pyramid: list[LeadPyramidRow]
+
+
+# --- Routes (projects) + pins ---
+
+class RoutePinBase(BaseModel):
+    date: DateType
+    x: float
+    y: float
+    kind: str = "highpoint"
+    note: str | None = None
+
+
+class RoutePinCreate(RoutePinBase):
+    pass
+
+
+class RoutePinUpdate(BaseModel):
+    date: DateType | None = None
+    x: float | None = None
+    y: float | None = None
+    kind: str | None = None
+    note: str | None = None
+
+
+class RoutePin(RoutePinBase):
+    id: int
+    route_id: int
+    model_config = {"from_attributes": True}
+
+
+class RouteBase(BaseModel):
+    name: str
+    grade: str | None = None
+    grade_system: str = "ewbank"
+    location: str | None = None
+    notes: str | None = None
+
+
+class RouteCreate(RouteBase):
+    pass
+
+
+class RouteUpdate(BaseModel):
+    name: str | None = None
+    grade: str | None = None
+    grade_system: str | None = None
+    location: str | None = None
+    notes: str | None = None
+
+
+class RouteSummary(RouteBase):
+    id: int
+    topo_filename: str | None = None
+    pin_count: int = 0
+    last_pin_date: DateType | None = None
+    model_config = {"from_attributes": True}
+
+
+class RouteDetail(RouteBase):
+    id: int
+    topo_filename: str | None = None
+    pins: list[RoutePin] = []
+    ticks: list[LeadRouteEntry] = []
+    model_config = {"from_attributes": True}

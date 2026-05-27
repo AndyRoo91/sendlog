@@ -1,0 +1,146 @@
+import { useMemo, useState } from "react";
+import { api } from "../api/client";
+import type { RoutePin } from "../api/client";
+import { PIN_KINDS, pinKind } from "../lib/pins";
+
+interface Props {
+  routeId: number;
+  topoFilename: string;
+  pins: RoutePin[];
+  onChange: (pins: RoutePin[]) => void;
+  onClose: () => void;
+}
+
+const today = () => new Date().toISOString().split("T")[0];
+
+/** Fullscreen topo viewer: tap to drop a pin, see every session's pins overlaid. */
+export default function TopoPinEditor({ routeId, topoFilename, pins, onChange, onClose }: Props) {
+  const [activeKind, setActiveKind] = useState("highpoint");
+  const [date, setDate] = useState(today());
+  const [selected, setSelected] = useState<number | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  // chronological order → marker numbering + recency fade
+  const ordered = useMemo(
+    () => [...pins].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : a.id - b.id)),
+    [pins]
+  );
+  const numberOf = useMemo(() => {
+    const m: Record<number, number> = {};
+    ordered.forEach((p, i) => { m[p.id] = i + 1; });
+    return m;
+  }, [ordered]);
+  const latestDate = ordered.length ? ordered[ordered.length - 1].date : "";
+
+  async function placePin(e: React.MouseEvent<HTMLDivElement>) {
+    if (busy) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
+    const y = Math.min(1, Math.max(0, (e.clientY - rect.top) / rect.height));
+    setBusy(true);
+    try {
+      const pin = await api.addPin(routeId, { date, x, y, kind: activeKind, note: null });
+      onChange([...pins, pin]);
+      setSelected(pin.id);
+    } finally { setBusy(false); }
+  }
+
+  async function removePin(id: number) {
+    await api.deletePin(id);
+    onChange(pins.filter((p) => p.id !== id));
+    setSelected(null);
+  }
+
+  async function setNote(id: number, note: string) {
+    const updated = await api.updatePin(id, { note: note || null });
+    onChange(pins.map((p) => p.id === id ? updated : p));
+  }
+
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 100, background: "rgba(26,22,18,0.92)", display: "flex", flexDirection: "column" }}>
+      {/* Top bar */}
+      <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "14px 14px 10px", color: "var(--cream)" }}>
+        <div style={{ fontFamily: "var(--font-banner)", fontSize: 12, letterSpacing: "0.08em", flex: 1 }}>★ TAP THE PHOTO TO DROP A PIN</div>
+        <input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={{ width: "auto", fontSize: 12, padding: "4px 8px" }} />
+        <button className="btn-secondary btn-sm" onClick={onClose}>Done</button>
+      </div>
+
+      {/* Kind selector */}
+      <div style={{ display: "flex", gap: 6, padding: "0 14px 10px", flexWrap: "wrap" }}>
+        {PIN_KINDS.map((k) => (
+          <div key={k.id} className="chunky" onClick={() => setActiveKind(k.id)}
+            style={{
+              padding: "4px 9px", fontSize: 10, fontFamily: "var(--font-banner)", letterSpacing: "0.04em",
+              background: k.color, color: k.id === "highpoint" || k.id === "crux" ? "var(--ink)" : "var(--cream)",
+              boxShadow: activeKind === k.id ? "0 0 0 3px var(--cream)" : "none",
+            }}>
+            {k.star ? "★ " : ""}{k.label.toUpperCase()}
+          </div>
+        ))}
+      </div>
+
+      {/* Image with pins */}
+      <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", padding: "0 8px" }}>
+        <div style={{ position: "relative", maxHeight: "100%", maxWidth: "100%" }} onClick={placePin}>
+          <img src={`/photos/${topoFilename}`} alt="Route topo"
+            style={{ display: "block", maxHeight: "62vh", maxWidth: "100%", border: "var(--bw) solid var(--ink)", cursor: busy ? "wait" : "crosshair" }} />
+          {ordered.map((p) => {
+            const k = pinKind(p.kind);
+            const faded = p.date < latestDate;
+            return (
+              <div key={p.id}
+                onClick={(e) => { e.stopPropagation(); setSelected(selected === p.id ? null : p.id); }}
+                style={{
+                  position: "absolute", left: `${p.x * 100}%`, top: `${p.y * 100}%`,
+                  transform: "translate(-50%, -50%)", cursor: "pointer",
+                  width: 26, height: 26, borderRadius: "50%",
+                  background: k.color, border: "2.5px solid var(--ink)",
+                  color: k.id === "highpoint" || k.id === "crux" ? "var(--ink)" : "var(--cream)",
+                  fontFamily: "var(--font-display)", fontSize: 12,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  opacity: faded ? 0.45 : 1,
+                  boxShadow: selected === p.id ? "0 0 0 3px var(--cream)" : "2px 2px 0 var(--ink)",
+                }}>
+                {k.star ? "★" : numberOf[p.id]}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Progression list */}
+      <div className="no-scrollbar" style={{ maxHeight: "26vh", overflow: "auto", background: "var(--paper)", borderTop: "var(--bw) solid var(--ink)", padding: "10px 14px" }}>
+        <div style={{ fontFamily: "var(--font-banner)", fontSize: 10, letterSpacing: "0.1em", color: "var(--ink-2)", marginBottom: 8 }}>
+          PROGRESSION · {ordered.length} PIN{ordered.length === 1 ? "" : "S"}
+        </div>
+        {ordered.length === 0 && <p className="muted" style={{ fontSize: 13 }}>No pins yet — tap the photo above.</p>}
+        {ordered.map((p) => {
+          const k = pinKind(p.kind);
+          return (
+            <div key={p.id} className="gap-row" style={{ justifyContent: "space-between", marginBottom: 8 }}>
+              <div className="gap-row" style={{ gap: 8 }}>
+                <span style={{ width: 22, height: 22, borderRadius: "50%", background: k.color, border: "2px solid var(--ink)", color: k.id === "highpoint" || k.id === "crux" ? "var(--ink)" : "var(--cream)", fontFamily: "var(--font-display)", fontSize: 11, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  {k.star ? "★" : numberOf[p.id]}
+                </span>
+                <span style={{ fontFamily: "var(--font-banner)", fontSize: 11 }}>{p.date}</span>
+                <span className="tag" style={{ background: k.color, color: k.id === "highpoint" || k.id === "crux" ? "var(--ink)" : "var(--cream)" }}>{k.label}</span>
+              </div>
+              <button className="btn-danger btn-sm" onClick={() => removePin(p.id)}>✕</button>
+            </div>
+          );
+        })}
+        {selected != null && (() => {
+          const p = pins.find((x) => x.id === selected);
+          if (!p) return null;
+          return (
+            <div style={{ marginTop: 6 }}>
+              <label>Note for pin {numberOf[p.id]}</label>
+              <input defaultValue={p.note ?? ""} placeholder="e.g. dropped at the rail"
+                onBlur={(e) => setNote(p.id, e.target.value)} />
+            </div>
+          );
+        })()}
+      </div>
+    </div>
+  );
+}

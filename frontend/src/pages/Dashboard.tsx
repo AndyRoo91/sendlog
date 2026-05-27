@@ -29,7 +29,7 @@ export default function Dashboard() {
         </Link>
       </div>
 
-      <div className="grid-3" style={{ marginBottom: 24 }}>
+      <div className="grid-3" style={{ marginBottom: 16 }}>
         <div className="card">
           <div className="muted" style={{ fontSize: 13, marginBottom: 4 }}>Total Sessions</div>
           <div style={{ fontSize: 28, fontWeight: 700 }}>{totalSessions}</div>
@@ -45,6 +45,16 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+
+      <Link to="/routes" style={{ textDecoration: "none" }}>
+        <div className="card gap-row" style={{ justifyContent: "space-between", alignItems: "center", marginBottom: 24, cursor: "pointer" }}>
+          <div>
+            <div style={{ fontFamily: "var(--font-display)", fontSize: 18 }}>📍 Projects</div>
+            <div className="muted" style={{ fontSize: 12 }}>Track high-points on a route photo across sessions</div>
+          </div>
+          <span style={{ fontFamily: "var(--font-banner)", fontSize: 18 }}>→</span>
+        </div>
+      </Link>
 
       <div className="card">
         <div className="section-header">

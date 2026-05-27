@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { api } from "../api/client";
-import type { BoulderEntry, LeadRouteEntry, EntryPhoto } from "../api/client";
+import type { BoulderEntry, LeadRouteEntry, EntryPhoto, RouteSummary } from "../api/client";
 import { GradeChip, StyleRibbonRow, STYLE_BY_ID, STYLE_TO_SEND_TYPE, sendTypeToStyle } from "../ui";
 import type { StyleId } from "../ui";
 import type { GradeSystem } from "../lib/grades";
@@ -53,15 +54,31 @@ export default function DetailSheet({ sessionId, target, onClose, onSavedBoulder
   const [photos, setPhotos] = useState<EntryPhoto[]>(entry?.photos ?? []);
   const [saving, setSaving] = useState(false);
 
+  // project linking (lead only)
+  const [routes, setRoutes] = useState<RouteSummary[]>([]);
+  const [routeId, setRouteId] = useState<number | null>(lead?.route_id ?? null);
+  const [newProject, setNewProject] = useState("");
+
+  useEffect(() => {
+    if (isLead) api.listRoutes().then(setRoutes).catch(() => {});
+  }, [isLead]);
+
   const styleDef = STYLE_BY_ID[styleId];
 
   async function save() {
     setSaving(true);
     try {
       if (isLead) {
+        // create a project on the fly if a name was typed
+        let linkedId = routeId;
+        if (newProject.trim()) {
+          const r = await api.createRoute({ name: newProject.trim(), grade, grade_system: gradeSystem });
+          linkedId = r.id;
+        }
         const payload = {
           route_name: routeName || null, grade, grade_system: gradeSystem,
           send_type: STYLE_TO_SEND_TYPE[styleId], attempts, falls, notes: notes || null,
+          route_id: linkedId,
         };
         const saved = lead?.id
           ? await api.updateLead(lead.id, payload)
@@ -123,6 +140,24 @@ export default function DetailSheet({ sessionId, target, onClose, onSavedBoulder
           </div>
         )}
 
+        {isLead && (
+          <div style={{ marginBottom: 10 }}>
+            <label>Project · track high-points</label>
+            <select value={routeId ?? ""} onChange={(e) => { setRouteId(e.target.value ? Number(e.target.value) : null); setNewProject(""); }}>
+              <option value="">— none —</option>
+              {routes.map((r) => <option key={r.id} value={r.id}>{r.name}{r.grade ? ` (${r.grade})` : ""}</option>)}
+            </select>
+            {routeId == null && (
+              <input value={newProject} onChange={(e) => setNewProject(e.target.value)} placeholder="…or type a new project name" style={{ marginTop: 6 }} />
+            )}
+            {routeId != null && (
+              <Link to={`/routes/${routeId}`} onClick={onClose} style={{ display: "inline-block", marginTop: 6, fontFamily: "var(--font-banner)", fontSize: 11, letterSpacing: "0.06em" }}>
+                OPEN PROJECT · MARK HIGH-POINT ↗
+              </Link>
+            )}
+          </div>
+        )}
+
         <div style={{ display: "grid", gridTemplateColumns: isLead ? "1fr 1fr" : "1fr", gap: 10, marginBottom: 10 }}>
           <Stepper label="Attempts" value={attempts} min={1} onChange={setAttempts} />
           {isLead && <Stepper label="Falls" value={falls} min={0} onChange={setFalls} />}
@@ -142,6 +177,16 @@ export default function DetailSheet({ sessionId, target, onClose, onSavedBoulder
           <div style={{ marginBottom: 14 }}>
             <label>Photos</label>
             <PhotoUploader entryType={target.kind} entryId={entry.id} photos={photos} onChange={setPhotos} />
+            {isLead && routeId != null && photos.length > 0 && (
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8 }}>
+                {photos.map((p) => (
+                  <button key={p.id} type="button" className="btn-secondary btn-sm"
+                    onClick={async () => { await api.topoFromPhoto(routeId, p.id); }}>
+                    Use as project topo
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         )}
 

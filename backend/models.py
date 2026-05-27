@@ -98,6 +98,7 @@ class LeadRouteEntry(Base):
     falls: Mapped[int | None] = mapped_column(Integer)
     notes: Mapped[str | None] = mapped_column(Text)
     logged_at: Mapped[datetime | None] = mapped_column(DateTime, default=datetime.utcnow)
+    route_id: Mapped[int | None] = mapped_column(ForeignKey("routes.id"), index=True)
 
     session: Mapped["Session"] = relationship(back_populates="lead_route_entries")
 
@@ -110,3 +111,37 @@ class EntryPhoto(Base):
     entry_type: Mapped[str] = mapped_column(String(10), nullable=False)  # "lead" | "boulder"
     entry_id: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
     filename: Mapped[str] = mapped_column(String(200), nullable=False)
+
+
+class Route(Base):
+    """A persistent lead project — owns a canonical topo photo and high-point pins."""
+    __tablename__ = "routes"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    grade: Mapped[str | None] = mapped_column(String(10))
+    grade_system: Mapped[str] = mapped_column(String(10), nullable=False, default="ewbank")
+    location: Mapped[str | None] = mapped_column(String(100))
+    topo_filename: Mapped[str | None] = mapped_column(String(200))
+    notes: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime | None] = mapped_column(DateTime, default=datetime.utcnow)
+
+    pins: Mapped[list["RoutePin"]] = relationship(
+        back_populates="route", cascade="all, delete-orphan"
+    )
+
+
+class RoutePin(Base):
+    """A dated marker on a route's topo photo (x/y are 0..1 fractions of the image)."""
+    __tablename__ = "route_pins"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    route_id: Mapped[int] = mapped_column(ForeignKey("routes.id"), nullable=False, index=True)
+    date: Mapped[date] = mapped_column(Date, nullable=False)
+    x: Mapped[float] = mapped_column(Float, nullable=False)
+    y: Mapped[float] = mapped_column(Float, nullable=False)
+    kind: Mapped[str] = mapped_column(String(20), nullable=False, default="highpoint")
+    note: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime | None] = mapped_column(DateTime, default=datetime.utcnow)
+
+    route: Mapped["Route"] = relationship(back_populates="pins")

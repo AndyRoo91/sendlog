@@ -66,7 +66,9 @@ def run_migrations() -> None:
             except Exception:
                 pass
 
-        # Lead logged_at
+        # Lead logged_at + route_id (project link)
         l_cols = columns("lead_route_entries")
         if "logged_at" not in l_cols:
             conn.execute(text("ALTER TABLE lead_route_entries ADD COLUMN logged_at DATETIME"))
+        if "route_id" not in l_cols:
+            conn.execute(text("ALTER TABLE lead_route_entries ADD COLUMN route_id INTEGER"))

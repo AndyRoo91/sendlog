@@ -55,6 +55,50 @@ export interface LeadRouteEntry {
   notes?: string | null;
   photos?: EntryPhoto[];
   logged_at?: string | null;
+  route_id?: number | null;
+}
+
+export interface RoutePin {
+  id: number;
+  route_id: number;
+  date: string;
+  x: number;
+  y: number;
+  kind: string;
+  note?: string | null;
+}
+
+export interface RouteSummary {
+  id: number;
+  name: string;
+  grade?: string | null;
+  grade_system: string;
+  location?: string | null;
+  notes?: string | null;
+  topo_filename?: string | null;
+  pin_count: number;
+  last_pin_date?: string | null;
+}
+
+export interface RouteDetail extends RouteSummary {
+  pins: RoutePin[];
+  ticks: LeadRouteEntry[];
+}
+
+export interface RoutePayload {
+  name: string;
+  grade?: string | null;
+  grade_system?: string;
+  location?: string | null;
+  notes?: string | null;
+}
+
+export interface PinPayload {
+  date: string;
+  x: number;
+  y: number;
+  kind: string;
+  note?: string | null;
 }
 
 export interface RecentCombo {
@@ -196,4 +240,27 @@ export const api = {
     return res.json();
   },
   deletePhoto: (photoId: number) => req<void>(`/photos/${photoId}`, { method: "DELETE" }),
+
+  // --- Routes (projects) + pins ---
+  listRoutes: () => req<RouteSummary[]>("/routes"),
+  getRoute: (id: number) => req<RouteDetail>(`/routes/${id}`),
+  createRoute: (payload: RoutePayload) =>
+    req<RouteDetail>("/routes", { method: "POST", body: JSON.stringify(payload) }),
+  updateRoute: (id: number, payload: Partial<RoutePayload>) =>
+    req<RouteDetail>(`/routes/${id}`, { method: "PATCH", body: JSON.stringify(payload) }),
+  deleteRoute: (id: number) => req<void>(`/routes/${id}`, { method: "DELETE" }),
+  uploadTopo: async (routeId: number, file: File): Promise<RouteDetail> => {
+    const form = new FormData();
+    form.append("file", file);
+    const res = await fetch(`${BASE}/routes/${routeId}/topo`, { method: "POST", body: form });
+    if (!res.ok) throw new Error(`${res.status}: ${await res.text()}`);
+    return res.json();
+  },
+  topoFromPhoto: (routeId: number, photoId: number) =>
+    req<RouteDetail>(`/routes/${routeId}/topo/from-photo?photo_id=${photoId}`, { method: "POST" }),
+  addPin: (routeId: number, payload: PinPayload) =>
+    req<RoutePin>(`/routes/${routeId}/pins`, { method: "POST", body: JSON.stringify(payload) }),
+  updatePin: (pinId: number, payload: Partial<PinPayload>) =>
+    req<RoutePin>(`/pins/${pinId}`, { method: "PATCH", body: JSON.stringify(payload) }),
+  deletePin: (pinId: number) => req<void>(`/pins/${pinId}`, { method: "DELETE" }),
 };

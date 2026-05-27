@@ -6,6 +6,8 @@ import SessionView from "./pages/SessionView";
 import TickSheet from "./pages/TickSheet";
 import Summary from "./pages/Summary";
 import Progress from "./pages/Progress";
+import RoutesList from "./pages/RoutesList";
+import RouteDetail from "./pages/RouteDetail";
 import Design from "./pages/Design";
 import { Ribbon, TabBar } from "./ui";
 import "./App.css";
@@ -36,6 +38,8 @@ function Shell() {
           <Route path="/sessions/:id/summary" element={<Summary />} />
           <Route path="/sessions/:id/edit" element={<SessionView />} />
           <Route path="/progress" element={<Progress />} />
+          <Route path="/routes" element={<RoutesList />} />
+          <Route path="/routes/:id" element={<RouteDetail />} />
           <Route path="/design" element={<Design />} />
         </Routes>
       </main>
