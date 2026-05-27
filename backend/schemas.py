@@ -166,10 +166,17 @@ class ProgressPoint(BaseModel):
     label: str
 
 
+class LeadPyramidRow(BaseModel):
+    grade: str
+    flash: int
+    redpoint: int
+
+
 class ProgressData(BaseModel):
     fingerboard_max_weight: list[ProgressPoint]
     boulder_max_grade: list[ProgressPoint]
     strength_max_weight: list[ProgressPoint]
-    lead_max_grade_ewbank: list[ProgressPoint]
-    lead_max_grade_yds: list[ProgressPoint]
-    lead_max_grade_french: list[ProgressPoint]
+    # Lead (Ewbank only)
+    lead_flash_progression: list[ProgressPoint]
+    lead_redpoint_progression: list[ProgressPoint]
+    lead_send_pyramid: list[LeadPyramidRow]

@@ -102,13 +102,19 @@ export interface ProgressPoint {
   label: string;
 }
 
+export interface LeadPyramidRow {
+  grade: string;
+  flash: number;
+  redpoint: number;
+}
+
 export interface ProgressData {
   fingerboard_max_weight: ProgressPoint[];
   boulder_max_grade: ProgressPoint[];
   strength_max_weight: ProgressPoint[];
-  lead_max_grade_ewbank: ProgressPoint[];
-  lead_max_grade_yds: ProgressPoint[];
-  lead_max_grade_french: ProgressPoint[];
+  lead_flash_progression: ProgressPoint[];
+  lead_redpoint_progression: ProgressPoint[];
+  lead_send_pyramid: LeadPyramidRow[];
 }
 
 const BASE = "/api";
