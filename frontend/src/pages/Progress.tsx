@@ -6,6 +6,13 @@ import {
 import { api } from "../api/client";
 import type { ProgressData, ProgressPoint, LeadPyramidRow } from "../api/client";
 import { format } from "date-fns";
+import { Ribbon } from "../ui";
+
+const CHART_CARD_CLS = "card-flat offset-ink";
+const CHART_TITLE_STYLE = {
+  fontFamily: "var(--font-banner)", fontSize: 12, letterSpacing: "0.1em",
+  marginBottom: 14, color: "var(--ink)",
+} as const;
 
 const BOULDER_GRADES = [
   "V0","V1","V2","V3","V4","V5","V6","V7","V8","V9",
@@ -32,16 +39,16 @@ function ChartCard({
 }) {
   if (data.length === 0) {
     return (
-      <div className="card">
-        <h2 style={{ marginBottom: 8 }}>{title}</h2>
+      <div className={CHART_CARD_CLS} style={{ padding: 16 }}>
+        <div style={CHART_TITLE_STYLE}>{title}</div>
         <p className="muted" style={{ fontSize: 13 }}>No data yet — log some sessions to see progress.</p>
       </div>
     );
   }
   const chartData = data.map((p) => ({ date: format(new Date(p.date), "MMM d"), value: p.value }));
   return (
-    <div className="card">
-      <h2 style={{ marginBottom: 16 }}>{title}</h2>
+    <div className={CHART_CARD_CLS} style={{ padding: 16 }}>
+      <div style={CHART_TITLE_STYLE}>{title}</div>
       <ResponsiveContainer width="100%" height={220}>
         <LineChart data={chartData} margin={{ top: 4, right: 16, bottom: 4, left: 0 }}>
           <CartesianGrid strokeDasharray="3 3" stroke={GRID} />
@@ -61,8 +68,8 @@ function ChartCard({
 function LeadProgression({ onsight, flash, redpoint }: { onsight: ProgressPoint[]; flash: ProgressPoint[]; redpoint: ProgressPoint[] }) {
   if (onsight.length === 0 && flash.length === 0 && redpoint.length === 0) {
     return (
-      <div className="card">
-        <h2 style={{ marginBottom: 8 }}>Lead — Onsight / Flash / Redpoint (Ewbank)</h2>
+      <div className={CHART_CARD_CLS} style={{ padding: 16 }}>
+        <div style={CHART_TITLE_STYLE}>Lead — Onsight / Flash / Redpoint (Ewbank)</div>
         <p className="muted" style={{ fontSize: 13 }}>No lead sends logged yet.</p>
       </div>
     );
@@ -84,8 +91,8 @@ function LeadProgression({ onsight, flash, redpoint }: { onsight: ProgressPoint[
   const merged = Object.values(byDate);
 
   return (
-    <div className="card">
-      <h2 style={{ marginBottom: 16 }}>Lead — Onsight / Flash / Redpoint (Ewbank)</h2>
+    <div className={CHART_CARD_CLS} style={{ padding: 16 }}>
+      <div style={CHART_TITLE_STYLE}>Lead — Onsight / Flash / Redpoint (Ewbank)</div>
       <ResponsiveContainer width="100%" height={240}>
         <LineChart data={merged} margin={{ top: 4, right: 16, bottom: 4, left: 0 }}>
           <CartesianGrid strokeDasharray="3 3" stroke={GRID} />
@@ -109,16 +116,16 @@ function LeadProgression({ onsight, flash, redpoint }: { onsight: ProgressPoint[
 function LeadPyramid({ rows }: { rows: LeadPyramidRow[] }) {
   if (rows.length === 0) {
     return (
-      <div className="card">
-        <h2 style={{ marginBottom: 8 }}>Lead — Send Pyramid (Ewbank)</h2>
+      <div className={CHART_CARD_CLS} style={{ padding: 16 }}>
+        <div style={CHART_TITLE_STYLE}>Lead — Send Pyramid (Ewbank)</div>
         <p className="muted" style={{ fontSize: 13 }}>No lead sends logged yet.</p>
       </div>
     );
   }
   const height = Math.max(140, rows.length * 34 + 40);
   return (
-    <div className="card">
-      <h2 style={{ marginBottom: 16 }}>Lead — Send Pyramid (Ewbank)</h2>
+    <div className={CHART_CARD_CLS} style={{ padding: 16 }}>
+      <div style={CHART_TITLE_STYLE}>Lead — Send Pyramid (Ewbank)</div>
       <ResponsiveContainer width="100%" height={height}>
         <BarChart data={rows} layout="vertical" margin={{ top: 4, right: 16, bottom: 4, left: 0 }} barCategoryGap={6}>
           <CartesianGrid strokeDasharray="3 3" stroke={GRID} horizontal={false} />
@@ -144,7 +151,9 @@ export default function Progress() {
 
   return (
     <div className="page">
-      <h1 style={{ marginBottom: 24 }}>Progress</h1>
+      <div style={{ marginBottom: 22 }}>
+        <Ribbon color="var(--sea)" textColor="var(--cream)">★ PROGRESS ★</Ribbon>
+      </div>
       <div className="gap-col">
         <LeadProgression onsight={data.lead_onsight_progression} flash={data.lead_flash_progression} redpoint={data.lead_redpoint_progression} />
         <LeadPyramid rows={data.lead_send_pyramid} />
