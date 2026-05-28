@@ -224,6 +224,7 @@ const BASE = "/api";
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(BASE + path, {
     headers: { "Content-Type": "application/json" },
+    credentials: "include",   // send/store the session cookie
     ...init,
   });
   if (!res.ok) {
@@ -232,6 +233,17 @@ async function req<T>(path: string, init?: RequestInit): Promise<T> {
   }
   if (res.status === 204) return undefined as T;
   return res.json();
+}
+
+export interface AuthUser {
+  id: number;
+  username: string;
+  is_admin: boolean;
+  has_pin: boolean;
+}
+
+export class AuthError extends Error {
+  constructor(message: string) { super(message); this.name = "AuthError"; }
 }
 
 export interface SessionHeader {
@@ -243,6 +255,14 @@ export interface SessionHeader {
 }
 
 export const api = {
+  // --- Auth ---
+  me: () => req<AuthUser>("/auth/me"),
+  register: (username: string, password: string) =>
+    req<AuthUser>("/auth/register", { method: "POST", body: JSON.stringify({ username, password }) }),
+  login: (username: string, password: string) =>
+    req<AuthUser>("/auth/login", { method: "POST", body: JSON.stringify({ username, password }) }),
+  logout: () => req<void>("/auth/logout", { method: "POST" }),
+
   listSessions: () => req<SessionSummary[]>("/sessions"),
   listLocations: () => req<string[]>("/locations"),
   listRouteNames: () => req<string[]>("/route_names"),

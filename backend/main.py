@@ -4,13 +4,15 @@ from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
 
-from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
+from fastapi import Depends, FastAPI, File, HTTPException, Response, UploadFile
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session as DBSession
 from sqlalchemy import func, text as text_clause
 
 import achievements
+import auth
+import database
 import images
 import models
 import schemas
@@ -50,11 +52,30 @@ def attach_photos(entries: list, entry_type: str, db: DBSession) -> None:
         e.photos = photo_map.get(e.id, [])
 
 
-def get_session_or_404(session_id: int, db: DBSession) -> models.Session:
-    s = db.get(models.Session, session_id)
+def get_session_or_404(session_id: int, db: DBSession, user: "models.User | None" = None) -> models.Session:
+    """Fetch a session by id. If ``user`` is given, also enforce that they own it."""
+    q = db.query(models.Session).filter(models.Session.id == session_id)
+    if user is not None:
+        q = q.filter(models.Session.user_id == user.id)
+    s = q.first()
     if not s:
         raise HTTPException(status_code=404, detail="Session not found")
     return s
+
+
+def get_owned_entry_or_404(
+    model: type, entry_id: int, db: DBSession, user: models.User
+):
+    """Fetch an entry by id, enforcing ownership via its parent session."""
+    e = (
+        db.query(model)
+        .join(models.Session, model.session_id == models.Session.id)
+        .filter(model.id == entry_id, models.Session.user_id == user.id)
+        .first()
+    )
+    if not e:
+        raise HTTPException(status_code=404, detail="Entry not found")
+    return e
 
 
 def auto_start(session: models.Session) -> None:
@@ -63,10 +84,49 @@ def auto_start(session: models.Session) -> None:
         session.started_at = datetime.utcnow()
 
 
+def run_seed() -> None:
+    """First-run: create admin user from env vars + stamp pre-existing rows.
+
+    Idempotent — runs every startup but exits early once a user exists. Designed
+    so an existing single-user install (Andy's NAS) transitions cleanly: his
+    sessions / routes / achievements all get assigned to the admin user on
+    first boot post-upgrade.
+    """
+    with database.SessionLocal() as db:
+        existing_users = db.query(models.User).count()
+        if existing_users > 0:
+            return
+        username = os.getenv("ANDY_USERNAME", "andy")
+        password = os.getenv("ANDY_PASSWORD", "changeme")
+        if password == "changeme":
+            print(
+                "WARNING: ANDY_PASSWORD env var not set — seeding admin user "
+                "with default password 'changeme'. Log in and change it, or "
+                "set ANDY_PASSWORD before first start."
+            )
+        admin = models.User(
+            username=username,
+            password_hash=auth.hash_password(password),
+            is_admin=True,
+        )
+        db.add(admin)
+        db.flush()  # need admin.id
+        # Stamp any pre-existing rows (sessions/routes/achievements that were
+        # created before the user_id column existed) onto this admin.
+        for table in ("sessions", "routes", "achievements"):
+            db.execute(
+                text_clause(f"UPDATE {table} SET user_id = :uid WHERE user_id IS NULL"),
+                {"uid": admin.id},
+            )
+        db.commit()
+        print(f"Seeded admin user '{username}' (id={admin.id}).")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     run_migrations()
     Base.metadata.create_all(bind=engine)
+    run_seed()
     PHOTOS_DIR.mkdir(parents=True, exist_ok=True)
     yield
 
@@ -80,8 +140,69 @@ def healthz():
 
 
 # ---------------------------------------------------------------------------
+# Auth
+# ---------------------------------------------------------------------------
+
+def _user_to_schema(u: models.User) -> schemas.AuthUser:
+    return schemas.AuthUser(
+        id=u.id, username=u.username, is_admin=u.is_admin,
+        has_pin=u.pin_hash is not None,
+    )
+
+
+@app.post("/api/auth/register", response_model=schemas.AuthUser, status_code=201)
+def register(payload: schemas.AuthCredentials, response: Response, db: DBSession = Depends(get_db)):
+    username = payload.username.strip()
+    if not username or len(username) < 2:
+        raise HTTPException(status_code=400, detail="Username must be at least 2 characters")
+    if len(payload.password) < 6:
+        raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
+    existing = db.query(models.User).filter(models.User.username == username).first()
+    if existing:
+        raise HTTPException(status_code=409, detail="Username already taken")
+    user = models.User(
+        username=username,
+        password_hash=auth.hash_password(payload.password),
+        is_admin=False,
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    auth.set_session_cookie(response, user.id)
+    return _user_to_schema(user)
+
+
+@app.post("/api/auth/login", response_model=schemas.AuthUser)
+def login(payload: schemas.AuthCredentials, response: Response, db: DBSession = Depends(get_db)):
+    user = db.query(models.User).filter(models.User.username == payload.username.strip()).first()
+    if not user or not auth.verify_password(payload.password, user.password_hash):
+        raise HTTPException(status_code=401, detail="Invalid username or password")
+    auth.set_session_cookie(response, user.id)
+    return _user_to_schema(user)
+
+
+@app.post("/api/auth/logout", status_code=204)
+def logout(response: Response):
+    auth.clear_session_cookie(response)
+
+
+@app.get("/api/auth/me", response_model=schemas.AuthUser)
+def me(current_user: models.User = Depends(auth.get_current_user)):
+    return _user_to_schema(current_user)
+
+
+# ---------------------------------------------------------------------------
 # Photos
 # ---------------------------------------------------------------------------
+
+def _verify_photo_owner(entry_type: str, entry_id: int, db: DBSession, user: models.User) -> None:
+    """Ensure the calling user owns the entry/route this photo attaches to."""
+    if entry_type == "route":
+        get_route_or_404(entry_id, db, user)
+        return
+    model = models.LeadRouteEntry if entry_type == "lead" else models.LimitBoulderEntry
+    get_owned_entry_or_404(model, entry_id, db, user)
+
 
 @app.post("/api/photos/upload", response_model=schemas.EntryPhoto, status_code=201)
 async def upload_photo(
@@ -89,11 +210,13 @@ async def upload_photo(
     entry_id: int,
     file: UploadFile = File(...),
     db: DBSession = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
 ):
     if entry_type not in ("lead", "boulder", "route"):
         raise HTTPException(status_code=400, detail="entry_type must be 'lead', 'boulder', or 'route'")
     if file.content_type not in ALLOWED_IMAGE_TYPES:
         raise HTTPException(status_code=400, detail="Only JPEG, PNG, WebP and HEIC images are accepted")
+    _verify_photo_owner(entry_type, entry_id, db, current_user)
     try:
         filename = images.process_upload(
             await file.read(),
@@ -110,9 +233,18 @@ async def upload_photo(
 
 
 @app.delete("/api/photos/{photo_id}", status_code=204)
-def delete_photo(photo_id: int, db: DBSession = Depends(get_db)):
+def delete_photo(
+    photo_id: int,
+    db: DBSession = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
     photo = db.get(models.EntryPhoto, photo_id)
     if not photo:
+        raise HTTPException(status_code=404, detail="Photo not found")
+    # 404 (not 403) on cross-user deletes — don't leak existence.
+    try:
+        _verify_photo_owner(photo.entry_type, photo.entry_id, db, current_user)
+    except HTTPException:
         raise HTTPException(status_code=404, detail="Photo not found")
     images.delete_image(PHOTOS_DIR, photo.filename)
     db.delete(photo)
@@ -124,15 +256,27 @@ def delete_photo(photo_id: int, db: DBSession = Depends(get_db)):
 # ---------------------------------------------------------------------------
 
 @app.get("/api/sessions", response_model=list[schemas.SessionSummary])
-def list_sessions(db: DBSession = Depends(get_db)):
-    return db.query(models.Session).order_by(models.Session.date.desc()).all()
+def list_sessions(
+    db: DBSession = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    return (
+        db.query(models.Session)
+        .filter(models.Session.user_id == current_user.id)
+        .order_by(models.Session.date.desc())
+        .all()
+    )
 
 
 @app.get("/api/locations", response_model=list[str])
-def list_locations(db: DBSession = Depends(get_db)):
+def list_locations(
+    db: DBSession = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
     """Return distinct session locations ordered by frequency (most-used first)."""
     rows = (
         db.query(models.Session.location, func.count(models.Session.id).label("n"))
+        .filter(models.Session.user_id == current_user.id)
         .filter(models.Session.location.isnot(None))
         .filter(models.Session.location != "")
         .group_by(models.Session.location)
@@ -143,10 +287,15 @@ def list_locations(db: DBSession = Depends(get_db)):
 
 
 @app.get("/api/route_names", response_model=list[str])
-def list_route_names(db: DBSession = Depends(get_db)):
+def list_route_names(
+    db: DBSession = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
     """Return distinct lead route names ordered by frequency (most-used first)."""
     rows = (
         db.query(models.LeadRouteEntry.route_name, func.count(models.LeadRouteEntry.id).label("n"))
+        .join(models.Session, models.LeadRouteEntry.session_id == models.Session.id)
+        .filter(models.Session.user_id == current_user.id)
         .filter(models.LeadRouteEntry.route_name.isnot(None))
         .filter(models.LeadRouteEntry.route_name != "")
         .group_by(models.LeadRouteEntry.route_name)
@@ -157,8 +306,13 @@ def list_route_names(db: DBSession = Depends(get_db)):
 
 
 @app.post("/api/sessions", response_model=schemas.SessionDetail, status_code=201)
-def create_session(payload: schemas.SessionCreate, db: DBSession = Depends(get_db)):
+def create_session(
+    payload: schemas.SessionCreate,
+    db: DBSession = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
     session = models.Session(
+        user_id=current_user.id,
         date=payload.date,
         location=payload.location,
         duration_minutes=payload.duration_minutes,
@@ -172,8 +326,12 @@ def create_session(payload: schemas.SessionCreate, db: DBSession = Depends(get_d
 
 
 @app.get("/api/sessions/{session_id}", response_model=schemas.SessionDetail)
-def get_session(session_id: int, db: DBSession = Depends(get_db)):
-    session = get_session_or_404(session_id, db)
+def get_session(
+    session_id: int,
+    db: DBSession = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    session = get_session_or_404(session_id, db, current_user)
     attach_photos(session.boulder_entries, "boulder", db)
     attach_photos(session.lead_route_entries, "lead", db)
     return session
@@ -181,9 +339,11 @@ def get_session(session_id: int, db: DBSession = Depends(get_db)):
 
 @app.patch("/api/sessions/{session_id}", response_model=schemas.SessionDetail)
 def patch_session(
-    session_id: int, payload: schemas.SessionPatch, db: DBSession = Depends(get_db)
+    session_id: int, payload: schemas.SessionPatch,
+    db: DBSession = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
 ):
-    session = get_session_or_404(session_id, db)
+    session = get_session_or_404(session_id, db, current_user)
     for field, value in payload.model_dump(exclude_unset=True).items():
         setattr(session, field, value)
     db.commit()
@@ -194,8 +354,12 @@ def patch_session(
 
 
 @app.delete("/api/sessions/{session_id}", status_code=204)
-def delete_session(session_id: int, db: DBSession = Depends(get_db)):
-    session = get_session_or_404(session_id, db)
+def delete_session(
+    session_id: int,
+    db: DBSession = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    session = get_session_or_404(session_id, db, current_user)
     for entry in list(session.boulder_entries) + list(session.lead_route_entries):
         etype = "boulder" if isinstance(entry, models.LimitBoulderEntry) else "lead"
         for photo in db.query(models.EntryPhoto).filter_by(entry_type=etype, entry_id=entry.id).all():
@@ -210,8 +374,12 @@ def delete_session(session_id: int, db: DBSession = Depends(get_db)):
 # ---------------------------------------------------------------------------
 
 @app.post("/api/sessions/{session_id}/start", response_model=schemas.SessionDetail)
-def start_session(session_id: int, db: DBSession = Depends(get_db)):
-    session = get_session_or_404(session_id, db)
+def start_session(
+    session_id: int,
+    db: DBSession = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    session = get_session_or_404(session_id, db, current_user)
     if session.started_at is None:
         session.started_at = datetime.utcnow()
     db.commit()
@@ -222,8 +390,12 @@ def start_session(session_id: int, db: DBSession = Depends(get_db)):
 
 
 @app.post("/api/sessions/{session_id}/end", response_model=schemas.SessionDetail)
-def end_session(session_id: int, db: DBSession = Depends(get_db)):
-    session = get_session_or_404(session_id, db)
+def end_session(
+    session_id: int,
+    db: DBSession = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    session = get_session_or_404(session_id, db, current_user)
     session.ended_at = datetime.utcnow()
     if session.started_at is not None and session.duration_minutes is None:
         session.duration_minutes = max(1, round((session.ended_at - session.started_at).total_seconds() / 60))
@@ -235,8 +407,12 @@ def end_session(session_id: int, db: DBSession = Depends(get_db)):
 
 
 @app.get("/api/sessions/{session_id}/recent_combos", response_model=list[schemas.RecentCombo])
-def recent_combos(session_id: int, db: DBSession = Depends(get_db)):
-    session = get_session_or_404(session_id, db)
+def recent_combos(
+    session_id: int,
+    db: DBSession = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    session = get_session_or_404(session_id, db, current_user)
 
     combos: dict[tuple, schemas.RecentCombo] = {}
 
@@ -274,8 +450,12 @@ def recent_combos(session_id: int, db: DBSession = Depends(get_db)):
 # ---------------------------------------------------------------------------
 
 @app.post("/api/sessions/{session_id}/warmup", response_model=schemas.WarmupEntry, status_code=201)
-def add_warmup(session_id: int, payload: schemas.WarmupEntryCreate, db: DBSession = Depends(get_db)):
-    get_session_or_404(session_id, db)
+def add_warmup(
+    session_id: int, payload: schemas.WarmupEntryCreate,
+    db: DBSession = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    get_session_or_404(session_id, db, current_user)
     entry = models.WarmupEntry(session_id=session_id, **payload.model_dump())
     db.add(entry)
     db.commit()
@@ -284,10 +464,12 @@ def add_warmup(session_id: int, payload: schemas.WarmupEntryCreate, db: DBSessio
 
 
 @app.put("/api/warmup/{entry_id}", response_model=schemas.WarmupEntry)
-def update_warmup(entry_id: int, payload: schemas.WarmupEntryCreate, db: DBSession = Depends(get_db)):
-    entry = db.get(models.WarmupEntry, entry_id)
-    if not entry:
-        raise HTTPException(status_code=404, detail="Not found")
+def update_warmup(
+    entry_id: int, payload: schemas.WarmupEntryCreate,
+    db: DBSession = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    entry = get_owned_entry_or_404(models.WarmupEntry, entry_id, db, current_user)
     for field, value in payload.model_dump().items():
         setattr(entry, field, value)
     db.commit()
@@ -296,10 +478,12 @@ def update_warmup(entry_id: int, payload: schemas.WarmupEntryCreate, db: DBSessi
 
 
 @app.delete("/api/warmup/{entry_id}", status_code=204)
-def delete_warmup(entry_id: int, db: DBSession = Depends(get_db)):
-    entry = db.get(models.WarmupEntry, entry_id)
-    if not entry:
-        raise HTTPException(status_code=404, detail="Not found")
+def delete_warmup(
+    entry_id: int,
+    db: DBSession = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    entry = get_owned_entry_or_404(models.WarmupEntry, entry_id, db, current_user)
     db.delete(entry)
     db.commit()
 
@@ -309,8 +493,12 @@ def delete_warmup(entry_id: int, db: DBSession = Depends(get_db)):
 # ---------------------------------------------------------------------------
 
 @app.post("/api/sessions/{session_id}/fingerboard", response_model=schemas.FingerboardEntry, status_code=201)
-def add_fingerboard(session_id: int, payload: schemas.FingerboardEntryCreate, db: DBSession = Depends(get_db)):
-    get_session_or_404(session_id, db)
+def add_fingerboard(
+    session_id: int, payload: schemas.FingerboardEntryCreate,
+    db: DBSession = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    get_session_or_404(session_id, db, current_user)
     entry = models.FingerboardEntry(session_id=session_id, **payload.model_dump())
     db.add(entry)
     db.commit()
@@ -319,10 +507,12 @@ def add_fingerboard(session_id: int, payload: schemas.FingerboardEntryCreate, db
 
 
 @app.put("/api/fingerboard/{entry_id}", response_model=schemas.FingerboardEntry)
-def update_fingerboard(entry_id: int, payload: schemas.FingerboardEntryCreate, db: DBSession = Depends(get_db)):
-    entry = db.get(models.FingerboardEntry, entry_id)
-    if not entry:
-        raise HTTPException(status_code=404, detail="Not found")
+def update_fingerboard(
+    entry_id: int, payload: schemas.FingerboardEntryCreate,
+    db: DBSession = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    entry = get_owned_entry_or_404(models.FingerboardEntry, entry_id, db, current_user)
     for field, value in payload.model_dump().items():
         setattr(entry, field, value)
     db.commit()
@@ -331,10 +521,12 @@ def update_fingerboard(entry_id: int, payload: schemas.FingerboardEntryCreate, d
 
 
 @app.delete("/api/fingerboard/{entry_id}", status_code=204)
-def delete_fingerboard(entry_id: int, db: DBSession = Depends(get_db)):
-    entry = db.get(models.FingerboardEntry, entry_id)
-    if not entry:
-        raise HTTPException(status_code=404, detail="Not found")
+def delete_fingerboard(
+    entry_id: int,
+    db: DBSession = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    entry = get_owned_entry_or_404(models.FingerboardEntry, entry_id, db, current_user)
     db.delete(entry)
     db.commit()
 
@@ -344,8 +536,12 @@ def delete_fingerboard(entry_id: int, db: DBSession = Depends(get_db)):
 # ---------------------------------------------------------------------------
 
 @app.post("/api/sessions/{session_id}/boulder", response_model=schemas.LimitBoulderEntry, status_code=201)
-def add_boulder(session_id: int, payload: schemas.LimitBoulderEntryCreate, db: DBSession = Depends(get_db)):
-    session = get_session_or_404(session_id, db)
+def add_boulder(
+    session_id: int, payload: schemas.LimitBoulderEntryCreate,
+    db: DBSession = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    session = get_session_or_404(session_id, db, current_user)
     auto_start(session)
     entry = models.LimitBoulderEntry(session_id=session_id, **payload.model_dump())
     db.add(entry)
@@ -356,10 +552,12 @@ def add_boulder(session_id: int, payload: schemas.LimitBoulderEntryCreate, db: D
 
 
 @app.put("/api/boulder/{entry_id}", response_model=schemas.LimitBoulderEntry)
-def update_boulder(entry_id: int, payload: schemas.LimitBoulderEntryCreate, db: DBSession = Depends(get_db)):
-    entry = db.get(models.LimitBoulderEntry, entry_id)
-    if not entry:
-        raise HTTPException(status_code=404, detail="Not found")
+def update_boulder(
+    entry_id: int, payload: schemas.LimitBoulderEntryCreate,
+    db: DBSession = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    entry = get_owned_entry_or_404(models.LimitBoulderEntry, entry_id, db, current_user)
     for field, value in payload.model_dump().items():
         setattr(entry, field, value)
     db.commit()
@@ -369,10 +567,12 @@ def update_boulder(entry_id: int, payload: schemas.LimitBoulderEntryCreate, db: 
 
 
 @app.delete("/api/boulder/{entry_id}", status_code=204)
-def delete_boulder(entry_id: int, db: DBSession = Depends(get_db)):
-    entry = db.get(models.LimitBoulderEntry, entry_id)
-    if not entry:
-        raise HTTPException(status_code=404, detail="Not found")
+def delete_boulder(
+    entry_id: int,
+    db: DBSession = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    entry = get_owned_entry_or_404(models.LimitBoulderEntry, entry_id, db, current_user)
     for photo in db.query(models.EntryPhoto).filter_by(entry_type="boulder", entry_id=entry_id).all():
         images.delete_image(PHOTOS_DIR, photo.filename)
         db.delete(photo)
@@ -385,8 +585,12 @@ def delete_boulder(entry_id: int, db: DBSession = Depends(get_db)):
 # ---------------------------------------------------------------------------
 
 @app.post("/api/sessions/{session_id}/lead", response_model=schemas.LeadRouteEntry, status_code=201)
-def add_lead(session_id: int, payload: schemas.LeadRouteEntryCreate, db: DBSession = Depends(get_db)):
-    session = get_session_or_404(session_id, db)
+def add_lead(
+    session_id: int, payload: schemas.LeadRouteEntryCreate,
+    db: DBSession = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    session = get_session_or_404(session_id, db, current_user)
     auto_start(session)
     entry = models.LeadRouteEntry(session_id=session_id, **payload.model_dump())
     db.add(entry)
@@ -397,10 +601,12 @@ def add_lead(session_id: int, payload: schemas.LeadRouteEntryCreate, db: DBSessi
 
 
 @app.put("/api/lead/{entry_id}", response_model=schemas.LeadRouteEntry)
-def update_lead(entry_id: int, payload: schemas.LeadRouteEntryCreate, db: DBSession = Depends(get_db)):
-    entry = db.get(models.LeadRouteEntry, entry_id)
-    if not entry:
-        raise HTTPException(status_code=404, detail="Not found")
+def update_lead(
+    entry_id: int, payload: schemas.LeadRouteEntryCreate,
+    db: DBSession = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    entry = get_owned_entry_or_404(models.LeadRouteEntry, entry_id, db, current_user)
     for field, value in payload.model_dump().items():
         setattr(entry, field, value)
     db.commit()
@@ -410,10 +616,12 @@ def update_lead(entry_id: int, payload: schemas.LeadRouteEntryCreate, db: DBSess
 
 
 @app.delete("/api/lead/{entry_id}", status_code=204)
-def delete_lead(entry_id: int, db: DBSession = Depends(get_db)):
-    entry = db.get(models.LeadRouteEntry, entry_id)
-    if not entry:
-        raise HTTPException(status_code=404, detail="Not found")
+def delete_lead(
+    entry_id: int,
+    db: DBSession = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    entry = get_owned_entry_or_404(models.LeadRouteEntry, entry_id, db, current_user)
     for photo in db.query(models.EntryPhoto).filter_by(entry_type="lead", entry_id=entry_id).all():
         images.delete_image(PHOTOS_DIR, photo.filename)
         db.delete(photo)
@@ -426,8 +634,12 @@ def delete_lead(entry_id: int, db: DBSession = Depends(get_db)):
 # ---------------------------------------------------------------------------
 
 @app.post("/api/sessions/{session_id}/strength", response_model=schemas.StrengthEntry, status_code=201)
-def add_strength(session_id: int, payload: schemas.StrengthEntryCreate, db: DBSession = Depends(get_db)):
-    get_session_or_404(session_id, db)
+def add_strength(
+    session_id: int, payload: schemas.StrengthEntryCreate,
+    db: DBSession = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    get_session_or_404(session_id, db, current_user)
     entry = models.StrengthEntry(session_id=session_id, **payload.model_dump())
     db.add(entry)
     db.commit()
@@ -436,10 +648,12 @@ def add_strength(session_id: int, payload: schemas.StrengthEntryCreate, db: DBSe
 
 
 @app.put("/api/strength/{entry_id}", response_model=schemas.StrengthEntry)
-def update_strength(entry_id: int, payload: schemas.StrengthEntryCreate, db: DBSession = Depends(get_db)):
-    entry = db.get(models.StrengthEntry, entry_id)
-    if not entry:
-        raise HTTPException(status_code=404, detail="Not found")
+def update_strength(
+    entry_id: int, payload: schemas.StrengthEntryCreate,
+    db: DBSession = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    entry = get_owned_entry_or_404(models.StrengthEntry, entry_id, db, current_user)
     for field, value in payload.model_dump().items():
         setattr(entry, field, value)
     db.commit()
@@ -448,10 +662,12 @@ def update_strength(entry_id: int, payload: schemas.StrengthEntryCreate, db: DBS
 
 
 @app.delete("/api/strength/{entry_id}", status_code=204)
-def delete_strength(entry_id: int, db: DBSession = Depends(get_db)):
-    entry = db.get(models.StrengthEntry, entry_id)
-    if not entry:
-        raise HTTPException(status_code=404, detail="Not found")
+def delete_strength(
+    entry_id: int,
+    db: DBSession = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    entry = get_owned_entry_or_404(models.StrengthEntry, entry_id, db, current_user)
     db.delete(entry)
     db.commit()
 
@@ -461,9 +677,18 @@ def delete_strength(entry_id: int, db: DBSession = Depends(get_db)):
 # ---------------------------------------------------------------------------
 
 @app.get("/api/progress", response_model=schemas.ProgressData)
-def get_progress(db: DBSession = Depends(get_db)):
+def get_progress(
+    db: DBSession = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    uid = current_user.id
+
     fb_points: list[schemas.ProgressPoint] = []
-    for s in db.query(models.Session).join(models.FingerboardEntry).order_by(models.Session.date).all():
+    for s in (
+        db.query(models.Session).join(models.FingerboardEntry)
+        .filter(models.Session.user_id == uid)
+        .order_by(models.Session.date).all()
+    ):
         if not s.fingerboard_entries:
             continue
         best = max(s.fingerboard_entries, key=lambda e: (e.added_weight_kg or 0))
@@ -473,7 +698,11 @@ def get_progress(db: DBSession = Depends(get_db)):
         ))
 
     bl_points: list[schemas.ProgressPoint] = []
-    for s in db.query(models.Session).join(models.LimitBoulderEntry).order_by(models.Session.date).all():
+    for s in (
+        db.query(models.Session).join(models.LimitBoulderEntry)
+        .filter(models.Session.user_id == uid)
+        .order_by(models.Session.date).all()
+    ):
         sent = [e for e in s.boulder_entries if e.send_type in REDPOINT_SENDS]
         if not sent:
             continue
@@ -483,7 +712,11 @@ def get_progress(db: DBSession = Depends(get_db)):
         ))
 
     st_points: list[schemas.ProgressPoint] = []
-    for s in db.query(models.Session).join(models.StrengthEntry).order_by(models.Session.date).all():
+    for s in (
+        db.query(models.Session).join(models.StrengthEntry)
+        .filter(models.Session.user_id == uid)
+        .order_by(models.Session.date).all()
+    ):
         if not s.strength_entries:
             continue
         best = max(s.strength_entries, key=lambda e: (e.added_weight_kg or 0))
@@ -509,7 +742,11 @@ def get_progress(db: DBSession = Depends(get_db)):
     onsight_prog: list[schemas.ProgressPoint] = []
     flash_prog: list[schemas.ProgressPoint] = []
     rp_prog: list[schemas.ProgressPoint] = []
-    for s in db.query(models.Session).join(models.LeadRouteEntry).order_by(models.Session.date).all():
+    for s in (
+        db.query(models.Session).join(models.LeadRouteEntry)
+        .filter(models.Session.user_id == uid)
+        .order_by(models.Session.date).all()
+    ):
         ewbank = [e for e in s.lead_route_entries if e.grade_system == "ewbank"]
         onsights = [e for e in ewbank if e.send_type in ONSIGHT_SENDS and ewbank_num(e.grade) >= 0]
         flashes = [e for e in ewbank if e.send_type in FLASH_SENDS and ewbank_num(e.grade) >= 0]
@@ -526,7 +763,13 @@ def get_progress(db: DBSession = Depends(get_db)):
 
     # Aggregate send pyramid (all-time), hardest grade first.
     pyramid: dict[str, dict[str, int]] = {}
-    for e in db.query(models.LeadRouteEntry).filter(models.LeadRouteEntry.grade_system == "ewbank").all():
+    for e in (
+        db.query(models.LeadRouteEntry)
+        .join(models.Session, models.LeadRouteEntry.session_id == models.Session.id)
+        .filter(models.Session.user_id == uid)
+        .filter(models.LeadRouteEntry.grade_system == "ewbank")
+        .all()
+    ):
         if ewbank_num(e.grade) < 0:
             continue
         row = pyramid.setdefault(e.grade, {"onsight": 0, "flash": 0, "redpoint": 0})
@@ -545,7 +788,12 @@ def get_progress(db: DBSession = Depends(get_db)):
 
     # Boulder send pyramid (V-scale, all-time): flash + redpoint/send counts.
     bl_pyramid: dict[str, dict[str, int]] = {}
-    for e in db.query(models.LimitBoulderEntry).all():
+    for e in (
+        db.query(models.LimitBoulderEntry)
+        .join(models.Session, models.LimitBoulderEntry.session_id == models.Session.id)
+        .filter(models.Session.user_id == uid)
+        .all()
+    ):
         if e.send_type not in ("flash", "redpoint"):
             continue
         row = bl_pyramid.setdefault(e.grade, {"flash": 0, "send": 0})
@@ -566,7 +814,11 @@ def get_progress(db: DBSession = Depends(get_db)):
     send_rate_points: list[schemas.ProgressPoint] = []
     falls_points: list[schemas.ProgressPoint] = []
 
-    all_sessions = db.query(models.Session).order_by(models.Session.date).all()
+    all_sessions = (
+        db.query(models.Session)
+        .filter(models.Session.user_id == uid)
+        .order_by(models.Session.date).all()
+    )
     for s in all_sessions:
         total_ticks = len(s.boulder_entries) + len(s.lead_route_entries)
         if total_ticks == 0:
@@ -641,13 +893,21 @@ def get_progress(db: DBSession = Depends(get_db)):
 
     # Attempts histogram: count sends grouped by attempts (1, 2, 3, 4, 5+).
     attempts_counts = {"1": 0, "2": 0, "3": 0, "4": 0, "5+": 0}
-    for e in db.query(models.LeadRouteEntry).all():
+    for e in (
+        db.query(models.LeadRouteEntry)
+        .join(models.Session, models.LeadRouteEntry.session_id == models.Session.id)
+        .filter(models.Session.user_id == uid).all()
+    ):
         if e.send_type not in SEND_TYPES or e.attempts is None:
             continue
         bucket = str(e.attempts) if e.attempts <= 4 else "5+"
         if bucket in attempts_counts:
             attempts_counts[bucket] += 1
-    for e in db.query(models.LimitBoulderEntry).all():
+    for e in (
+        db.query(models.LimitBoulderEntry)
+        .join(models.Session, models.LimitBoulderEntry.session_id == models.Session.id)
+        .filter(models.Session.user_id == uid).all()
+    ):
         if e.send_type not in SEND_TYPES or e.attempts is None:
             continue
         bucket = str(e.attempts) if e.attempts <= 4 else "5+"
@@ -713,8 +973,11 @@ def get_progress(db: DBSession = Depends(get_db)):
 # Routes (projects) + pins
 # ---------------------------------------------------------------------------
 
-def get_route_or_404(route_id: int, db: DBSession) -> models.Route:
-    r = db.get(models.Route, route_id)
+def get_route_or_404(route_id: int, db: DBSession, user: "models.User | None" = None) -> models.Route:
+    q = db.query(models.Route).filter(models.Route.id == route_id)
+    if user is not None:
+        q = q.filter(models.Route.user_id == user.id)
+    r = q.first()
     if not r:
         raise HTTPException(status_code=404, detail="Route not found")
     return r
@@ -733,9 +996,12 @@ def attach_route_photos(route: models.Route, db: DBSession) -> None:
 # Achievements
 # ---------------------------------------------------------------------------
 
-def _achievement_payload(db: DBSession) -> list[schemas.Achievement]:
-    """All defined achievements with locked/unlocked status."""
-    unlocked = {a.code: a.unlocked_at for a in db.query(models.Achievement).all()}
+def _achievement_payload(db: DBSession, user_id: int) -> list[schemas.Achievement]:
+    """All defined achievements with locked/unlocked status for one user."""
+    unlocked = {
+        a.code: a.unlocked_at
+        for a in db.query(models.Achievement).filter(models.Achievement.user_id == user_id).all()
+    }
     return [
         schemas.Achievement(
             code=d.code, title=d.title, description=d.description, emoji=d.emoji,
@@ -746,14 +1012,23 @@ def _achievement_payload(db: DBSession) -> list[schemas.Achievement]:
 
 
 @app.get("/api/achievements", response_model=list[schemas.Achievement])
-def list_achievements(db: DBSession = Depends(get_db)):
-    return _achievement_payload(db)
+def list_achievements(
+    db: DBSession = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    return _achievement_payload(db, current_user.id)
 
 
 @app.post("/api/achievements/check", response_model=schemas.AchievementCheckResult)
-def check_achievements(db: DBSession = Depends(get_db)):
-    new_defs = achievements.check_and_unlock(db)
-    unlocked_at = {a.code: a.unlocked_at for a in db.query(models.Achievement).all()}
+def check_achievements(
+    db: DBSession = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    new_defs = achievements.check_and_unlock(db, current_user.id)
+    unlocked_at = {
+        a.code: a.unlocked_at
+        for a in db.query(models.Achievement).filter(models.Achievement.user_id == current_user.id).all()
+    }
     return schemas.AchievementCheckResult(
         newly_unlocked=[
             schemas.Achievement(
@@ -775,14 +1050,25 @@ def route_summary(r: models.Route) -> schemas.RouteSummary:
 
 
 @app.get("/api/routes", response_model=list[schemas.RouteSummary])
-def list_routes(db: DBSession = Depends(get_db)):
-    routes = db.query(models.Route).order_by(models.Route.created_at.desc()).all()
+def list_routes(
+    db: DBSession = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    routes = (
+        db.query(models.Route)
+        .filter(models.Route.user_id == current_user.id)
+        .order_by(models.Route.created_at.desc()).all()
+    )
     return [route_summary(r) for r in routes]
 
 
 @app.post("/api/routes", response_model=schemas.RouteDetail, status_code=201)
-def create_route(payload: schemas.RouteCreate, db: DBSession = Depends(get_db)):
-    route = models.Route(**payload.model_dump())
+def create_route(
+    payload: schemas.RouteCreate,
+    db: DBSession = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    route = models.Route(user_id=current_user.id, **payload.model_dump())
     db.add(route)
     db.commit()
     db.refresh(route)
@@ -791,8 +1077,12 @@ def create_route(payload: schemas.RouteCreate, db: DBSession = Depends(get_db)):
 
 
 @app.get("/api/routes/{route_id}", response_model=schemas.RouteDetail)
-def get_route(route_id: int, db: DBSession = Depends(get_db)):
-    route = get_route_or_404(route_id, db)
+def get_route(
+    route_id: int,
+    db: DBSession = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    route = get_route_or_404(route_id, db, current_user)
     route.ticks = (
         db.query(models.LeadRouteEntry)
         .filter(models.LeadRouteEntry.route_id == route_id)
@@ -814,8 +1104,12 @@ def get_route(route_id: int, db: DBSession = Depends(get_db)):
 
 
 @app.patch("/api/routes/{route_id}", response_model=schemas.RouteDetail)
-def update_route(route_id: int, payload: schemas.RouteUpdate, db: DBSession = Depends(get_db)):
-    route = get_route_or_404(route_id, db)
+def update_route(
+    route_id: int, payload: schemas.RouteUpdate,
+    db: DBSession = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    route = get_route_or_404(route_id, db, current_user)
     for field, value in payload.model_dump(exclude_unset=True).items():
         setattr(route, field, value)
     db.commit()
@@ -829,8 +1123,12 @@ def update_route(route_id: int, payload: schemas.RouteUpdate, db: DBSession = De
 
 
 @app.delete("/api/routes/{route_id}", status_code=204)
-def delete_route(route_id: int, db: DBSession = Depends(get_db)):
-    route = get_route_or_404(route_id, db)
+def delete_route(
+    route_id: int,
+    db: DBSession = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    route = get_route_or_404(route_id, db, current_user)
     # unlink ticks
     for t in db.query(models.LeadRouteEntry).filter(models.LeadRouteEntry.route_id == route_id).all():
         t.route_id = None
@@ -842,8 +1140,12 @@ def delete_route(route_id: int, db: DBSession = Depends(get_db)):
 
 
 @app.post("/api/routes/{route_id}/topo", response_model=schemas.RouteDetail)
-async def upload_topo(route_id: int, file: UploadFile = File(...), db: DBSession = Depends(get_db)):
-    route = get_route_or_404(route_id, db)
+async def upload_topo(
+    route_id: int, file: UploadFile = File(...),
+    db: DBSession = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    route = get_route_or_404(route_id, db, current_user)
     if file.content_type not in ALLOWED_IMAGE_TYPES:
         raise HTTPException(status_code=400, detail="Only JPEG, PNG, WebP and HEIC images are accepted")
     try:
@@ -866,11 +1168,20 @@ async def upload_topo(route_id: int, file: UploadFile = File(...), db: DBSession
 
 
 @app.post("/api/routes/{route_id}/topo/from-photo", response_model=schemas.RouteDetail)
-def topo_from_photo(route_id: int, photo_id: int, db: DBSession = Depends(get_db)):
+def topo_from_photo(
+    route_id: int, photo_id: int,
+    db: DBSession = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
     """Promote an existing route gallery photo (or tick photo) to be this route's topo."""
-    route = get_route_or_404(route_id, db)
+    route = get_route_or_404(route_id, db, current_user)
     photo = db.get(models.EntryPhoto, photo_id)
     if not photo:
+        raise HTTPException(status_code=404, detail="Photo not found")
+    # Verify the photo belongs to the calling user.
+    try:
+        _verify_photo_owner(photo.entry_type, photo.entry_id, db, current_user)
+    except HTTPException:
         raise HTTPException(status_code=404, detail="Photo not found")
     src = PHOTOS_DIR / photo.filename
     if not src.exists():
@@ -891,9 +1202,25 @@ def topo_from_photo(route_id: int, photo_id: int, db: DBSession = Depends(get_db
     return route
 
 
+def _get_owned_pin_or_404(pin_id: int, db: DBSession, user: models.User) -> models.RoutePin:
+    pin = (
+        db.query(models.RoutePin)
+        .join(models.Route, models.RoutePin.route_id == models.Route.id)
+        .filter(models.RoutePin.id == pin_id, models.Route.user_id == user.id)
+        .first()
+    )
+    if not pin:
+        raise HTTPException(status_code=404, detail="Pin not found")
+    return pin
+
+
 @app.post("/api/routes/{route_id}/pins", response_model=schemas.RoutePin, status_code=201)
-def add_pin(route_id: int, payload: schemas.RoutePinCreate, db: DBSession = Depends(get_db)):
-    get_route_or_404(route_id, db)
+def add_pin(
+    route_id: int, payload: schemas.RoutePinCreate,
+    db: DBSession = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    get_route_or_404(route_id, db, current_user)
     pin = models.RoutePin(route_id=route_id, **payload.model_dump())
     db.add(pin)
     db.commit()
@@ -902,10 +1229,12 @@ def add_pin(route_id: int, payload: schemas.RoutePinCreate, db: DBSession = Depe
 
 
 @app.patch("/api/pins/{pin_id}", response_model=schemas.RoutePin)
-def update_pin(pin_id: int, payload: schemas.RoutePinUpdate, db: DBSession = Depends(get_db)):
-    pin = db.get(models.RoutePin, pin_id)
-    if not pin:
-        raise HTTPException(status_code=404, detail="Pin not found")
+def update_pin(
+    pin_id: int, payload: schemas.RoutePinUpdate,
+    db: DBSession = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    pin = _get_owned_pin_or_404(pin_id, db, current_user)
     for field, value in payload.model_dump(exclude_unset=True).items():
         setattr(pin, field, value)
     db.commit()
@@ -914,10 +1243,12 @@ def update_pin(pin_id: int, payload: schemas.RoutePinUpdate, db: DBSession = Dep
 
 
 @app.delete("/api/pins/{pin_id}", status_code=204)
-def delete_pin(pin_id: int, db: DBSession = Depends(get_db)):
-    pin = db.get(models.RoutePin, pin_id)
-    if not pin:
-        raise HTTPException(status_code=404, detail="Pin not found")
+def delete_pin(
+    pin_id: int,
+    db: DBSession = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    pin = _get_owned_pin_or_404(pin_id, db, current_user)
     db.delete(pin)
     db.commit()
 
@@ -927,11 +1258,22 @@ def delete_pin(pin_id: int, db: DBSession = Depends(get_db)):
 # ---------------------------------------------------------------------------
 
 @app.get("/api/export")
-def export_data(db: DBSession = Depends(get_db)):
-    """Dump all sessions (with entries) and routes (with pins) as JSON.
+def export_data(
+    db: DBSession = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    """Dump the calling user's sessions (with entries) and routes (with pins) as JSON.
     Photo files are not included — data only."""
-    sessions = db.query(models.Session).order_by(models.Session.date).all()
-    routes = db.query(models.Route).order_by(models.Route.id).all()
+    sessions = (
+        db.query(models.Session)
+        .filter(models.Session.user_id == current_user.id)
+        .order_by(models.Session.date).all()
+    )
+    routes = (
+        db.query(models.Route)
+        .filter(models.Route.user_id == current_user.id)
+        .order_by(models.Route.id).all()
+    )
 
     def _isoformat(dt: datetime | None) -> str | None:
         return dt.isoformat() if dt else None
@@ -1016,9 +1358,12 @@ def _parse_dt(v: str | None):
 
 
 @app.post("/api/import", response_model=schemas.ImportResult, status_code=201)
-def import_data(payload: schemas.ImportPayload, db: DBSession = Depends(get_db)):
-    """Append exported data as new records (new IDs). Idempotent-safe: calling
-    twice imports duplicates, so this is intended as a restore tool, not a sync."""
+def import_data(
+    payload: schemas.ImportPayload,
+    db: DBSession = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    """Append exported data as new records under the calling user (new IDs)."""
     if payload.version != 1:
         raise HTTPException(status_code=400, detail=f"Unsupported export version: {payload.version}")
 
@@ -1027,6 +1372,7 @@ def import_data(payload: schemas.ImportPayload, db: DBSession = Depends(get_db))
         if not isinstance(s, dict) or "date" not in s:
             continue
         session = models.Session(
+            user_id=current_user.id,
             date=_parse_date(s.get("date")),
             location=s.get("location"),
             duration_minutes=s.get("duration_minutes"),
@@ -1058,7 +1404,7 @@ def import_data(payload: schemas.ImportPayload, db: DBSession = Depends(get_db))
     for r in payload.routes:
         if not isinstance(r, dict) or "name" not in r:
             continue
-        route = models.Route(**{k: r[k] for k in _ROUTE_FIELDS if k in r})
+        route = models.Route(user_id=current_user.id, **{k: r[k] for k in _ROUTE_FIELDS if k in r})
         db.add(route)
         db.flush()
         for p in r.get("pins", []):

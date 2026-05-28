@@ -333,3 +333,21 @@ class Achievement(BaseModel):
 
 class AchievementCheckResult(BaseModel):
     newly_unlocked: list[Achievement]
+
+
+# ---------------------------------------------------------------------------
+# Auth
+# ---------------------------------------------------------------------------
+
+class AuthCredentials(BaseModel):
+    username: str
+    password: str
+
+
+class AuthUser(BaseModel):
+    """Public user shape — never includes hashes."""
+    id: int
+    username: str
+    is_admin: bool
+    has_pin: bool
+    model_config = {"from_attributes": True}

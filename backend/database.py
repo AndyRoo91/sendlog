@@ -83,3 +83,12 @@ def run_migrations() -> None:
         if "kind" not in columns("routes"):
             conn.execute(text("ALTER TABLE routes ADD COLUMN kind VARCHAR(10)"))
             conn.execute(text("UPDATE routes SET kind = 'lead' WHERE kind IS NULL"))
+
+        # Phase F1: ownership columns. We add them nullable here; the seed step
+        # in main.run_seed() backfills them and the ORM enforces NOT NULL going
+        # forward so new rows always carry a user_id.
+        for table in ("sessions", "routes", "achievements"):
+            if table not in tables:
+                continue
+            if "user_id" not in columns(table):
+                conn.execute(text(f"ALTER TABLE {table} ADD COLUMN user_id INTEGER"))

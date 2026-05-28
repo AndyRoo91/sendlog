@@ -1,13 +1,26 @@
 from datetime import date, datetime
-from sqlalchemy import Date, DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, Date, DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from database import Base
+
+
+class User(Base):
+    """A login. Owns sessions, routes, achievements. Cascade-deletes on user delete."""
+    __tablename__ = "users"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    username: Mapped[str] = mapped_column(String(50), unique=True, nullable=False, index=True)
+    password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
+    pin_hash: Mapped[str | None] = mapped_column(String(255))
+    is_admin: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
 
 
 class Session(Base):
     __tablename__ = "sessions"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
     date: Mapped[date] = mapped_column(Date, nullable=False)
     location: Mapped[str | None] = mapped_column(String(100))
     duration_minutes: Mapped[int | None] = mapped_column(Integer)
@@ -120,6 +133,7 @@ class Route(Base):
     __tablename__ = "routes"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     kind: Mapped[str] = mapped_column(String(10), nullable=False, default="lead")
     grade: Mapped[str | None] = mapped_column(String(10))
@@ -135,11 +149,12 @@ class Route(Base):
 
 
 class Achievement(Base):
-    """One row per unlocked achievement. ``code`` matches a definition in achievements.py."""
+    """One row per unlocked achievement, per user. ``code`` matches a definition in achievements.py."""
     __tablename__ = "achievements"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    code: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
+    code: Mapped[str] = mapped_column(String(50), nullable=False)
     unlocked_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
 
 
