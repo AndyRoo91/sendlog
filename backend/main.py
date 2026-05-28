@@ -9,6 +9,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session as DBSession
 
+import images
 import models
 import schemas
 from database import Base, engine, get_db, run_migrations
@@ -103,9 +104,14 @@ async def upload_photo(
         raise HTTPException(status_code=400, detail="entry_type must be 'lead' or 'boulder'")
     if file.content_type not in ALLOWED_IMAGE_TYPES:
         raise HTTPException(status_code=400, detail="Only JPEG, PNG, WebP and HEIC images are accepted")
-    ext = Path(file.filename or "photo.jpg").suffix.lower() or ".jpg"
-    filename = f"{entry_type}_{entry_id}_{uuid.uuid4().hex}{ext}"
-    (PHOTOS_DIR / filename).write_bytes(await file.read())
+    try:
+        filename = images.process_upload(
+            await file.read(),
+            photos_dir=PHOTOS_DIR,
+            prefix=f"{entry_type}_{entry_id}",
+        )
+    except images.ImageError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
     photo = models.EntryPhoto(entry_type=entry_type, entry_id=entry_id, filename=filename)
     db.add(photo)
     db.commit()
@@ -118,9 +124,7 @@ def delete_photo(photo_id: int, db: DBSession = Depends(get_db)):
     photo = db.get(models.EntryPhoto, photo_id)
     if not photo:
         raise HTTPException(status_code=404, detail="Photo not found")
-    path = PHOTOS_DIR / photo.filename
-    if path.exists():
-        path.unlink()
+    images.delete_image(PHOTOS_DIR, photo.filename)
     db.delete(photo)
     db.commit()
 
@@ -176,9 +180,7 @@ def delete_session(session_id: int, db: DBSession = Depends(get_db)):
     for entry in list(session.boulder_entries) + list(session.lead_route_entries):
         etype = "boulder" if isinstance(entry, models.LimitBoulderEntry) else "lead"
         for photo in db.query(models.EntryPhoto).filter_by(entry_type=etype, entry_id=entry.id).all():
-            p = PHOTOS_DIR / photo.filename
-            if p.exists():
-                p.unlink()
+            images.delete_image(PHOTOS_DIR, photo.filename)
             db.delete(photo)
     db.delete(session)
     db.commit()
@@ -350,9 +352,7 @@ def delete_boulder(entry_id: int, db: DBSession = Depends(get_db)):
     if not entry:
         raise HTTPException(status_code=404, detail="Not found")
     for photo in db.query(models.EntryPhoto).filter_by(entry_type="boulder", entry_id=entry_id).all():
-        p = PHOTOS_DIR / photo.filename
-        if p.exists():
-            p.unlink()
+        images.delete_image(PHOTOS_DIR, photo.filename)
         db.delete(photo)
     db.delete(entry)
     db.commit()
@@ -393,9 +393,7 @@ def delete_lead(entry_id: int, db: DBSession = Depends(get_db)):
     if not entry:
         raise HTTPException(status_code=404, detail="Not found")
     for photo in db.query(models.EntryPhoto).filter_by(entry_type="lead", entry_id=entry_id).all():
-        p = PHOTOS_DIR / photo.filename
-        if p.exists():
-            p.unlink()
+        images.delete_image(PHOTOS_DIR, photo.filename)
         db.delete(photo)
     db.delete(entry)
     db.commit()
@@ -594,9 +592,7 @@ def delete_route(route_id: int, db: DBSession = Depends(get_db)):
         t.route_id = None
     # remove topo file (only if route-owned, i.e. starts with "route_")
     if route.topo_filename and route.topo_filename.startswith("route_"):
-        p = PHOTOS_DIR / route.topo_filename
-        if p.exists():
-            p.unlink()
+        images.delete_image(PHOTOS_DIR, route.topo_filename)
     db.delete(route)
     db.commit()
 
@@ -606,9 +602,16 @@ async def upload_topo(route_id: int, file: UploadFile = File(...), db: DBSession
     route = get_route_or_404(route_id, db)
     if file.content_type not in ALLOWED_IMAGE_TYPES:
         raise HTTPException(status_code=400, detail="Only JPEG, PNG, WebP and HEIC images are accepted")
-    ext = Path(file.filename or "topo.jpg").suffix.lower() or ".jpg"
-    filename = f"route_{route_id}_{uuid.uuid4().hex}{ext}"
-    (PHOTOS_DIR / filename).write_bytes(await file.read())
+    try:
+        filename = images.process_upload(
+            await file.read(),
+            photos_dir=PHOTOS_DIR,
+            prefix=f"route_{route_id}",
+        )
+    except images.ImageError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    if route.topo_filename:
+        images.delete_image(PHOTOS_DIR, route.topo_filename)
     route.topo_filename = filename
     db.commit()
     db.refresh(route)
@@ -627,9 +630,13 @@ def topo_from_photo(route_id: int, photo_id: int, db: DBSession = Depends(get_db
     src = PHOTOS_DIR / photo.filename
     if not src.exists():
         raise HTTPException(status_code=404, detail="Photo file missing")
-    ext = Path(photo.filename).suffix or ".jpg"
-    filename = f"route_{route_id}_{uuid.uuid4().hex}{ext}"
-    (PHOTOS_DIR / filename).write_bytes(src.read_bytes())
+    filename = images.process_upload(
+        src.read_bytes(),
+        photos_dir=PHOTOS_DIR,
+        prefix=f"route_{route_id}",
+    )
+    if route.topo_filename:
+        images.delete_image(PHOTOS_DIR, route.topo_filename)
     route.topo_filename = filename
     db.commit()
     db.refresh(route)

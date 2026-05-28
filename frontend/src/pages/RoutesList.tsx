@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { api } from "../api/client";
 import type { RouteSummary } from "../api/client";
+import { thumbUrl } from "../lib/photos";
 import { Ribbon } from "../ui";
 
 export default function RoutesList() {
@@ -57,7 +58,7 @@ export default function RoutesList() {
           <Link key={r.id} to={`/routes/${r.id}`} style={{ textDecoration: "none" }}>
             <div className="card gap-row" style={{ cursor: "pointer", alignItems: "center" }}>
               {r.topo_filename ? (
-                <img src={`/photos/${r.topo_filename}`} alt="" style={{ width: 56, height: 56, objectFit: "cover", border: "var(--b) solid var(--ink)", flexShrink: 0 }} />
+                <img src={thumbUrl(r.topo_filename)} alt="" style={{ width: 56, height: 56, objectFit: "cover", border: "var(--b) solid var(--ink)", flexShrink: 0 }} />
               ) : (
                 <div style={{ width: 56, height: 56, border: "var(--b) dashed var(--ink-2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0 }}>📷</div>
               )}

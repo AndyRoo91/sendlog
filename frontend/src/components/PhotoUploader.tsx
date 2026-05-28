@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { api } from "../api/client";
 import type { EntryPhoto } from "../api/client";
+import { thumbUrl } from "../lib/photos";
 
 interface Props {
   entryType: "lead" | "boulder";
@@ -39,7 +40,7 @@ export default function PhotoUploader({ entryType, entryId, photos, onChange }: 
         {photos.map((p) => (
           <div key={p.id} style={{ position: "relative" }}>
             <img
-              src={`/photos/${p.filename}`}
+              src={thumbUrl(p.filename)}
               alt="Climb photo"
               style={{
                 width: 80, height: 80, objectFit: "cover",
