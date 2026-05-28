@@ -88,8 +88,8 @@ async def upload_photo(
     file: UploadFile = File(...),
     db: DBSession = Depends(get_db),
 ):
-    if entry_type not in ("lead", "boulder"):
-        raise HTTPException(status_code=400, detail="entry_type must be 'lead' or 'boulder'")
+    if entry_type not in ("lead", "boulder", "route"):
+        raise HTTPException(status_code=400, detail="entry_type must be 'lead', 'boulder', or 'route'")
     if file.content_type not in ALLOWED_IMAGE_TYPES:
         raise HTTPException(status_code=400, detail="Only JPEG, PNG, WebP and HEIC images are accepted")
     try:
@@ -534,6 +534,15 @@ def get_route_or_404(route_id: int, db: DBSession) -> models.Route:
     return r
 
 
+def attach_route_photos(route: models.Route, db: DBSession) -> None:
+    """Attach gallery photos (entry_type='route') to route.photos."""
+    route.photos = (
+        db.query(models.EntryPhoto)
+        .filter(models.EntryPhoto.entry_type == "route", models.EntryPhoto.entry_id == route.id)
+        .all()
+    )
+
+
 def route_summary(r: models.Route) -> schemas.RouteSummary:
     dates = [p.date for p in r.pins]
     return schemas.RouteSummary(
@@ -570,6 +579,7 @@ def get_route(route_id: int, db: DBSession = Depends(get_db)):
     )
     for t in route.ticks:
         t.photos = []
+    attach_route_photos(route, db)
     return route
 
 
@@ -620,13 +630,13 @@ async def upload_topo(route_id: int, file: UploadFile = File(...), db: DBSession
     db.commit()
     db.refresh(route)
     route.ticks = []
+    attach_route_photos(route, db)
     return route
 
 
 @app.post("/api/routes/{route_id}/topo/from-photo", response_model=schemas.RouteDetail)
 def topo_from_photo(route_id: int, photo_id: int, db: DBSession = Depends(get_db)):
-    """Promote an existing entry photo to be this route's topo (copies the file
-    so the route keeps it even if the original tick photo is deleted)."""
+    """Promote an existing route gallery photo (or tick photo) to be this route's topo."""
     route = get_route_or_404(route_id, db)
     photo = db.get(models.EntryPhoto, photo_id)
     if not photo:
@@ -645,6 +655,7 @@ def topo_from_photo(route_id: int, photo_id: int, db: DBSession = Depends(get_db
     db.commit()
     db.refresh(route)
     route.ticks = []
+    attach_route_photos(route, db)
     return route
 
 

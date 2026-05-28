@@ -16,3 +16,4 @@ export { STYLES, STYLES_BY_MODE, STYLE_BY_ID, STYLE_TO_SEND_TYPE, sendTypeToStyl
 export type { StyleId, StyleDef } from "./styleMap";
 export type { ClimbMode } from "./ModeToggle";
 export { default as Toast } from "./Toast";
+export { default as Lightbox } from "./Lightbox";

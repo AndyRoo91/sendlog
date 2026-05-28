@@ -2,10 +2,12 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { format } from "date-fns";
 import { api } from "../api/client";
-import type { RouteDetail as RouteDetailT, RoutePin } from "../api/client";
+import type { RouteDetail as RouteDetailT, RoutePin, EntryPhoto } from "../api/client";
 import { pinKind } from "../lib/pins";
-import { STYLE_BY_ID, sendTypeToStyle } from "../ui";
+import { photoUrl } from "../lib/photos";
+import { STYLE_BY_ID, sendTypeToStyle, Lightbox } from "../ui";
 import TopoPinEditor from "../components/TopoPinEditor";
+import PhotoUploader from "../components/PhotoUploader";
 
 function PinOverlay({ pins }: { pins: RoutePin[] }) {
   const ordered = [...pins].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : a.id - b.id));
@@ -38,6 +40,7 @@ export default function RouteDetail() {
   const [route, setRoute] = useState<RouteDetailT | null>(null);
   const [editing, setEditing] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [lightbox, setLightbox] = useState<string | null>(null);
 
   useEffect(() => { api.getRoute(routeId).then(setRoute); }, [routeId]);
 
@@ -51,6 +54,11 @@ export default function RouteDetail() {
     if (!route || !confirm("Delete this project and its pins?")) return;
     await api.deleteRoute(routeId);
     navigate("/routes");
+  }
+
+  async function handleSetTopo(photoId: number) {
+    const updated = await api.topoFromPhoto(routeId, photoId);
+    setRoute(updated);
   }
 
   if (!route) return <div className="page"><p className="muted">Loading…</p></div>;
@@ -73,7 +81,8 @@ export default function RouteDetail() {
       <div className="card" style={{ marginBottom: 16 }}>
         {route.topo_filename ? (
           <>
-            <div style={{ position: "relative", display: "inline-block", width: "100%" }}>
+            <div style={{ position: "relative", display: "inline-block", width: "100%", cursor: "zoom-in" }}
+              onClick={() => setLightbox(photoUrl(route.topo_filename!))}>
               <img src={`/photos/${route.topo_filename}`} alt="Route topo"
                 style={{ display: "block", width: "100%", border: "var(--b) solid var(--ink)" }} />
               <PinOverlay pins={route.pins} />
@@ -93,6 +102,18 @@ export default function RouteDetail() {
             </button>
           </div>
         )}
+      </div>
+
+      {/* Gallery photos */}
+      <div className="card" style={{ marginBottom: 16 }}>
+        <h3 style={{ marginBottom: 10 }}>Photos</h3>
+        <PhotoUploader
+          entryType="route"
+          entryId={routeId}
+          photos={route.photos ?? []}
+          onChange={(photos: EntryPhoto[]) => setRoute({ ...route, photos })}
+          onSetTopo={handleSetTopo}
+        />
       </div>
 
       {/* Linked ticks */}
@@ -124,6 +145,8 @@ export default function RouteDetail() {
           onClose={() => setEditing(false)}
         />
       )}
+
+      {lightbox && <Lightbox src={lightbox} onClose={() => setLightbox(null)} />}
     </div>
   );
 }
