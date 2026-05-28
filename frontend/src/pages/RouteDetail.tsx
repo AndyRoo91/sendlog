@@ -117,23 +117,43 @@ export default function RouteDetail() {
       </div>
 
       {/* Linked ticks */}
-      {route.ticks.length > 0 && (
-        <div className="card">
-          <h2 style={{ marginBottom: 12 }}>Session history</h2>
-          <div className="gap-col">
-            {route.ticks.map((t) => {
-              const st = STYLE_BY_ID[sendTypeToStyle(t.send_type)];
-              return (
-                <div key={t.id} className="gap-row" style={{ gap: 8 }}>
-                  <span style={{ fontFamily: "var(--font-display)", fontSize: 16 }}>{t.grade}</span>
-                  <span className="tag" style={{ background: st.color, color: st.text }}>{st.label}</span>
-                  {t.falls != null && t.falls > 0 && <span className="muted" style={{ fontSize: 12 }}>{t.falls} falls</span>}
-                  {t.logged_at && <span className="muted" style={{ fontSize: 12 }}>{format(new Date(t.logged_at.endsWith("Z") ? t.logged_at : t.logged_at + "Z"), "MMM d")}</span>}
-                </div>
-              );
-            })}
+      {route.kind === "boulder" ? (
+        route.boulder_ticks.length > 0 && (
+          <div className="card">
+            <h2 style={{ marginBottom: 12 }}>Session history</h2>
+            <div className="gap-col">
+              {route.boulder_ticks.map((t) => {
+                const st = STYLE_BY_ID[sendTypeToStyle(t.send_type)];
+                return (
+                  <div key={t.id} className="gap-row" style={{ gap: 8 }}>
+                    <span style={{ fontFamily: "var(--font-display)", fontSize: 16 }}>{t.grade}</span>
+                    <span className="tag" style={{ background: st.color, color: st.text }}>{st.label}</span>
+                    {t.logged_at && <span className="muted" style={{ fontSize: 12 }}>{format(new Date(t.logged_at.endsWith("Z") ? t.logged_at : t.logged_at + "Z"), "MMM d")}</span>}
+                  </div>
+                );
+              })}
+            </div>
           </div>
-        </div>
+        )
+      ) : (
+        route.ticks.length > 0 && (
+          <div className="card">
+            <h2 style={{ marginBottom: 12 }}>Session history</h2>
+            <div className="gap-col">
+              {route.ticks.map((t) => {
+                const st = STYLE_BY_ID[sendTypeToStyle(t.send_type)];
+                return (
+                  <div key={t.id} className="gap-row" style={{ gap: 8 }}>
+                    <span style={{ fontFamily: "var(--font-display)", fontSize: 16 }}>{t.grade}</span>
+                    <span className="tag" style={{ background: st.color, color: st.text }}>{st.label}</span>
+                    {t.falls != null && t.falls > 0 && <span className="muted" style={{ fontSize: 12 }}>{t.falls} falls</span>}
+                    {t.logged_at && <span className="muted" style={{ fontSize: 12 }}>{format(new Date(t.logged_at.endsWith("Z") ? t.logged_at : t.logged_at + "Z"), "MMM d")}</span>}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )
       )}
 
       {editing && route.topo_filename && (

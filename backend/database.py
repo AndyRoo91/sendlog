@@ -72,3 +72,12 @@ def run_migrations() -> None:
             conn.execute(text("ALTER TABLE lead_route_entries ADD COLUMN logged_at DATETIME"))
         if "route_id" not in l_cols:
             conn.execute(text("ALTER TABLE lead_route_entries ADD COLUMN route_id INTEGER"))
+
+        # Boulder route_id (boulder project link)
+        if "route_id" not in columns("boulder_entries"):
+            conn.execute(text("ALTER TABLE boulder_entries ADD COLUMN route_id INTEGER"))
+
+        # Route kind (lead | boulder), default existing rows to 'lead'
+        if "kind" not in columns("routes"):
+            conn.execute(text("ALTER TABLE routes ADD COLUMN kind VARCHAR(10)"))
+            conn.execute(text("UPDATE routes SET kind = 'lead' WHERE kind IS NULL"))

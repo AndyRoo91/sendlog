@@ -56,12 +56,15 @@ export default function DetailSheet({ sessionId, target, onClose, onSavedBoulder
 
   // project linking (lead only)
   const [routes, setRoutes] = useState<RouteSummary[]>([]);
-  const [routeId, setRouteId] = useState<number | null>(lead?.route_id ?? null);
+  const boulderEntry = !isLead ? (entry as BoulderEntry | undefined) : undefined;
+  const [routeId, setRouteId] = useState<number | null>(
+    (lead?.route_id ?? boulderEntry?.route_id) ?? null
+  );
   const [newProject, setNewProject] = useState("");
 
   useEffect(() => {
-    if (isLead) api.listRoutes().then(setRoutes).catch(() => {});
-  }, [isLead]);
+    api.listRoutes().then(setRoutes).catch(() => {});
+  }, []);
 
   const styleDef = STYLE_BY_ID[styleId];
 
@@ -85,7 +88,16 @@ export default function DetailSheet({ sessionId, target, onClose, onSavedBoulder
           : await api.addLead(sessionId, payload);
         onSavedLead({ ...saved, photos });
       } else {
-        const payload = { grade, send_type: STYLE_TO_SEND_TYPE[styleId], attempts, notes: notes || null };
+        // create a boulder project on the fly if a name was typed
+        let linkedId = routeId;
+        if (newProject.trim()) {
+          const r = await api.createRoute({ name: newProject.trim(), kind: "boulder", grade, grade_system: "vscale" });
+          linkedId = r.id;
+        }
+        const payload = {
+          grade, send_type: STYLE_TO_SEND_TYPE[styleId], attempts, notes: notes || null,
+          route_id: linkedId,
+        };
         const saved = entry?.id
           ? await api.updateBoulder(entry.id, payload)
           : await api.addBoulder(sessionId, payload);
@@ -145,7 +157,7 @@ export default function DetailSheet({ sessionId, target, onClose, onSavedBoulder
             <label>Project · track high-points</label>
             <select value={routeId ?? ""} onChange={(e) => { setRouteId(e.target.value ? Number(e.target.value) : null); setNewProject(""); }}>
               <option value="">— none —</option>
-              {routes.map((r) => <option key={r.id} value={r.id}>{r.name}{r.grade ? ` (${r.grade})` : ""}</option>)}
+              {routes.filter((r) => r.kind !== "boulder").map((r) => <option key={r.id} value={r.id}>{r.name}{r.grade ? ` (${r.grade})` : ""}</option>)}
             </select>
             {routeId == null && (
               <input value={newProject} onChange={(e) => setNewProject(e.target.value)} placeholder="…or type a new project name" style={{ marginTop: 6 }} />
@@ -153,6 +165,24 @@ export default function DetailSheet({ sessionId, target, onClose, onSavedBoulder
             {routeId != null && (
               <Link to={`/routes/${routeId}`} onClick={onClose} style={{ display: "inline-block", marginTop: 6, fontFamily: "var(--font-banner)", fontSize: 11, letterSpacing: "0.06em" }}>
                 OPEN PROJECT · MARK HIGH-POINT ↗
+              </Link>
+            )}
+          </div>
+        )}
+
+        {!isLead && (
+          <div style={{ marginBottom: 10 }}>
+            <label>Problem · track high-points</label>
+            <select value={routeId ?? ""} onChange={(e) => { setRouteId(e.target.value ? Number(e.target.value) : null); setNewProject(""); }}>
+              <option value="">— none —</option>
+              {routes.filter((r) => r.kind === "boulder").map((r) => <option key={r.id} value={r.id}>{r.name}{r.grade ? ` (${r.grade})` : ""}</option>)}
+            </select>
+            {routeId == null && (
+              <input value={newProject} onChange={(e) => setNewProject(e.target.value)} placeholder="…or type a new problem name" style={{ marginTop: 6 }} />
+            )}
+            {routeId != null && (
+              <Link to={`/routes/${routeId}`} onClick={onClose} style={{ display: "inline-block", marginTop: 6, fontFamily: "var(--font-banner)", fontSize: 11, letterSpacing: "0.06em" }}>
+                OPEN PROBLEM · MARK HIGH-POINT ↗
               </Link>
             )}
           </div>

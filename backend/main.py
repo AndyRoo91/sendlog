@@ -546,7 +546,7 @@ def attach_route_photos(route: models.Route, db: DBSession) -> None:
 def route_summary(r: models.Route) -> schemas.RouteSummary:
     dates = [p.date for p in r.pins]
     return schemas.RouteSummary(
-        id=r.id, name=r.name, grade=r.grade, grade_system=r.grade_system,
+        id=r.id, name=r.name, kind=r.kind, grade=r.grade, grade_system=r.grade_system,
         location=r.location, notes=r.notes, topo_filename=r.topo_filename,
         pin_count=len(r.pins), last_pin_date=max(dates) if dates else None,
     )
@@ -578,6 +578,14 @@ def get_route(route_id: int, db: DBSession = Depends(get_db)):
         .all()
     )
     for t in route.ticks:
+        t.photos = []
+    route.boulder_ticks = (
+        db.query(models.LimitBoulderEntry)
+        .filter(models.LimitBoulderEntry.route_id == route_id)
+        .order_by(models.LimitBoulderEntry.logged_at)
+        .all()
+    )
+    for t in route.boulder_ticks:
         t.photos = []
     attach_route_photos(route, db)
     return route
@@ -630,6 +638,7 @@ async def upload_topo(route_id: int, file: UploadFile = File(...), db: DBSession
     db.commit()
     db.refresh(route)
     route.ticks = []
+    route.boulder_ticks = []
     attach_route_photos(route, db)
     return route
 
@@ -655,6 +664,7 @@ def topo_from_photo(route_id: int, photo_id: int, db: DBSession = Depends(get_db
     db.commit()
     db.refresh(route)
     route.ticks = []
+    route.boulder_ticks = []
     attach_route_photos(route, db)
     return route
 
