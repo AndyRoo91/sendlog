@@ -6,10 +6,11 @@ import { api } from "../api/client";
 import type { SessionDetail, BoulderEntry, LeadRouteEntry, RecentCombo } from "../api/client";
 import {
   SessionStrip, ModeToggle, StyleRibbonRow,
-  FeedEntry, RecentChip, Ribbon, AfterCommitOverlay, Toast,
+  FeedEntry, RecentChip, Ribbon, AfterCommitOverlay, AchievementOverlay, Toast,
   STYLE_BY_ID, STYLE_TO_SEND_TYPE, sendTypeToStyle,
 } from "../ui";
 import type { StyleId, CommitTick, ClimbMode } from "../ui";
+import type { Achievement } from "../api/client";
 import { useToast } from "../lib/useToast";
 import { BOULDER_GRADES, boulderGradeWindow, leadGradeWindow, gradeOrder } from "../lib/grades";
 import type { GradeSystem } from "../lib/grades";
@@ -64,6 +65,7 @@ export default function TickSheet() {
   const [selected, setSelected] = useState<string | null>(null);
   const [showAllBoulder, setShowAllBoulder] = useState(false);
   const [commitTick, setCommitTick] = useState<CommitTick | null>(null);
+  const [achievementQueue, setAchievementQueue] = useState<Achievement[]>([]);
   const [detail, setDetail] = useState<DetailTarget | null>(null);
   const [now, setNow] = useState(Date.now());
   const [ending, setEnding] = useState(false);
@@ -149,6 +151,14 @@ export default function TickSheet() {
         }
         setRouteName(""); // clears on every commit, including from RecentChip
         refreshRecents();
+        // Check for newly-unlocked achievements; queue them for the overlay.
+        api.checkAchievements()
+          .then((r) => {
+            if (r.newly_unlocked.length > 0) {
+              setAchievementQueue((q) => [...q, ...r.newly_unlocked]);
+            }
+          })
+          .catch(() => { /* non-blocking — achievements are eventual */ });
       } catch (err) {
         setCommitTick(null);
         toast(err instanceof Error ? err.message : "Failed to save tick — check your connection.");
@@ -427,6 +437,7 @@ export default function TickSheet() {
 
       <Toast message={toastMsg} onDismiss={dismissToast} />
       <AfterCommitOverlay tick={commitTick} onDone={() => setCommitTick(null)} />
+      <AchievementOverlay queue={achievementQueue} onDone={() => setAchievementQueue((q) => q.slice(1))} />
 
       {detail && (
         <DetailSheet

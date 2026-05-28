@@ -133,6 +133,15 @@ class Route(Base):
     )
 
 
+class Achievement(Base):
+    """One row per unlocked achievement. ``code`` matches a definition in achievements.py."""
+    __tablename__ = "achievements"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    code: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
+    unlocked_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+
+
 class RoutePin(Base):
     """A dated marker on a route's topo photo (x/y are 0..1 fractions of the image)."""
     __tablename__ = "route_pins"
