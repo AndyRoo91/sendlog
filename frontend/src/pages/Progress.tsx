@@ -4,7 +4,7 @@ import {
   ResponsiveContainer, Legend,
 } from "recharts";
 import { api } from "../api/client";
-import type { ProgressData, ProgressPoint, LeadPyramidRow } from "../api/client";
+import type { ProgressData, ProgressPoint, LeadPyramidRow, BoulderPyramidRow } from "../api/client";
 import { format } from "date-fns";
 import { Ribbon } from "../ui";
 
@@ -142,6 +142,35 @@ function LeadPyramid({ rows }: { rows: LeadPyramidRow[] }) {
   );
 }
 
+/** Boulder send pyramid — flash + send stacked, hardest grade at top. */
+function BoulderPyramid({ rows }: { rows: BoulderPyramidRow[] }) {
+  if (rows.length === 0) {
+    return (
+      <div className={CHART_CARD_CLS} style={{ padding: 16 }}>
+        <div style={CHART_TITLE_STYLE}>Boulder — Send Pyramid (V-scale)</div>
+        <p className="muted" style={{ fontSize: 13 }}>No boulder sends logged yet.</p>
+      </div>
+    );
+  }
+  const height = Math.max(140, rows.length * 34 + 40);
+  return (
+    <div className={CHART_CARD_CLS} style={{ padding: 16 }}>
+      <div style={CHART_TITLE_STYLE}>Boulder — Send Pyramid (V-scale)</div>
+      <ResponsiveContainer width="100%" height={height}>
+        <BarChart data={rows} layout="vertical" margin={{ top: 4, right: 16, bottom: 4, left: 0 }} barCategoryGap={6}>
+          <CartesianGrid strokeDasharray="3 3" stroke={GRID} horizontal={false} />
+          <XAxis type="number" stroke="#3a2e22" tick={AXIS} allowDecimals={false} />
+          <YAxis type="category" dataKey="grade" stroke="#3a2e22" tick={AXIS} width={36} />
+          <Tooltip contentStyle={TOOLTIP_STYLE} labelStyle={{ color: INK, fontWeight: 700 }} />
+          <Legend wrapperStyle={{ fontFamily: "var(--font-banner)", fontSize: 11 }} />
+          <Bar dataKey="flash" name="FLASH" stackId="a" fill={FLASH} stroke={INK} strokeWidth={2} />
+          <Bar dataKey="send" name="SEND" stackId="a" fill={SEA} stroke={INK} strokeWidth={2} />
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
 export default function Progress() {
   const [data, setData] = useState<ProgressData | null>(null);
 
@@ -157,6 +186,7 @@ export default function Progress() {
       <div className="gap-col">
         <LeadProgression onsight={data.lead_onsight_progression} flash={data.lead_flash_progression} redpoint={data.lead_redpoint_progression} />
         <LeadPyramid rows={data.lead_send_pyramid} />
+        <BoulderPyramid rows={data.boulder_send_pyramid} />
         <ChartCard
           title="Limit Boulder Max Grade (Sends)"
           data={data.boulder_max_grade}

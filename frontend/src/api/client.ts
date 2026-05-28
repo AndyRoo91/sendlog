@@ -159,6 +159,12 @@ export interface LeadPyramidRow {
   redpoint: number;
 }
 
+export interface BoulderPyramidRow {
+  grade: string;
+  flash: number;
+  send: number;
+}
+
 export interface ProgressData {
   fingerboard_max_weight: ProgressPoint[];
   boulder_max_grade: ProgressPoint[];
@@ -167,6 +173,7 @@ export interface ProgressData {
   lead_flash_progression: ProgressPoint[];
   lead_redpoint_progression: ProgressPoint[];
   lead_send_pyramid: LeadPyramidRow[];
+  boulder_send_pyramid: BoulderPyramidRow[];
 }
 
 const BASE = "/api";

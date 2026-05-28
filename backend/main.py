@@ -512,6 +512,23 @@ def get_progress(db: DBSession = Depends(get_db)):
     ]
     pyramid_rows.sort(key=lambda r: ewbank_num(r.grade), reverse=True)
 
+    # Boulder send pyramid (V-scale, all-time): flash + redpoint/send counts.
+    bl_pyramid: dict[str, dict[str, int]] = {}
+    for e in db.query(models.LimitBoulderEntry).all():
+        if e.send_type not in ("flash", "redpoint"):
+            continue
+        row = bl_pyramid.setdefault(e.grade, {"flash": 0, "send": 0})
+        if e.send_type == "flash":
+            row["flash"] += 1
+        else:
+            row["send"] += 1
+    bl_pyramid_rows = [
+        schemas.BoulderPyramidRow(grade=g, flash=v["flash"], send=v["send"])
+        for g, v in bl_pyramid.items()
+        if v["flash"] + v["send"] > 0
+    ]
+    bl_pyramid_rows.sort(key=lambda r: grade_to_int(r.grade, BOULDER_GRADE_ORDER), reverse=True)
+
     return schemas.ProgressData(
         fingerboard_max_weight=fb_points,
         boulder_max_grade=bl_points,
@@ -520,6 +537,7 @@ def get_progress(db: DBSession = Depends(get_db)):
         lead_flash_progression=flash_prog,
         lead_redpoint_progression=rp_prog,
         lead_send_pyramid=pyramid_rows,
+        boulder_send_pyramid=bl_pyramid_rows,
     )
 
 

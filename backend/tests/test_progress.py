@@ -8,6 +8,7 @@ def test_progress_shape_empty(client):
         "lead_flash_progression": [],
         "lead_redpoint_progression": [],
         "lead_send_pyramid": [],
+        "boulder_send_pyramid": [],
     }
 
 
@@ -64,3 +65,27 @@ def test_progress_boulder_max(client):
     p = client.get("/api/progress").json()
     assert len(p["boulder_max_grade"]) == 1
     assert p["boulder_max_grade"][0]["label"] == "V6"
+
+
+def test_progress_boulder_send_pyramid(client):
+    """Boulder pyramid counts flash and send (redpoint) per grade, sorted hardest first."""
+    s = client.post("/api/sessions", json={"date": "2026-05-10"}).json()
+    client.post(f"/api/sessions/{s['id']}/boulder", json={"grade": "V5", "send_type": "flash"})
+    client.post(f"/api/sessions/{s['id']}/boulder", json={"grade": "V5", "send_type": "redpoint"})
+    client.post(f"/api/sessions/{s['id']}/boulder", json={"grade": "V7", "send_type": "redpoint"})
+    client.post(f"/api/sessions/{s['id']}/boulder", json={"grade": "V5", "send_type": "working"})  # excluded
+
+    p = client.get("/api/progress").json()
+    pyramid = {row["grade"]: row for row in p["boulder_send_pyramid"]}
+
+    assert "V5" in pyramid
+    assert "V7" in pyramid
+    assert pyramid["V5"]["flash"] == 1
+    assert pyramid["V5"]["send"] == 1
+    assert pyramid["V7"]["send"] == 1
+    assert pyramid["V7"]["flash"] == 0
+
+    # hardest grade should come first
+    grades = [row["grade"] for row in p["boulder_send_pyramid"]]
+    assert grades[0] == "V7"
+    assert grades[1] == "V5"
