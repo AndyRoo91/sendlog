@@ -351,3 +351,23 @@ class AuthUser(BaseModel):
     is_admin: bool
     has_pin: bool
     model_config = {"from_attributes": True}
+
+
+class PasswordChange(BaseModel):
+    old_password: str
+    new_password: str
+
+
+class PinSet(BaseModel):
+    """Set or replace a PIN. Requires the user's current password as a guard
+    so a stolen-cookie session can't lower the security bar."""
+    password: str
+    pin: str
+
+
+class PinClear(BaseModel):
+    password: str
+
+
+class PinVerify(BaseModel):
+    pin: str

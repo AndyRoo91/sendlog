@@ -262,6 +262,26 @@ export const api = {
   login: (username: string, password: string) =>
     req<AuthUser>("/auth/login", { method: "POST", body: JSON.stringify({ username, password }) }),
   logout: () => req<void>("/auth/logout", { method: "POST" }),
+  changePassword: (old_password: string, new_password: string) =>
+    req<void>("/auth/me/password", {
+      method: "POST",
+      body: JSON.stringify({ old_password, new_password }),
+    }),
+  setPin: (password: string, pin: string) =>
+    req<void>("/auth/me/pin", {
+      method: "POST",
+      body: JSON.stringify({ password, pin }),
+    }),
+  clearPin: (password: string) =>
+    req<void>("/auth/me/pin", {
+      method: "DELETE",
+      body: JSON.stringify({ password }),
+    }),
+  verifyPin: (pin: string) =>
+    req<void>("/auth/verify_pin", {
+      method: "POST",
+      body: JSON.stringify({ pin }),
+    }),
 
   listSessions: () => req<SessionSummary[]>("/sessions"),
   listLocations: () => req<string[]>("/locations"),
