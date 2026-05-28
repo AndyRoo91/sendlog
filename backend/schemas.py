@@ -283,3 +283,20 @@ class ImportPayload(BaseModel):
 class ImportResult(BaseModel):
     sessions_imported: int
     routes_imported: int
+
+
+# ---------------------------------------------------------------------------
+# Achievements
+# ---------------------------------------------------------------------------
+
+class Achievement(BaseModel):
+    code: str
+    title: str
+    description: str
+    emoji: str
+    unlocked: bool
+    unlocked_at: datetime | None = None
+
+
+class AchievementCheckResult(BaseModel):
+    newly_unlocked: list[Achievement]

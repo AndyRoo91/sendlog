@@ -11,6 +11,7 @@ export { default as ModeToggle } from "./ModeToggle";
 export { default as RecentChip } from "./RecentChip";
 export { default as AfterCommitOverlay } from "./AfterCommitOverlay";
 export type { CommitTick } from "./AfterCommitOverlay";
+export { default as AchievementOverlay } from "./AchievementOverlay";
 export { ICON } from "./icons";
 export { STYLES, STYLES_BY_MODE, STYLE_BY_ID, STYLE_TO_SEND_TYPE, sendTypeToStyle } from "./styleMap";
 export type { StyleId, StyleDef } from "./styleMap";

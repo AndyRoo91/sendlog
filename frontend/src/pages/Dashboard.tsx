@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api/client";
-import type { SessionSummary } from "../api/client";
+import type { Achievement, SessionSummary } from "../api/client";
 import { format } from "date-fns";
 import { ICON, Ribbon } from "../ui";
 
@@ -32,9 +32,11 @@ function Stat({ label, value, color, rotate = 0 }: StatProps) {
 export default function Dashboard() {
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
   const [loading, setLoading] = useState(true);
+  const [achievements, setAchievements] = useState<Achievement[]>([]);
 
   useEffect(() => {
     api.listSessions().then((s) => { setSessions(s); setLoading(false); });
+    api.listAchievements().then(setAchievements).catch(() => {});
   }, []);
 
   const recent = sessions.slice(0, 5);
@@ -111,6 +113,52 @@ export default function Dashboard() {
           }}>→</span>
         </div>
       </Link>
+
+      {achievements.length > 0 && (
+        <div className="card-flat offset-ink" style={{ padding: 16, marginBottom: 22 }}>
+          <div className="section-header" style={{ marginBottom: 10 }}>
+            <div style={{
+              fontFamily: "var(--font-banner)", fontSize: 12, letterSpacing: "0.12em",
+              color: "var(--ink)",
+            }}>★ ACHIEVEMENTS ★</div>
+            <div style={{
+              fontFamily: "var(--font-banner)", fontSize: 10, letterSpacing: "0.08em",
+              color: "var(--ink-2)",
+            }}>
+              {achievements.filter((a) => a.unlocked).length} / {achievements.length} UNLOCKED
+            </div>
+          </div>
+          <div style={{
+            display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(72px, 1fr))",
+            gap: 10,
+          }}>
+            {achievements.map((a, i) => (
+              <div key={a.code} title={a.unlocked
+                ? `${a.title} — ${a.description}${a.unlocked_at ? ` (unlocked ${format(new Date(a.unlocked_at), "MMM d")})` : ""}`
+                : `Locked: ${a.description}`}
+                style={{
+                  border: "var(--b) solid var(--ink)",
+                  background: a.unlocked ? "var(--mustard)" : "var(--cream)",
+                  boxShadow: a.unlocked ? "2px 2px 0 var(--ink)" : "none",
+                  padding: "10px 4px 6px", textAlign: "center",
+                  transform: `rotate(${(i % 2 === 0 ? -0.6 : 0.6)}deg)`,
+                  opacity: a.unlocked ? 1 : 0.45,
+                  filter: a.unlocked ? "none" : "grayscale(0.8)",
+                  cursor: "default", userSelect: "none",
+                }}
+              >
+                <div style={{ fontSize: 26, lineHeight: 1 }}>{a.emoji}</div>
+                <div style={{
+                  fontFamily: "var(--font-banner)", fontSize: 8, letterSpacing: "0.04em",
+                  marginTop: 5, color: "var(--ink)", lineHeight: 1.1,
+                }}>
+                  {a.unlocked ? a.title.toUpperCase() : "???"}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="card-flat offset-ink" style={{ padding: 16 }}>
         <div className="section-header">

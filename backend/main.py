@@ -10,6 +10,7 @@ from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session as DBSession
 from sqlalchemy import func, text as text_clause
 
+import achievements
 import images
 import models
 import schemas
@@ -626,6 +627,42 @@ def attach_route_photos(route: models.Route, db: DBSession) -> None:
         db.query(models.EntryPhoto)
         .filter(models.EntryPhoto.entry_type == "route", models.EntryPhoto.entry_id == route.id)
         .all()
+    )
+
+
+# ---------------------------------------------------------------------------
+# Achievements
+# ---------------------------------------------------------------------------
+
+def _achievement_payload(db: DBSession) -> list[schemas.Achievement]:
+    """All defined achievements with locked/unlocked status."""
+    unlocked = {a.code: a.unlocked_at for a in db.query(models.Achievement).all()}
+    return [
+        schemas.Achievement(
+            code=d.code, title=d.title, description=d.description, emoji=d.emoji,
+            unlocked=d.code in unlocked, unlocked_at=unlocked.get(d.code),
+        )
+        for d in achievements.DEFS
+    ]
+
+
+@app.get("/api/achievements", response_model=list[schemas.Achievement])
+def list_achievements(db: DBSession = Depends(get_db)):
+    return _achievement_payload(db)
+
+
+@app.post("/api/achievements/check", response_model=schemas.AchievementCheckResult)
+def check_achievements(db: DBSession = Depends(get_db)):
+    new_defs = achievements.check_and_unlock(db)
+    unlocked_at = {a.code: a.unlocked_at for a in db.query(models.Achievement).all()}
+    return schemas.AchievementCheckResult(
+        newly_unlocked=[
+            schemas.Achievement(
+                code=d.code, title=d.title, description=d.description, emoji=d.emoji,
+                unlocked=True, unlocked_at=unlocked_at.get(d.code),
+            )
+            for d in new_defs
+        ]
     )
 
 

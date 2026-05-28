@@ -165,6 +165,15 @@ export interface BoulderPyramidRow {
   send: number;
 }
 
+export interface Achievement {
+  code: string;
+  title: string;
+  description: string;
+  emoji: string;
+  unlocked: boolean;
+  unlocked_at?: string | null;
+}
+
 export interface ProgressData {
   fingerboard_max_weight: ProgressPoint[];
   boulder_max_grade: ProgressPoint[];
@@ -205,6 +214,10 @@ export const api = {
   listSessions: () => req<SessionSummary[]>("/sessions"),
   listLocations: () => req<string[]>("/locations"),
   listRouteNames: () => req<string[]>("/route_names"),
+
+  listAchievements: () => req<Achievement[]>("/achievements"),
+  checkAchievements: () =>
+    req<{ newly_unlocked: Achievement[] }>("/achievements/check", { method: "POST" }),
   getSession: (id: number) => req<SessionDetail>(`/sessions/${id}`),
   createSession: (payload: SessionHeader) =>
     req<SessionDetail>("/sessions", { method: "POST", body: JSON.stringify(payload) }),
