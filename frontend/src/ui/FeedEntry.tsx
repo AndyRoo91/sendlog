@@ -4,11 +4,12 @@ interface Props {
   color: string;
   text?: string;
   time?: string;
+  tilt?: number;
   onClick?: () => void;
 }
 
 /** Logged-tick chip shown in the session feed strip. */
-export default function FeedEntry({ grade, style, color, text = "var(--cream)", time, onClick }: Props) {
+export default function FeedEntry({ grade, style, color, text = "var(--cream)", time, tilt = 0, onClick }: Props) {
   return (
     <div
       onClick={onClick}
@@ -24,6 +25,7 @@ export default function FeedEntry({ grade, style, color, text = "var(--cream)", 
         minWidth: 54,
         cursor: onClick ? "pointer" : "default",
         userSelect: "none",
+        transform: `rotate(${tilt}deg)`,
       }}
     >
       <span style={{ fontFamily: "var(--font-display)", fontSize: 22, lineHeight: 1 }}>{grade}</span>

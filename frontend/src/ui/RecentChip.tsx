@@ -3,11 +3,12 @@ interface Props {
   style: string;
   color: string;
   text?: string;
+  tilt?: number;
   onClick?: () => void;
 }
 
 /** One-tap-repeat chip for the recents strip. */
-export default function RecentChip({ grade, style, color, text = "var(--cream)", onClick }: Props) {
+export default function RecentChip({ grade, style, color, text = "var(--cream)", tilt = 0, onClick }: Props) {
   return (
     <div
       onClick={onClick}
@@ -25,6 +26,7 @@ export default function RecentChip({ grade, style, color, text = "var(--cream)",
         gap: 8,
         cursor: onClick ? "pointer" : "default",
         userSelect: "none",
+        transform: `rotate(${tilt}deg)`,
       }}
     >
       <div style={{ display: "flex", flexDirection: "column", lineHeight: 1 }}>
