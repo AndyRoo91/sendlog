@@ -471,8 +471,11 @@ def get_progress(db: DBSession = Depends(get_db)):
         ))
 
     # --- Lead (Ewbank only) ---
-    # Flash family = clean first-go; redpoint family = worked then sent.
-    FLASH_SENDS = {"flash", "onsight"}
+    # Onsight: clean first-go, no prior info. Flash: clean first-go.
+    # Redpoint family: worked then sent. Toprope is logged but kept out
+    # of lead aggregates (different style of ascent).
+    ONSIGHT_SENDS = {"onsight"}
+    FLASH_SENDS = {"flash"}
     RP_SENDS = {"redpoint", "pinkpoint"}
 
     def ewbank_num(grade: str) -> int:
@@ -481,12 +484,17 @@ def get_progress(db: DBSession = Depends(get_db)):
         except (TypeError, ValueError):
             return -1
 
+    onsight_prog: list[schemas.ProgressPoint] = []
     flash_prog: list[schemas.ProgressPoint] = []
     rp_prog: list[schemas.ProgressPoint] = []
     for s in db.query(models.Session).join(models.LeadRouteEntry).order_by(models.Session.date).all():
         ewbank = [e for e in s.lead_route_entries if e.grade_system == "ewbank"]
+        onsights = [e for e in ewbank if e.send_type in ONSIGHT_SENDS and ewbank_num(e.grade) >= 0]
         flashes = [e for e in ewbank if e.send_type in FLASH_SENDS and ewbank_num(e.grade) >= 0]
         redpoints = [e for e in ewbank if e.send_type in RP_SENDS and ewbank_num(e.grade) >= 0]
+        if onsights:
+            best = max(onsights, key=lambda e: ewbank_num(e.grade))
+            onsight_prog.append(schemas.ProgressPoint(date=s.date, value=ewbank_num(best.grade), label=best.grade))
         if flashes:
             best = max(flashes, key=lambda e: ewbank_num(e.grade))
             flash_prog.append(schemas.ProgressPoint(date=s.date, value=ewbank_num(best.grade), label=best.grade))
@@ -499,13 +507,17 @@ def get_progress(db: DBSession = Depends(get_db)):
     for e in db.query(models.LeadRouteEntry).filter(models.LeadRouteEntry.grade_system == "ewbank").all():
         if ewbank_num(e.grade) < 0:
             continue
-        if e.send_type in FLASH_SENDS:
-            pyramid.setdefault(e.grade, {"flash": 0, "redpoint": 0})["flash"] += 1
+        row = pyramid.setdefault(e.grade, {"onsight": 0, "flash": 0, "redpoint": 0})
+        if e.send_type in ONSIGHT_SENDS:
+            row["onsight"] += 1
+        elif e.send_type in FLASH_SENDS:
+            row["flash"] += 1
         elif e.send_type in RP_SENDS:
-            pyramid.setdefault(e.grade, {"flash": 0, "redpoint": 0})["redpoint"] += 1
+            row["redpoint"] += 1
     pyramid_rows = [
-        schemas.LeadPyramidRow(grade=g, flash=v["flash"], redpoint=v["redpoint"])
+        schemas.LeadPyramidRow(grade=g, onsight=v["onsight"], flash=v["flash"], redpoint=v["redpoint"])
         for g, v in pyramid.items()
+        if any(v.values())
     ]
     pyramid_rows.sort(key=lambda r: ewbank_num(r.grade), reverse=True)
 
@@ -513,6 +525,7 @@ def get_progress(db: DBSession = Depends(get_db)):
         fingerboard_max_weight=fb_points,
         boulder_max_grade=bl_points,
         strength_max_weight=st_points,
+        lead_onsight_progression=onsight_prog,
         lead_flash_progression=flash_prog,
         lead_redpoint_progression=rp_prog,
         lead_send_pyramid=pyramid_rows,

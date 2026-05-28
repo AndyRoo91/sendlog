@@ -10,7 +10,7 @@ import type { GradeSystem } from "../lib/grades";
 
 type AnyEntry = (BoulderEntry | LeadRouteEntry) & { grade_system?: string };
 
-const SEND_STYLES = new Set(["flash", "send"]);
+const SEND_STYLES = new Set(["flash", "send", "onsight", "toprope"]);
 
 function parseUTC(s: string): Date {
   return new Date(/Z|[+-]\d\d:?\d\d$/.test(s) ? s : s + "Z");

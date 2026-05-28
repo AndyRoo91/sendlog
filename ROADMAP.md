@@ -51,7 +51,7 @@ A running list of features and hardening work to tackle in future sessions. Sizi
 - [ ] Boulder projects/pins (reuse the Route machinery) (M)
 
 ### Phase C — Logging depth
-- [ ] Add onsight + top-rope as first-class styles (quick-log + detail) (S) → unlocks a true onsight progression line
+- [x] Add onsight + top-rope as first-class styles (quick-log + detail) (S) → unlocks a true onsight progression line
 - [ ] Backdating ticks / editing session dates (S)
 - [ ] Crags as entities (autocomplete, per-crag stats) + route beta/tags (M)
 - [ ] Search/filter on sessions & projects (M)

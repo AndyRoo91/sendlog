@@ -169,6 +169,7 @@ class ProgressPoint(BaseModel):
 
 class LeadPyramidRow(BaseModel):
     grade: str
+    onsight: int = 0
     flash: int
     redpoint: int
 
@@ -178,6 +179,7 @@ class ProgressData(BaseModel):
     boulder_max_grade: list[ProgressPoint]
     strength_max_weight: list[ProgressPoint]
     # Lead (Ewbank only)
+    lead_onsight_progression: list[ProgressPoint] = []
     lead_flash_progression: list[ProgressPoint]
     lead_redpoint_progression: list[ProgressPoint]
     lead_send_pyramid: list[LeadPyramidRow]
