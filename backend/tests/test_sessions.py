@@ -65,6 +65,24 @@ def test_locations_sorted_by_frequency(client):
     assert len(locs) == 2                # null/empty excluded
 
 
+def test_route_names_sorted_by_frequency(client):
+    """GET /api/route_names returns distinct lead route names ordered most-used first."""
+    s = _create_session(client)
+    for name in ["Kachoong", "Kachoong", "Pilot Error", "Kachoong", "Pilot Error"]:
+        client.post(f"/api/sessions/{s['id']}/lead", json={
+            "route_name": name, "grade": "22", "grade_system": "ewbank", "send_type": "redpoint",
+        })
+    # Lead entry with no route name — should be excluded
+    client.post(f"/api/sessions/{s['id']}/lead", json={
+        "grade": "22", "grade_system": "ewbank", "send_type": "redpoint",
+    })
+
+    names = client.get("/api/route_names").json()
+    assert names[0] == "Kachoong"      # 3 uses
+    assert names[1] == "Pilot Error"   # 2 uses
+    assert len(names) == 2             # null excluded
+
+
 def test_list_orders_newest_first(client):
     a = _create_session(client, date="2026-05-01")
     b = _create_session(client, date="2026-05-15")

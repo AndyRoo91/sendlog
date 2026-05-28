@@ -46,6 +46,21 @@ export default function Dashboard() {
   }).length;
   const last = sessions[0] ? format(new Date(sessions[0].date), "MMM d") : "—";
 
+  // Days-since-last-climb nudge. Uses local-day math so "today" reads as 0.
+  function daysBetween(iso: string): number {
+    const a = new Date(iso); a.setHours(0, 0, 0, 0);
+    const b = new Date(); b.setHours(0, 0, 0, 0);
+    return Math.max(0, Math.round((b.getTime() - a.getTime()) / 86_400_000));
+  }
+  const daysSince = sessions[0] ? daysBetween(sessions[0].date) : null;
+  const nudge: { text: string; color: string } | null =
+    daysSince === null ? null
+    : daysSince === 0 ? { text: "★ FRESH OFF A SEND ★", color: "var(--red)" }
+    : daysSince === 1 ? { text: "★ 1 DAY SINCE YOUR LAST CLIMB ★", color: "var(--cobalt)" }
+    : daysSince <= 6 ? { text: `★ ${daysSince} DAYS SINCE YOUR LAST CLIMB ★`, color: "var(--cobalt)" }
+    : daysSince <= 13 ? { text: `★ ${daysSince} DAYS — TIME TO GET ON IT ★`, color: "var(--mustard)" }
+    : { text: `★ ${daysSince} DAYS — GET BACK ON THE WALL ★`, color: "var(--red)" };
+
   return (
     <div className="page">
       <div className="gap-row" style={{ justifyContent: "space-between", marginBottom: 20, alignItems: "flex-start" }}>
@@ -54,6 +69,15 @@ export default function Dashboard() {
           <button className="btn-primary">+ Log Session</button>
         </Link>
       </div>
+
+      {nudge && (
+        <div className="card-flat" style={{
+          padding: "10px 14px", marginBottom: 16, background: nudge.color,
+          color: "var(--cream)", fontFamily: "var(--font-banner)", fontSize: 12,
+          letterSpacing: "0.1em", textAlign: "center", transform: "rotate(-0.6deg)",
+          boxShadow: "3px 3px 0 var(--ink)",
+        }}>{nudge.text}</div>
+      )}
 
       <div style={{
         display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14, marginBottom: 22,

@@ -102,6 +102,7 @@ Sizing: **S** = small, **M** = medium, **L** = large.
 | Session quality score | Auto 1–5 stars from send rate + falls, shown on session card |
 | Midnight sender easter egg | `started_at` after 23:00 → special commit phrase 🦉 |
 | Konami code on dashboard | All ★ → 🦆 for the session |
+| **Canvas hold colour-picker** *(M)* | Tap a hold in a gym topo photo → sample the RGB pixel at that point → scan the full image for pixels within a configurable colour-distance tolerance → draw dark ink outlines around all matching regions. Helps distinguish colour-coded routes when multiple sets share the wall. All client-side (Canvas API, no backend changes). UI: tolerance slider (default ~30 RGB Euclidean distance) so the climber can tighten/loosen the match for tricky lighting. Tech: `canvas.getContext("2d")`, `getImageData` pixel scan, connected-component or dilation pass to build outlines, rendered as an `<svg>` overlay on the photo. |
 
 ---
 

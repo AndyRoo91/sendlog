@@ -141,6 +141,20 @@ def list_locations(db: DBSession = Depends(get_db)):
     return [r.location for r in rows]
 
 
+@app.get("/api/route_names", response_model=list[str])
+def list_route_names(db: DBSession = Depends(get_db)):
+    """Return distinct lead route names ordered by frequency (most-used first)."""
+    rows = (
+        db.query(models.LeadRouteEntry.route_name, func.count(models.LeadRouteEntry.id).label("n"))
+        .filter(models.LeadRouteEntry.route_name.isnot(None))
+        .filter(models.LeadRouteEntry.route_name != "")
+        .group_by(models.LeadRouteEntry.route_name)
+        .order_by(text_clause("n DESC"))
+        .all()
+    )
+    return [r.route_name for r in rows]
+
+
 @app.post("/api/sessions", response_model=schemas.SessionDetail, status_code=201)
 def create_session(payload: schemas.SessionCreate, db: DBSession = Depends(get_db)):
     session = models.Session(
