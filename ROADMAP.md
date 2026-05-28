@@ -1,101 +1,136 @@
 # sendlog — Roadmap
 
-A running list of features and hardening work to tackle in future sessions. Sizing: **S** = small, **M** = medium, **L** = large.
+Sizing: **S** = small, **M** = medium, **L** = large.
 
-## Project review (snapshot)
+---
 
-### In great shape
-- Clean separation: FastAPI + SQLAlchemy backend, typed React/Vite frontend, single-container deploy, CI → GHCR → Watchtower. Genuinely well-structured for a personal app.
-- Consistent design system (`src/ui/`) and a real component library; the logging UX (2-tap, recents, projects/pins) is thoughtful and verified end-to-end.
-- Data safety basics done right: bind-mount persistence, idempotent lightweight migrations, photos owned by routes survive tick deletion.
+## ✅ Completed
 
-### Gaps & risks
+### Phase A — Hardening
+- [x] API test suite (pytest + httpx), CI runs on PRs
+- [x] Error toasts (`useToast` hook, 3.5s auto-dismiss)
+- [x] `/healthz` endpoint + Docker HEALTHCHECK
+- [x] Drop Alembic, hand-rolled migrations documented
+- [x] JSON export (`GET /api/export`) + import (`POST /api/import`)
 
-**Correctness / quality**
-- Zero tests anywhere. Every change so far verified by hand/browser — fine while driving manually, risky long-term. A small pytest suite on the API would catch regressions cheaply.
-- `alembic` is a dependency but unused — migrations are hand-rolled in `database.py`. Pick one: adopt Alembic properly, or drop the dep. The hand-rolled approach gets fragile as the schema grows.
-- Dead code: after the lead-charts change, `YDS_GRADE_ORDER`, `FRENCH_GRADE_ORDER`, `GRADE_ORDERS` in `main.py` are now unused.
-- Errors are swallowed: many `.catch(() => {})` and optimistic saves with no rollback or user feedback. A failed save silently does nothing.
-
-**Photos**
-- HEIC won't preview — backend accepts `image/heic`, but browsers can't render HEIC in `<img>`. iPhone photos upload then show broken.
-- No EXIF-orientation handling → phone photos may display rotated/sideways.
-- No resize/thumbnails — full ~3–5MB photos stored and served raw; storage grows and views get slow.
-- No upload size limit → a stray large file can fill the NAS volume.
-
-**Infra / security**
-- No auth. Fine on a trusted LAN; a real risk if ever reverse-proxied to the internet. A simple PIN/basic-auth gate would be cheap insurance.
-- No `/healthz` endpoint for Portainer/Docker health checks.
-- No in-app backup/export — data lives only in the bind mount.
-
-**UX / product**
-- Onsight & top-rope aren't loggable in quick-log or detail sheet (only flash/send/work/fall), so the flash chart conflates onsight.
-- LOG IT tab isn't context-aware and highlights SESSIONS on the Tick Sheet.
-- Sessions/Projects lists have no search/filter/pagination — they grow unbounded.
-- Accessibility: clickable `<div>`s, color-only signals, no keyboard/aria. The spec's "Lighthouse a11y ≥95" was never measured.
-- Bundle is one 716KB chunk (recharts + html-to-image) — no code-splitting.
-
-## Roadmap
-
-### Phase A — Hardening (do early; unglamorous but pays off)
-- [ ] API test suite with pytest + httpx; CI runs it on PRs (M)
-- [ ] Surface errors: lightweight toast + rollback on failed saves (M)
-- [ ] `/healthz` endpoint + Docker/Portainer healthcheck (S)
-- [ ] Decide Alembic vs. keep-and-document; remove dead grade constants (S)
-- [ ] In-app export/import (JSON) + an upload size limit (M)
-
-### Phase B — Photos done right
-- [x] Server-side resize + thumbnails, EXIF auto-rotate, HEIC→JPEG conversion on upload (Pillow) (M)
-- [ ] Generic lightbox for any photo (not just topos) (S)
-- [ ] Multiple photos per project + drag-to-reposition pins (M)
-- [ ] Boulder projects/pins (reuse the Route machinery) (M)
+### Phase B — Photos & projects
+- [x] Server-side resize + thumbnails, EXIF auto-rotate, HEIC→JPEG (Pillow)
+- [x] Lightbox for any photo
+- [x] Multiple photos per route/entry; drag-to-reposition topo pins
+- [x] Boulder projects + pins (reuses Route machinery, `kind=boulder`)
 
 ### Phase C — Logging depth
-- [x] Add onsight + top-rope as first-class styles (quick-log + detail) (S) → unlocks a true onsight progression line
-- [ ] Backdating ticks / editing session dates (S)
-- [ ] Crags as entities (autocomplete, per-crag stats) + route beta/tags (M)
-- [ ] Search/filter on sessions & projects (M)
-- [ ] Goals & pyramid-readiness ("ready to try 24?") indicator (M)
+- [x] Onsight + top-rope as first-class styles (quick-log + detail sheet)
+- [x] Session date editing (inline in SessionView)
+- [x] Search/filter on sessions list and projects list (client-side)
+- [x] Favourite locations autocomplete (`GET /api/locations`, datalist)
 
 ### Phase D — Analytics
-- [ ] Volume/mileage over time, send rate, attempts-to-send efficiency, falls trend (M)
-- [ ] Boulder send pyramid (reuse lead pyramid) (S)
-- [ ] Training-load / rest-day view (M)
+- [x] Boulder send pyramid (V-scale, flash + send stacked bar)
+- [x] Lead send pyramid (Ewbank, onsight/flash/redpoint stacked bar)
+- [x] Lead progression chart (onsight / flash / redpoint over time)
+- [x] Boulder max grade over time
+- [x] Session volume (ticks per session bar chart)
+- [x] Send rate (% sends per session line chart)
+- [x] Falls trend (avg falls/route per session line chart)
+- [x] Fingerboard max weight + strength max weight charts
 
 ### Phase E — Platform
-- [ ] PWA: installable + offline logging — big for logging at the crag with no signal (L)
-- [ ] Accessibility pass to hit the Lighthouse target (M)
-- [ ] Code-splitting / lazy-load charts to shrink the bundle (S)
-- [ ] Optional PIN/basic-auth gate for safe remote access (S)
+- [x] PWA: installable, service worker (Workbox), offline shell cache
+- [x] Accessibility pass — focus-visible ring, role=button, aria-labels, keyboard nav
+- [x] Code-splitting — Progress page lazy-loaded (recharts in own chunk)
 
-### Phase F — Design & UX polish
+---
 
-Full detail in [REVIEW.md](REVIEW.md). The visual system currently stops at the Tick Sheet — the lobby screens still wear the pre-redesign skin, plus a set of form papercuts and small bugs.
+## 🔜 Upcoming
 
-**Visual-system spread (highest perceived-quality lift)**
-- [x] Reskin Dashboard to the new system: Ribbon page title, `.card-flat` + `offset-ink` stat cards, display/banner type, card rotation rhythm, drop the 📍 emoji (M)
-- [x] Reskin SessionList in the same pass (S)
-- [x] Reskin Progress: Ribbon title + banner chart headings, retokenise containers (S)
-- [x] Halftone overlay applied consistently (`.paper` vs `.paper-plain`) (S)
+### Phase F — Multi-user support *(L — prerequisite for PIN auth)*
 
-**Form fixes pass**
-- [x] Replace `onContextMenu` long-press with a pointerdown timer (~450ms) + movement-cancel threshold (M)
-- [x] Fix the 6s selection timeout silently dropping state — countdown ring or warn-on-tap (S)
-- [x] Lead recents carry `last_route_name`; prefer current input over stored name (M)
-- [x] Sliding boulder grade window (centre on recent max, "show all" affordance) (M)
-- [x] End-session affordance equal in weight to START TIMER (S)
-- [ ] Card rotation (±0.5–2°) on recents, feed entries, timer/end chips (S)
-- [x] Keep the "pick a style" ribbon mustard on select (fix red-on-red) (S)
-- [x] TabBar bottom padding (~110px / safe-area inset) so feed rows clear it (S)
-- [x] Differentiate empty-state copy per mode ("no leads yet" vs "no ticks yet") (S)
-- [x] `RecentChip` commit clears `routeName`; move `falls` into lead-only branch; clear `selectTimer` on unmount; stop-propagation on detail-sheet long-press (S)
+| Item | Size |
+|------|------|
+| `users` table + DB migration | S |
+| Password hashing (bcrypt via passlib) | S |
+| `POST /api/auth/register` + `POST /api/auth/login` (httpOnly session cookie) | S |
+| `GET /api/auth/me` + `POST /api/auth/logout` | S |
+| Auth middleware — all routes require login, 401 if no session | M |
+| Scope all data queries to `user_id` | M |
+| Login/register pages in frontend | M |
+| PIN auth gate (4-digit, lightweight single-user mode) | M |
 
-**Surprise pool**
-- [ ] Wire 6–8 randomised after-commit phrases in `AfterCommitOverlay`; add "new max this session" variant (S)
+---
 
-## Top 3 next sessions
-1. **HEIC/EXIF/resize photo pipeline** — it's actively biting you.
-2. **pytest API suite** — so future changes are safe.
-3. **Onsight/top-rope styles** — small change, real climbing value.
+### Phase G — Quick wins *(all S)*
 
-> Note: if perceived quality matters more than correctness right now, Phase F's **visual-system spread** is the single highest lift-per-hour item — see [REVIEW.md](REVIEW.md) §1.
+| Item | Notes |
+|------|-------|
+| Haptic feedback on commit | `navigator.vibrate(50)` on SAVE TICK |
+| Days-since-last-session on Dashboard | *"X days since your last climb"* nudge |
+| Route name autocomplete | `<datalist>` from past lead route names — same pattern as locations |
+| Swipe-to-delete feed entries | Swipe left on a FeedEntry to reveal delete, skip the DetailSheet |
+
+---
+
+### Phase H — Achievements *(M)*
+
+| Item | Notes |
+|------|-------|
+| Achievement definitions + unlock detection | Checked on each save |
+| Achievements to implement | First send, grade milestones ("First V7!", "First 25!"), 5-session streak, flash machine (3 flashes in one session), project slayer (send after 5+ attempts), century club (100 ticks), The Grind (working same project 3 sessions in a row), crimp lord (10 fingerboard sessions), send it Sundays |
+| Unlock notification | Special `AfterCommitOverlay` variant — bigger, different phrases |
+| Achievement wall | Dashboard section or page showing earned badges with unlock dates |
+| Easter egg: log a V16/grade 38 | Special overlay: *"sure about that?"* 🤨 |
+
+---
+
+### Phase I — Stats enhancements *(M)*
+
+| Item | Notes |
+|------|-------|
+| Mood tag on session close | 1–5 emoji scale after END SESSION; stored on session |
+| Mood vs send-rate correlation chart | On Progress page |
+| Crag/gym breakdown | Which locations produce your best sessions |
+| Attempts-to-send histogram | How many attempts does it typically take you |
+| Personal best timeline | Lead PB + boulder PB on same chart over time |
+
+---
+
+### Phase J — Polish & easter eggs *(S–M)*
+
+| Item | Notes |
+|------|-------|
+| Animated grade chip on new max | Bounce/shake animation when a PB is hit in the feed |
+| Session quality score | Auto 1–5 stars from send rate + falls, shown on session card |
+| Midnight sender easter egg | `started_at` after 23:00 → special commit phrase 🦉 |
+| Konami code on dashboard | All ★ → 🦆 for the session |
+
+---
+
+### Phase K — Climbing Buddy *(L + Artwork required)*
+
+A tamagotchi-style companion that lives on the Dashboard and reacts to how you're climbing.
+
+**States (each needs custom artwork):**
+
+| State | Triggered by |
+|-------|-------------|
+| 😤 Pumped & psyched | Fresh send, new PB |
+| 💪 Buff / gnarly | Streak of good sessions, high send rate |
+| 😴 Couch potato | 7+ days since last session |
+| 😵 Cooked | High falls, low send rate, lots of "working" ticks |
+| 🏋️ Training mode | Fingerboard session logged |
+| 🤌 Focused | Long session (90+ min) |
+| 🎉 Absolutely stoked | Achievement unlocked |
+| 😬 Nervous | First attempt at a new grade |
+
+**Evolution:** starts scrawny, gets progressively more jacked/gnarly as max grade climbs, softens slightly after long breaks.
+
+**Art style:** American traditional / Mambo psychedelic — bold ink outlines, limited palette (ink, mustard, red, cream), exaggerated proportions. SVG layers so pose/expression states can be CSS-swapped without redrawing the full character.
+
+**Tech approach:** state computed from existing session data (no new DB columns until persistence needed); SVG layers with CSS keyframe animations for reactions.
+
+---
+
+## Deferred / needs multi-user first
+
+- PIN auth — waiting on Phase F
+- Per-user buddy customisation (avatar picker) — waiting on Phase F + K
