@@ -177,6 +177,12 @@ class LeadPyramidRow(BaseModel):
     redpoint: int
 
 
+class BoulderPyramidRow(BaseModel):
+    grade: str
+    flash: int = 0
+    send: int = 0
+
+
 class ProgressData(BaseModel):
     fingerboard_max_weight: list[ProgressPoint]
     boulder_max_grade: list[ProgressPoint]
@@ -186,6 +192,8 @@ class ProgressData(BaseModel):
     lead_flash_progression: list[ProgressPoint]
     lead_redpoint_progression: list[ProgressPoint]
     lead_send_pyramid: list[LeadPyramidRow]
+    # Boulder (V-scale)
+    boulder_send_pyramid: list[BoulderPyramidRow] = []
 
 
 # --- Routes (projects) + pins ---
