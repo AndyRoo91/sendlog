@@ -9,6 +9,7 @@ export default function RoutesList() {
   const navigate = useNavigate();
   const [routes, setRoutes] = useState<RouteSummary[]>([]);
   const [loading, setLoading] = useState(true);
+  const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [newKind, setNewKind] = useState<"lead" | "boulder">("lead");
   const [name, setName] = useState("");
@@ -34,8 +35,16 @@ export default function RoutesList() {
     } finally { setSaving(false); }
   }
 
-  const leads = routes.filter((r) => r.kind !== "boulder");
-  const boulders = routes.filter((r) => r.kind === "boulder");
+  const q = query.trim().toLowerCase();
+  const filtered = q
+    ? routes.filter((r) =>
+        r.name.toLowerCase().includes(q) ||
+        (r.grade ?? "").toLowerCase().includes(q) ||
+        (r.location ?? "").toLowerCase().includes(q)
+      )
+    : routes;
+  const leads = filtered.filter((r) => r.kind !== "boulder");
+  const boulders = filtered.filter((r) => r.kind === "boulder");
 
   function RouteCard({ r }: { r: RouteSummary }) {
     return (
@@ -67,6 +76,17 @@ export default function RoutesList() {
         <h1>Projects</h1>
         <button className="btn-primary" onClick={() => setOpen(!open)}>{open ? "Cancel" : "+ Project"}</button>
       </div>
+
+      {!loading && routes.length > 0 && (
+        <div style={{ marginBottom: 14 }}>
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="🔍 Search by name, grade, crag…"
+            style={{ fontFamily: "var(--font-hand)", fontSize: 15 }}
+          />
+        </div>
+      )}
 
       {open && (
         <form onSubmit={create} className="card gap-col" style={{ marginBottom: 16 }}>
@@ -100,6 +120,9 @@ export default function RoutesList() {
 
       {!loading && routes.length === 0 && !open && (
         <div className="card"><p className="muted" style={{ fontSize: 13 }}>No projects yet. Create one and pin your high-points on a photo to track progress across sessions.</p></div>
+      )}
+      {!loading && routes.length > 0 && q && leads.length === 0 && boulders.length === 0 && (
+        <div className="card"><p className="muted" style={{ fontSize: 13 }}>No projects match "{query}".</p></div>
       )}
 
       {leads.length > 0 && (
