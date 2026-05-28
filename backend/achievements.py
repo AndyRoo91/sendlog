@@ -39,11 +39,23 @@ class EvalState:
     session_dates_by_id: dict[int, object]  # session_id -> date
 
     @classmethod
-    def from_db(cls, db: DBSession) -> "EvalState":
-        leads = db.query(models.LeadRouteEntry).all()
-        boulders = db.query(models.LimitBoulderEntry).all()
-        fingerboard = db.query(models.FingerboardEntry).all()
-        sessions = db.query(models.Session).all()
+    def from_db(cls, db: DBSession, user_id: int) -> "EvalState":
+        leads = (
+            db.query(models.LeadRouteEntry)
+            .join(models.Session, models.LeadRouteEntry.session_id == models.Session.id)
+            .filter(models.Session.user_id == user_id).all()
+        )
+        boulders = (
+            db.query(models.LimitBoulderEntry)
+            .join(models.Session, models.LimitBoulderEntry.session_id == models.Session.id)
+            .filter(models.Session.user_id == user_id).all()
+        )
+        fingerboard = (
+            db.query(models.FingerboardEntry)
+            .join(models.Session, models.FingerboardEntry.session_id == models.Session.id)
+            .filter(models.Session.user_id == user_id).all()
+        )
+        sessions = db.query(models.Session).filter(models.Session.user_id == user_id).all()
 
         flash_by_session: Counter[int] = Counter()
         for e in leads + boulders:
@@ -180,20 +192,23 @@ DEFS: list[AchievementDef] = [
 DEF_BY_CODE: dict[str, AchievementDef] = {d.code: d for d in DEFS}
 
 
-def evaluate_should_be_unlocked(db: DBSession) -> set[str]:
-    state = EvalState.from_db(db)
+def evaluate_should_be_unlocked(db: DBSession, user_id: int) -> set[str]:
+    state = EvalState.from_db(db, user_id)
     return {d.code for d in DEFS if d.check(state)}
 
 
-def check_and_unlock(db: DBSession) -> list[AchievementDef]:
-    """Insert any newly-earned achievements and return their defs."""
-    should_be = evaluate_should_be_unlocked(db)
-    already = {a.code for a in db.query(models.Achievement).all()}
+def check_and_unlock(db: DBSession, user_id: int) -> list[AchievementDef]:
+    """Insert any newly-earned achievements (scoped to user_id) and return their defs."""
+    should_be = evaluate_should_be_unlocked(db, user_id)
+    already = {
+        a.code for a in
+        db.query(models.Achievement).filter(models.Achievement.user_id == user_id).all()
+    }
     new_codes = should_be - already
     if not new_codes:
         return []
     for code in new_codes:
-        db.add(models.Achievement(code=code))
+        db.add(models.Achievement(user_id=user_id, code=code))
     db.commit()
     # Return in DEFS order for stable presentation.
     return [d for d in DEFS if d.code in new_codes]

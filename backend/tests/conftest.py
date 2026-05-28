@@ -43,6 +43,24 @@ def client(tmp_path, monkeypatch):
     (tmp_path / "photos").mkdir()
 
     with TestClient(main.app) as c:
+        # Auto-register + log in a default test user so the legacy single-user
+        # tests keep working without touching every call site. The cookie is
+        # set on the client by FastAPI, so subsequent requests are auth'd.
+        r = c.post("/api/auth/register", json={"username": "tester", "password": "testtest"})
+        assert r.status_code in (201, 409), r.text
+        if r.status_code == 409:
+            c.post("/api/auth/login", json={"username": "tester", "password": "testtest"})
         yield c
 
     main.app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def second_client(client, tmp_path, monkeypatch):
+    """An *additional* logged-in TestClient sharing the same in-memory DB but
+    a separate user — for cross-user isolation tests."""
+    # Reuse the engine that the `client` fixture wired up via override_get_db.
+    c = TestClient(main.app)
+    r = c.post("/api/auth/register", json={"username": "other", "password": "othersecret"})
+    assert r.status_code == 201, r.text
+    yield c
