@@ -59,6 +59,37 @@ def test_lead_tick_can_link_to_route(client, route):
     assert detail["ticks"][0]["id"] == tick["id"]
 
 
+def test_boulder_tick_can_link_to_boulder_project(client):
+    """Boulder entries link to a route with kind='boulder' and appear in boulder_ticks."""
+    project = client.post("/api/routes", json={
+        "name": "The Sitter", "kind": "boulder", "grade": "V7", "grade_system": "vscale"
+    }).json()
+    assert project["kind"] == "boulder"
+
+    sess = client.post("/api/sessions", json={"date": "2026-05-28"}).json()
+    tick = client.post(f"/api/sessions/{sess['id']}/boulder",
+                       json={"grade": "V7", "send_type": "redpoint",
+                             "route_id": project["id"]}).json()
+    assert tick["route_id"] == project["id"]
+
+    detail = client.get(f"/api/routes/{project['id']}").json()
+    assert detail["kind"] == "boulder"
+    assert len(detail["boulder_ticks"]) == 1
+    assert detail["boulder_ticks"][0]["id"] == tick["id"]
+    assert detail["ticks"] == []
+
+
+def test_boulder_project_appears_in_list_separately(client):
+    """Lead and boulder projects both appear in /api/routes with correct kind."""
+    client.post("/api/routes", json={"name": "Kachoong", "kind": "lead", "grade": "21"})
+    client.post("/api/routes", json={"name": "The Sitter", "kind": "boulder", "grade": "V7"})
+    routes = client.get("/api/routes").json()
+    assert len(routes) == 2
+    kinds = {r["name"]: r["kind"] for r in routes}
+    assert kinds["Kachoong"] == "lead"
+    assert kinds["The Sitter"] == "boulder"
+
+
 def test_delete_route_cascades_pins(client, route):
     rid = route["id"]
     client.post(f"/api/routes/{rid}/pins",

@@ -68,6 +68,7 @@ class LimitBoulderEntry(Base):
     attempts: Mapped[int | None] = mapped_column(Integer)
     notes: Mapped[str | None] = mapped_column(Text)
     logged_at: Mapped[datetime | None] = mapped_column(DateTime, default=datetime.utcnow)
+    route_id: Mapped[int | None] = mapped_column(ForeignKey("routes.id"), index=True)
 
     session: Mapped["Session"] = relationship(back_populates="boulder_entries")
 
@@ -114,11 +115,12 @@ class EntryPhoto(Base):
 
 
 class Route(Base):
-    """A persistent lead project — owns a canonical topo photo and high-point pins."""
+    """A persistent project (lead or boulder) — owns a topo photo and high-point pins."""
     __tablename__ = "routes"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     name: Mapped[str] = mapped_column(String(200), nullable=False)
+    kind: Mapped[str] = mapped_column(String(10), nullable=False, default="lead")
     grade: Mapped[str | None] = mapped_column(String(10))
     grade_system: Mapped[str] = mapped_column(String(10), nullable=False, default="ewbank")
     location: Mapped[str | None] = mapped_column(String(100))

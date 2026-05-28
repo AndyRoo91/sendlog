@@ -53,7 +53,7 @@ class LimitBoulderEntryBase(BaseModel):
 
 
 class LimitBoulderEntryCreate(LimitBoulderEntryBase):
-    pass
+    route_id: int | None = None
 
 
 class LimitBoulderEntry(LimitBoulderEntryBase):
@@ -61,6 +61,7 @@ class LimitBoulderEntry(LimitBoulderEntryBase):
     session_id: int
     photos: list[EntryPhoto] = []
     logged_at: datetime | None = None
+    route_id: int | None = None
     model_config = {"from_attributes": True}
 
 
@@ -217,6 +218,7 @@ class RoutePin(RoutePinBase):
 
 class RouteBase(BaseModel):
     name: str
+    kind: str = "lead"
     grade: str | None = None
     grade_system: str = "ewbank"
     location: str | None = None
@@ -229,6 +231,7 @@ class RouteCreate(RouteBase):
 
 class RouteUpdate(BaseModel):
     name: str | None = None
+    kind: str | None = None
     grade: str | None = None
     grade_system: str | None = None
     location: str | None = None
@@ -248,6 +251,7 @@ class RouteDetail(RouteBase):
     topo_filename: str | None = None
     pins: list[RoutePin] = []
     ticks: list[LeadRouteEntry] = []
+    boulder_ticks: list[LimitBoulderEntry] = []
     photos: list[EntryPhoto] = []
     model_config = {"from_attributes": True}
 

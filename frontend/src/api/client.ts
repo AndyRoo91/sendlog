@@ -32,6 +32,7 @@ export interface BoulderEntry {
   notes?: string | null;
   photos?: EntryPhoto[];
   logged_at?: string | null;
+  route_id?: number | null;
 }
 
 export interface StrengthEntry {
@@ -71,6 +72,7 @@ export interface RoutePin {
 export interface RouteSummary {
   id: number;
   name: string;
+  kind: string;
   grade?: string | null;
   grade_system: string;
   location?: string | null;
@@ -83,11 +85,13 @@ export interface RouteSummary {
 export interface RouteDetail extends RouteSummary {
   pins: RoutePin[];
   ticks: LeadRouteEntry[];
+  boulder_ticks: BoulderEntry[];
   photos: EntryPhoto[];
 }
 
 export interface RoutePayload {
   name: string;
+  kind?: string;
   grade?: string | null;
   grade_system?: string;
   location?: string | null;
