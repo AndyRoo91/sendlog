@@ -1,0 +1,7 @@
+<svg xmlns='http://www.w3.org/2000/svg' width='512' height='512' viewBox='0 0 512 512'>
+  <rect width='512' height='512' rx='92.16' fill='#1a1612'/>
+  <text x='50%' y='47%' dominant-baseline='middle' text-anchor='middle'
+    font-family='Georgia,serif' font-weight='900' font-size='215.04' fill='#e8a83b'>★</text>
+  <text x='50%' y='76%' dominant-baseline='middle' text-anchor='middle'
+    font-family='Georgia,serif' font-weight='700' font-size='112.64' letter-spacing='10.24' fill='#fbf0d4'>SEND</text>
+</svg>
