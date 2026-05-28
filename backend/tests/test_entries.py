@@ -62,9 +62,13 @@ def test_recent_combos(client, session_id):
     client.post(f"/api/sessions/{session_id}/boulder", json={"grade": "V5", "send_type": "redpoint"})
     client.post(f"/api/sessions/{session_id}/boulder", json={"grade": "V5", "send_type": "redpoint"})
     client.post(f"/api/sessions/{session_id}/lead",
-                json={"grade": "21", "grade_system": "ewbank", "send_type": "flash"})
+                json={"grade": "21", "grade_system": "ewbank", "send_type": "flash", "route_name": "Kachoong"})
     combos = client.get(f"/api/sessions/{session_id}/recent_combos").json()
     kinds = {c["kind"] for c in combos}
     assert kinds == {"boulder", "lead"}
     v5 = next(c for c in combos if c["kind"] == "boulder")
     assert v5["count"] == 2
+    # Lead combo should carry the last route name so recent taps don't drop it.
+    lead = next(c for c in combos if c["kind"] == "lead")
+    assert lead["last_route_name"] == "Kachoong"
+    assert v5["last_route_name"] is None  # boulder has no route name

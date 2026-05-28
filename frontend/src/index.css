@@ -120,6 +120,12 @@ h3 { font-size: 15px; }
   transform: rotate(-4deg);
 }
 
+/* Selection countdown ring (used by Tick Sheet selected chip). */
+@keyframes sendlog-countdown {
+  from { stroke-dashoffset: 0; }
+  to   { stroke-dashoffset: 213.628; } /* 2π·r where r=34 */
+}
+
 /* ─── Tab bar (fixed to the centered phone column) ───────────── */
 
 .tabbar {

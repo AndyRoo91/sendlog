@@ -221,23 +221,26 @@ def recent_combos(session_id: int, db: DBSession = Depends(get_db)):
 
     combos: dict[tuple, schemas.RecentCombo] = {}
 
-    def fold(kind: str, grade: str, grade_system: str, send_type: str, logged_at):
+    def fold(kind: str, grade: str, grade_system: str, send_type: str, logged_at, route_name: str | None = None):
         key = (kind, grade, grade_system, send_type)
         existing = combos.get(key)
         if existing is None:
             combos[key] = schemas.RecentCombo(
                 kind=kind, grade=grade, grade_system=grade_system,
                 send_type=send_type, count=1, last_logged_at=logged_at,
+                last_route_name=route_name,
             )
         else:
             existing.count += 1
             if logged_at and (existing.last_logged_at is None or logged_at > existing.last_logged_at):
                 existing.last_logged_at = logged_at
+                if route_name:
+                    existing.last_route_name = route_name
 
     for b in session.boulder_entries:
         fold("boulder", b.grade, "vscale", b.send_type, b.logged_at)
     for l in session.lead_route_entries:
-        fold("lead", l.grade, l.grade_system, l.send_type, l.logged_at)
+        fold("lead", l.grade, l.grade_system, l.send_type, l.logged_at, l.route_name)
 
     ordered = sorted(
         combos.values(),
