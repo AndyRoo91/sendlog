@@ -1,11 +1,5 @@
 import { useRef, useCallback } from "react";
 
-type PointerLike = {
-  pointerId: number;
-  clientX: number;
-  clientY: number;
-};
-
 interface Options {
   ms?: number;
   moveThreshold?: number;
