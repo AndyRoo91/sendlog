@@ -52,6 +52,19 @@ def test_timer_start_end(client):
     assert ended["ended_at"] is not None
 
 
+def test_locations_sorted_by_frequency(client):
+    """GET /api/locations returns distinct locations ordered most-used first."""
+    for loc in ["Centenary Glen", "Centenary Glen", "The Reach", "Centenary Glen", "The Reach"]:
+        client.post("/api/sessions", json={"date": "2026-05-10", "location": loc})
+    # Session with no location — should be excluded
+    client.post("/api/sessions", json={"date": "2026-05-11"})
+
+    locs = client.get("/api/locations").json()
+    assert locs[0] == "Centenary Glen"   # 3 uses
+    assert locs[1] == "The Reach"        # 2 uses
+    assert len(locs) == 2                # null/empty excluded
+
+
 def test_list_orders_newest_first(client):
     a = _create_session(client, date="2026-05-01")
     b = _create_session(client, date="2026-05-15")

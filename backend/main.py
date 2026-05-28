@@ -8,6 +8,7 @@ from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session as DBSession
+from sqlalchemy import func, text as text_clause
 
 import images
 import models
@@ -124,6 +125,20 @@ def delete_photo(photo_id: int, db: DBSession = Depends(get_db)):
 @app.get("/api/sessions", response_model=list[schemas.SessionSummary])
 def list_sessions(db: DBSession = Depends(get_db)):
     return db.query(models.Session).order_by(models.Session.date.desc()).all()
+
+
+@app.get("/api/locations", response_model=list[str])
+def list_locations(db: DBSession = Depends(get_db)):
+    """Return distinct session locations ordered by frequency (most-used first)."""
+    rows = (
+        db.query(models.Session.location, func.count(models.Session.id).label("n"))
+        .filter(models.Session.location.isnot(None))
+        .filter(models.Session.location != "")
+        .group_by(models.Session.location)
+        .order_by(text_clause("n DESC"))
+        .all()
+    )
+    return [r.location for r in rows]
 
 
 @app.post("/api/sessions", response_model=schemas.SessionDetail, status_code=201)

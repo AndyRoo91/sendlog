@@ -203,6 +203,7 @@ export interface SessionHeader {
 
 export const api = {
   listSessions: () => req<SessionSummary[]>("/sessions"),
+  listLocations: () => req<string[]>("/locations"),
   getSession: (id: number) => req<SessionDetail>(`/sessions/${id}`),
   createSession: (payload: SessionHeader) =>
     req<SessionDetail>("/sessions", { method: "POST", body: JSON.stringify(payload) }),

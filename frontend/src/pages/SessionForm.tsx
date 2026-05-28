@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { api } from "../api/client";
 
+
 export default function SessionForm() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -13,8 +14,10 @@ export default function SessionForm() {
   const [duration, setDuration] = useState("");
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
+  const [locations, setLocations] = useState<string[]>([]);
 
   useEffect(() => {
+    api.listLocations().then(setLocations).catch(() => {});
     if (id) {
       api.getSession(Number(id)).then((s) => {
         setDate(s.date);
@@ -59,7 +62,11 @@ export default function SessionForm() {
             </div>
             <div>
               <label>Location / Gym</label>
-              <input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="e.g. Centenary Glen" />
+              <input value={location} onChange={(e) => setLocation(e.target.value)}
+                placeholder="e.g. Centenary Glen" list="location-suggestions" autoComplete="off" />
+              <datalist id="location-suggestions">
+                {locations.map((l) => <option key={l} value={l} />)}
+              </datalist>
             </div>
             <div>
               <label>Duration (min)</label>
