@@ -59,6 +59,7 @@ export default function TickSheet() {
     () => (localStorage.getItem("sendlog.leadSystem") as GradeSystem) || "ewbank"
   );
   const [routeName, setRouteName] = useState("");
+  const [routeNames, setRouteNames] = useState<string[]>([]);
   const [falls, setFalls] = useState(0);
   const [selected, setSelected] = useState<string | null>(null);
   const [showAllBoulder, setShowAllBoulder] = useState(false);
@@ -77,6 +78,7 @@ export default function TickSheet() {
   useEffect(() => {
     api.getSession(sessionId).then(setSession);
     refreshRecents();
+    api.listRouteNames().then(setRouteNames).catch(() => {});
   }, [sessionId, refreshRecents]);
 
   useEffect(() => { localStorage.setItem("sendlog.mode", mode); }, [mode]);
@@ -116,6 +118,10 @@ export default function TickSheet() {
       tickKey.current += 1;
       setCommitTick({ grade, styleId, key: tickKey.current, isNewMax });
       setSelected(null);
+      // Haptic nudge on commit — short pulse, longer if it's a new max.
+      if (typeof navigator !== "undefined" && navigator.vibrate) {
+        navigator.vibrate(isNewMax ? [40, 60, 80] : 50);
+      }
       try {
         if (mode === "lead") {
           const created = await api.addLead(sessionId, {
@@ -262,7 +268,11 @@ export default function TickSheet() {
           <div style={{ padding: "4px 16px 0" }}>
             <label>Route name · optional</label>
             <input value={routeName} onChange={(e) => setRouteName(e.target.value)} placeholder="Kachoong"
+              list="route-name-suggestions" autoComplete="off"
               style={{ fontFamily: "var(--font-hand)", fontSize: 18 }} />
+            <datalist id="route-name-suggestions">
+              {routeNames.map((n) => <option key={n} value={n} />)}
+            </datalist>
           </div>
           <div style={{ padding: "10px 16px 0", display: "flex", gap: 6 }}>
             {LEAD_SYSTEMS.map((sys) => (
@@ -380,10 +390,22 @@ export default function TickSheet() {
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             {feed.map((e, i) => {
               const st = STYLE_BY_ID[sendTypeToStyle(e.send_type)];
+              const entryId = e.id!;
               return (
                 <FeedEntry key={e.id} grade={e.grade} style={st.label} color={st.color} text={st.text} time={timeAgo(e.logged_at, now)}
                   tilt={cardTilt(i)}
-                  onClick={() => setDetail({ kind: mode, entry: e })} />
+                  onClick={() => setDetail({ kind: mode, entry: e })}
+                  onDelete={async () => {
+                    try {
+                      if (mode === "lead") await api.deleteLead(entryId);
+                      else await api.deleteBoulder(entryId);
+                      onDeleted(mode, entryId);
+                      toast(`Deleted ${e.grade} · ${st.label}`);
+                    } catch (err) {
+                      toast(err instanceof Error ? err.message : "Couldn't delete tick.");
+                    }
+                  }}
+                />
               );
             })}
           </div>
