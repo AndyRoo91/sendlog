@@ -1,0 +1,199 @@
+import { useState } from "react";
+import { api } from "../api/client";
+import { useAuth } from "../lib/auth";
+import { Ribbon } from "../ui";
+import { onKey } from "../lib/a11y";
+
+/** Parse a `${status}: ${body}` error string into a friendly detail line. */
+function friendlyError(err: unknown): string {
+  const raw = err instanceof Error ? err.message : "Something went wrong";
+  const match = raw.match(/^\d+: (.+)$/);
+  if (!match) return raw;
+  try {
+    const parsed = JSON.parse(match[1]);
+    return parsed.detail ?? match[1];
+  } catch {
+    return match[1];
+  }
+}
+
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="card-flat offset-ink" style={{ padding: 16, marginBottom: 16 }}>
+      <div style={{
+        fontFamily: "var(--font-banner)", fontSize: 12, letterSpacing: "0.12em",
+        color: "var(--ink)", marginBottom: 12,
+      }}>{title}</div>
+      {children}
+    </div>
+  );
+}
+
+interface FormProps {
+  busy: boolean;
+  error: string | null;
+  ok: string | null;
+}
+
+function FormFeedback({ error, ok }: Pick<FormProps, "error" | "ok">) {
+  if (!error && !ok) return null;
+  return (
+    <div role="status" style={{
+      background: error ? "var(--red)" : "var(--sea)", color: "var(--cream)",
+      padding: "6px 10px", fontFamily: "var(--font-banner)", fontSize: 11,
+      letterSpacing: "0.08em", marginTop: 10, transform: "rotate(-0.4deg)",
+    }}>{(error ?? ok ?? "").toUpperCase()}</div>
+  );
+}
+
+function ChangePasswordForm() {
+  const [oldPw, setOldPw] = useState("");
+  const [newPw, setNewPw] = useState("");
+  const [confirmPw, setConfirmPw] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [ok, setOk] = useState<string | null>(null);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null); setOk(null);
+    if (newPw !== confirmPw) { setError("New passwords don't match"); return; }
+    setBusy(true);
+    try {
+      await api.changePassword(oldPw, newPw);
+      setOk("Password updated.");
+      setOldPw(""); setNewPw(""); setConfirmPw("");
+    } catch (err) {
+      setError(friendlyError(err));
+    } finally { setBusy(false); }
+  }
+
+  return (
+    <form onSubmit={submit}>
+      <label>Current password</label>
+      <input type="password" value={oldPw} onChange={(e) => setOldPw(e.target.value)} autoComplete="current-password" required />
+      <label style={{ marginTop: 6 }}>New password</label>
+      <input type="password" value={newPw} onChange={(e) => setNewPw(e.target.value)} autoComplete="new-password" minLength={6} required />
+      <label style={{ marginTop: 6 }}>Confirm new password</label>
+      <input type="password" value={confirmPw} onChange={(e) => setConfirmPw(e.target.value)} autoComplete="new-password" minLength={6} required />
+      <button type="submit" className="btn-primary" disabled={busy} style={{ marginTop: 12 }}>
+        {busy ? "Saving…" : "Update password"}
+      </button>
+      <FormFeedback error={error} ok={ok} />
+    </form>
+  );
+}
+
+function PinForm() {
+  const { user, setUser } = useAuth();
+  const hasPin = Boolean(user?.has_pin);
+
+  const [password, setPassword] = useState("");
+  const [pin, setPin] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [ok, setOk] = useState<string | null>(null);
+
+  async function refreshMe() {
+    try { setUser(await api.me()); } catch { /* tolerate */ }
+  }
+
+  async function save(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null); setOk(null);
+    setBusy(true);
+    try {
+      await api.setPin(password, pin);
+      await refreshMe();
+      setOk(hasPin ? "PIN updated." : "PIN set.");
+      setPassword(""); setPin("");
+    } catch (err) { setError(friendlyError(err)); }
+    finally { setBusy(false); }
+  }
+
+  async function clear() {
+    setError(null); setOk(null);
+    if (!password) { setError("Password required to clear the PIN"); return; }
+    setBusy(true);
+    try {
+      await api.clearPin(password);
+      await refreshMe();
+      setOk("PIN cleared.");
+      setPassword("");
+    } catch (err) { setError(friendlyError(err)); }
+    finally { setBusy(false); }
+  }
+
+  return (
+    <form onSubmit={save}>
+      <p className="muted" style={{ fontSize: 13, marginBottom: 12 }}>
+        {hasPin
+          ? "A PIN is set. The app auto-locks after 5 minutes of inactivity — enter your PIN to unlock without re-typing your password."
+          : "Set a 4–8 digit PIN to enable fast unlock after the app auto-locks."}
+      </p>
+      <label>Current password</label>
+      <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" required />
+      <label style={{ marginTop: 6 }}>{hasPin ? "New PIN" : "PIN"}</label>
+      <input type="password" inputMode="numeric" pattern="[0-9]{4,8}" maxLength={8}
+        value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))}
+        placeholder="••••" required={!hasPin || pin.length > 0} />
+      <div className="gap-row" style={{ gap: 8, marginTop: 12, flexWrap: "wrap" }}>
+        <button type="submit" className="btn-primary" disabled={busy || pin.length < 4}>
+          {busy ? "Saving…" : hasPin ? "Update PIN" : "Set PIN"}
+        </button>
+        {hasPin && (
+          <button type="button" className="btn-secondary" disabled={busy} onClick={clear}>
+            Clear PIN
+          </button>
+        )}
+      </div>
+      <FormFeedback error={error} ok={ok} />
+    </form>
+  );
+}
+
+interface SettingsProps {
+  onLockNow: () => void;
+}
+
+export default function Settings({ onLockNow }: SettingsProps) {
+  const { user, logout } = useAuth();
+  if (!user) return null;
+
+  const hasPin = user.has_pin;
+  return (
+    <div className="page">
+      <div style={{ marginBottom: 20 }}>
+        <Ribbon color="var(--cobalt)" textColor="var(--cream)">★ SETTINGS ★</Ribbon>
+      </div>
+
+      <Section title={`SIGNED IN AS ${user.username.toUpperCase()}`}>
+        <div className="gap-row" style={{ gap: 8, flexWrap: "wrap" }}>
+          {hasPin && (
+            <div role="button" tabIndex={0} className="chunky"
+              onClick={onLockNow} onKeyDown={onKey(onLockNow)}
+              style={{
+                padding: "8px 14px", background: "var(--mustard)", color: "var(--ink)",
+                fontFamily: "var(--font-banner)", fontSize: 11, letterSpacing: "0.08em",
+                boxShadow: "3px 3px 0 var(--ink)", cursor: "pointer",
+              }}>
+              🔒 LOCK NOW
+            </div>
+          )}
+          <div role="button" tabIndex={0} className="chunky"
+            onClick={logout} onKeyDown={onKey(logout)}
+            style={{
+              padding: "8px 14px", background: "var(--red)", color: "var(--cream)",
+              fontFamily: "var(--font-banner)", fontSize: 11, letterSpacing: "0.08em",
+              boxShadow: "3px 3px 0 var(--ink)", cursor: "pointer",
+            }}>
+            LOG OUT
+          </div>
+        </div>
+      </Section>
+
+      <Section title="CHANGE PASSWORD"><ChangePasswordForm /></Section>
+      <Section title={hasPin ? "PIN" : "SET A PIN"}><PinForm /></Section>
+    </div>
+  );
+}

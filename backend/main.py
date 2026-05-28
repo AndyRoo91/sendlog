@@ -191,6 +191,66 @@ def me(current_user: models.User = Depends(auth.get_current_user)):
     return _user_to_schema(current_user)
 
 
+@app.post("/api/auth/me/password", status_code=204)
+def change_password(
+    payload: schemas.PasswordChange,
+    db: DBSession = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    if not auth.verify_password(payload.old_password, current_user.password_hash):
+        raise HTTPException(status_code=401, detail="Current password is wrong")
+    if len(payload.new_password) < 6:
+        raise HTTPException(status_code=400, detail="New password must be at least 6 characters")
+    current_user.password_hash = auth.hash_password(payload.new_password)
+    db.commit()
+
+
+def _validate_pin(pin: str) -> None:
+    if not (pin.isdigit() and 4 <= len(pin) <= 8):
+        raise HTTPException(status_code=400, detail="PIN must be 4–8 digits")
+
+
+@app.post("/api/auth/me/pin", status_code=204)
+def set_pin(
+    payload: schemas.PinSet,
+    db: DBSession = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    """Set or replace the PIN. Password re-verification required."""
+    if not auth.verify_password(payload.password, current_user.password_hash):
+        raise HTTPException(status_code=401, detail="Password is wrong")
+    _validate_pin(payload.pin)
+    current_user.pin_hash = auth.hash_password(payload.pin)
+    db.commit()
+
+
+@app.delete("/api/auth/me/pin", status_code=204)
+def clear_pin(
+    payload: schemas.PinClear,
+    db: DBSession = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    if not auth.verify_password(payload.password, current_user.password_hash):
+        raise HTTPException(status_code=401, detail="Password is wrong")
+    current_user.pin_hash = None
+    db.commit()
+
+
+@app.post("/api/auth/verify_pin", status_code=204)
+def verify_pin(
+    payload: schemas.PinVerify,
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    """Pure yes/no check used by the client-side lock screen. The cookie is
+    untouched — PIN unlock just unhides the UI; it doesn't issue or extend
+    a session. If the cookie has already expired the API would 401 before we
+    got here, and the user falls back to the full login screen."""
+    if not current_user.pin_hash:
+        raise HTTPException(status_code=400, detail="No PIN is set")
+    if not auth.verify_password(payload.pin, current_user.pin_hash):
+        raise HTTPException(status_code=401, detail="Wrong PIN")
+
+
 # ---------------------------------------------------------------------------
 # Photos
 # ---------------------------------------------------------------------------

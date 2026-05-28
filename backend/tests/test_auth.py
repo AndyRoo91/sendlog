@@ -134,3 +134,74 @@ def test_entry_crud_blocks_cross_user(client, second_client):
         f"/api/boulder/{boulder['id']}",
         json={"grade": "V99", "send_type": "redpoint"},
     ).status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# Phase F2: change password + PIN
+# ---------------------------------------------------------------------------
+
+def test_change_password_requires_correct_old(client):
+    r = client.post("/api/auth/me/password",
+                    json={"old_password": "wrong", "new_password": "newpass1"})
+    assert r.status_code == 401
+
+
+def test_change_password_rejects_short(client):
+    r = client.post("/api/auth/me/password",
+                    json={"old_password": "testtest", "new_password": "abc"})
+    assert r.status_code == 400
+
+
+def test_change_password_then_login(client):
+    r = client.post("/api/auth/me/password",
+                    json={"old_password": "testtest", "new_password": "betterpass"})
+    assert r.status_code == 204
+    anon = _fresh_client()
+    assert anon.post("/api/auth/login",
+                     json={"username": "tester", "password": "testtest"}).status_code == 401
+    assert anon.post("/api/auth/login",
+                     json={"username": "tester", "password": "betterpass"}).status_code == 200
+
+
+def test_set_pin_requires_password(client):
+    r = client.post("/api/auth/me/pin",
+                    json={"password": "wrong", "pin": "1234"})
+    assert r.status_code == 401
+
+
+def test_set_pin_validates_format(client):
+    r = client.post("/api/auth/me/pin",
+                    json={"password": "testtest", "pin": "12ab"})
+    assert r.status_code == 400
+    r = client.post("/api/auth/me/pin",
+                    json={"password": "testtest", "pin": "123"})  # too short
+    assert r.status_code == 400
+
+
+def test_set_pin_updates_has_pin_flag(client):
+    assert client.get("/api/auth/me").json()["has_pin"] is False
+    r = client.post("/api/auth/me/pin",
+                    json={"password": "testtest", "pin": "1234"})
+    assert r.status_code == 204
+    assert client.get("/api/auth/me").json()["has_pin"] is True
+
+
+def test_verify_pin_yes_no(client):
+    client.post("/api/auth/me/pin", json={"password": "testtest", "pin": "4242"})
+    assert client.post("/api/auth/verify_pin", json={"pin": "4242"}).status_code == 204
+    assert client.post("/api/auth/verify_pin", json={"pin": "0000"}).status_code == 401
+
+
+def test_verify_pin_without_pin_set_400(client):
+    """No PIN configured → can't verify (returns 400, not 401, so the client
+    knows to nudge the user toward setting one)."""
+    assert client.post("/api/auth/verify_pin", json={"pin": "1234"}).status_code == 400
+
+
+def test_clear_pin_requires_password(client):
+    client.post("/api/auth/me/pin", json={"password": "testtest", "pin": "1234"})
+    r = client.request("DELETE", "/api/auth/me/pin", json={"password": "wrong"})
+    assert r.status_code == 401
+    r = client.request("DELETE", "/api/auth/me/pin", json={"password": "testtest"})
+    assert r.status_code == 204
+    assert client.get("/api/auth/me").json()["has_pin"] is False
