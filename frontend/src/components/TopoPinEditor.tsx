@@ -74,7 +74,7 @@ export default function TopoPinEditor({ routeId, topoFilename, pins, onChange, o
     onChange(pins.map((p) => p.id === pinId ? { ...p, x: coords.x, y: coords.y } : p));
   }
 
-  async function onPinPointerUp(e: React.PointerEvent, pinId: number) {
+  async function onPinPointerUp(_e: React.PointerEvent, pinId: number) {
     if (!drag.current || drag.current.pinId !== pinId) return;
     const wasMoved = drag.current.moved;
     drag.current = null;
