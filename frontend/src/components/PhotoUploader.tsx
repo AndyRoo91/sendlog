@@ -1,18 +1,22 @@
 import { useRef, useState } from "react";
 import { api } from "../api/client";
 import type { EntryPhoto } from "../api/client";
-import { thumbUrl } from "../lib/photos";
+import { thumbUrl, photoUrl } from "../lib/photos";
+import { Lightbox } from "../ui";
 
 interface Props {
-  entryType: "lead" | "boulder";
+  entryType: "lead" | "boulder" | "route";
   entryId: number;
   photos: EntryPhoto[];
   onChange: (photos: EntryPhoto[]) => void;
+  /** Optional: called when a photo should become the route topo. */
+  onSetTopo?: (photoId: number) => void;
 }
 
-export default function PhotoUploader({ entryType, entryId, photos, onChange }: Props) {
+export default function PhotoUploader({ entryType, entryId, photos, onChange, onSetTopo }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
+  const [lightbox, setLightbox] = useState<string | null>(null);
 
   async function handleFiles(files: FileList | null) {
     if (!files || files.length === 0) return;
@@ -42,19 +46,36 @@ export default function PhotoUploader({ entryType, entryId, photos, onChange }: 
             <img
               src={thumbUrl(p.filename)}
               alt="Climb photo"
+              onClick={() => setLightbox(photoUrl(p.filename))}
               style={{
                 width: 80, height: 80, objectFit: "cover",
-                borderRadius: 8, border: "1px solid var(--border)",
+                border: "var(--b) solid var(--ink)",
+                cursor: "pointer",
               }}
             />
+            {onSetTopo && (
+              <div
+                onClick={() => onSetTopo(p.id)}
+                title="Set as topo"
+                style={{
+                  position: "absolute", bottom: 0, left: 0, right: 0,
+                  background: "rgba(26,22,18,0.7)", color: "var(--mustard)",
+                  fontFamily: "var(--font-banner)", fontSize: 8, letterSpacing: "0.06em",
+                  textAlign: "center", padding: "2px 0", cursor: "pointer",
+                }}
+              >
+                SET TOPO
+              </div>
+            )}
             <button
               type="button"
               onClick={() => handleDelete(p.id)}
               style={{
                 position: "absolute", top: -6, right: -6,
                 width: 20, height: 20, borderRadius: "50%",
-                background: "var(--danger)", color: "#fff",
-                fontSize: 12, padding: 0, lineHeight: "20px",
+                background: "var(--red)", color: "var(--cream)",
+                border: "var(--b) solid var(--ink)",
+                fontSize: 12, padding: 0, lineHeight: "18px",
               }}
             >
               ×
@@ -78,6 +99,8 @@ export default function PhotoUploader({ entryType, entryId, photos, onChange }: 
       >
         {uploading ? "Uploading…" : "📷 Add photo"}
       </button>
+
+      {lightbox && <Lightbox src={lightbox} onClose={() => setLightbox(null)} />}
     </div>
   );
 }

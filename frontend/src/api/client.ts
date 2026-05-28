@@ -83,6 +83,7 @@ export interface RouteSummary {
 export interface RouteDetail extends RouteSummary {
   pins: RoutePin[];
   ticks: LeadRouteEntry[];
+  photos: EntryPhoto[];
 }
 
 export interface RoutePayload {
@@ -233,7 +234,7 @@ export const api = {
     req<StrengthEntry>(`/strength/${id}`, { method: "PUT", body: JSON.stringify(payload) }),
   deleteStrength: (id: number) => req<void>(`/strength/${id}`, { method: "DELETE" }),
 
-  uploadPhoto: async (entryType: "lead" | "boulder", entryId: number, file: File): Promise<EntryPhoto> => {
+  uploadPhoto: async (entryType: "lead" | "boulder" | "route", entryId: number, file: File): Promise<EntryPhoto> => {
     const form = new FormData();
     form.append("file", file);
     const res = await fetch(`${BASE}/photos/upload?entry_type=${entryType}&entry_id=${entryId}`, {

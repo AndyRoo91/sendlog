@@ -177,16 +177,6 @@ export default function DetailSheet({ sessionId, target, onClose, onSavedBoulder
           <div style={{ marginBottom: 14 }}>
             <label>Photos</label>
             <PhotoUploader entryType={target.kind} entryId={entry.id} photos={photos} onChange={setPhotos} />
-            {isLead && routeId != null && photos.length > 0 && (
-              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8 }}>
-                {photos.map((p) => (
-                  <button key={p.id} type="button" className="btn-secondary btn-sm"
-                    onClick={async () => { await api.topoFromPhoto(routeId, p.id); }}>
-                    Use as project topo
-                  </button>
-                ))}
-              </div>
-            )}
           </div>
         )}
 

@@ -248,6 +248,7 @@ class RouteDetail(RouteBase):
     topo_filename: str | None = None
     pins: list[RoutePin] = []
     ticks: list[LeadRouteEntry] = []
+    photos: list[EntryPhoto] = []
     model_config = {"from_attributes": True}
 
 
