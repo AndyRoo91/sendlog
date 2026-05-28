@@ -15,3 +15,4 @@ export { ICON } from "./icons";
 export { STYLES, STYLES_BY_MODE, STYLE_BY_ID, STYLE_TO_SEND_TYPE, sendTypeToStyle } from "./styleMap";
 export type { StyleId, StyleDef } from "./styleMap";
 export type { ClimbMode } from "./ModeToggle";
+export { default as Toast } from "./Toast";
