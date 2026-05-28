@@ -37,6 +37,17 @@ export function leadGradeWindow(system: GradeSystem): string[] {
   return FRENCH_GRADES.slice(3, 15);                            // 6a–7c+
 }
 
+/** Boulder window: 8 chips, sliding so the user's recent max sits ~3/4 across.
+ *  Falls back to V0–V7 when there's no history yet. */
+export function boulderGradeWindow(recentMaxIdx: number | null): string[] {
+  if (recentMaxIdx == null || recentMaxIdx < 0) return BOULDER_GRADES.slice(0, 8);
+  // place the recent max about 2 chips from the top of the window
+  const target = recentMaxIdx + 2;
+  const end = Math.min(BOULDER_GRADES.length, Math.max(8, target + 1));
+  const start = Math.max(0, end - 8);
+  return BOULDER_GRADES.slice(start, end);
+}
+
 export function gradeOrder(system: GradeSystem | "vscale", grade: string): number {
   const arr = system === "vscale" ? BOULDER_GRADES : LEAD_GRADE_OPTIONS[system];
   const i = arr.indexOf(grade);

@@ -108,6 +108,7 @@ export interface RecentCombo {
   send_type: string;
   count: number;
   last_logged_at?: string | null;
+  last_route_name?: string | null;
 }
 
 export interface SessionSummary {

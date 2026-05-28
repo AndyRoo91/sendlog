@@ -159,6 +159,7 @@ class RecentCombo(BaseModel):
     send_type: str
     count: int
     last_logged_at: datetime | None = None
+    last_route_name: str | None = None  # lead only
 
 
 class ProgressPoint(BaseModel):
