@@ -1,6 +1,7 @@
 __pycache__/
 *.pyc
 *.db
+.pytest_cache/
 backend/static/
 backend/.venv/
 frontend/node_modules/
