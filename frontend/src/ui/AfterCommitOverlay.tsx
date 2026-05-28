@@ -7,6 +7,7 @@ export interface CommitTick {
   grade: string;
   styleId: StyleId;
   key: number;
+  isNewMax?: boolean;
 }
 
 interface Props {
@@ -15,7 +16,8 @@ interface Props {
   holdMs?: number;
 }
 
-const PHRASES = ["burned it!", "send city!", "filthy!", "money.", "boom.", "crushed it.", "yewww!", "too easy."];
+const PHRASES = ["burned it!", "send city!", "filthy!", "money.", "boom.", "crushed it.", "yewww!", "too easy.", "get in!", "laps.", "cooked it.", "heaps good."];
+const NEW_MAX_PHRASES = ["NEW MAX! 🔥", "fresh ceiling!", "limit crusher.", "that's a PB!", "uncharted grades!", "new territory!"];
 
 /** ~600ms celebratory overlay: green tick, mustard rays, ink banner. */
 export default function AfterCommitOverlay({ tick, onDone, holdMs = 400 }: Props) {
@@ -24,7 +26,8 @@ export default function AfterCommitOverlay({ tick, onDone, holdMs = 400 }: Props
 
   useEffect(() => {
     if (!tick) return;
-    setPhrase(PHRASES[Math.floor(Math.random() * PHRASES.length)]);
+    const pool = tick.isNewMax ? NEW_MAX_PHRASES : PHRASES;
+    setPhrase(pool[Math.floor(Math.random() * pool.length)]);
     setVisible(true);
     const fadeOut = setTimeout(() => setVisible(false), 100 + holdMs);
     const done = setTimeout(onDone, 100 + holdMs + 100);

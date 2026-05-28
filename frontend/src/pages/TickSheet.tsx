@@ -18,6 +18,10 @@ import GradeChipSlot from "../components/GradeChipSlot";
 const SELECTION_MS = 6000;
 const LEAD_SYSTEMS: GradeSystem[] = ["ewbank", "yds", "french"];
 
+// Deterministic card tilt table — cycles through feed/recent chips for a pinboard feel.
+const CARD_TILTS = [-1.2, 0.8, -1.8, 1.0, -0.5, 1.5, -0.9, 0.4, -1.6, 1.1, -0.7, 1.8];
+function cardTilt(i: number) { return CARD_TILTS[i % CARD_TILTS.length]; }
+
 function parseUTC(s: string): Date {
   return new Date(/Z|[+-]\d\d:?\d\d$/.test(s) ? s : s + "Z");
 }
@@ -96,8 +100,18 @@ export default function TickSheet() {
     async (grade: string, styleId: StyleId, opts?: { system?: GradeSystem; routeName?: string | null; falls?: number }) => {
       if (!session) return;
       const optimisticStart = session.started_at ?? new Date().toISOString();
+
+      // Detect new session max before the entry is appended.
+      const newGradeOrder = gradeOrder(mode === "boulder" ? "vscale" : (opts?.system ?? gradeSystem), grade);
+      const currentEntries = mode === "lead" ? session.lead_route_entries : session.boulder_entries;
+      const currentMax = currentEntries
+        .filter((e) => mode === "boulder" || (e as LeadRouteEntry).grade_system === (opts?.system ?? gradeSystem))
+        .map((e) => gradeOrder(mode === "boulder" ? "vscale" : (opts?.system ?? gradeSystem), e.grade))
+        .reduce((a, b) => Math.max(a, b), -1);
+      const isNewMax = newGradeOrder > currentMax;
+
       tickKey.current += 1;
-      setCommitTick({ grade, styleId, key: tickKey.current });
+      setCommitTick({ grade, styleId, key: tickKey.current, isNewMax });
       setSelected(null);
       try {
         if (mode === "lead") {
@@ -271,6 +285,7 @@ export default function TickSheet() {
               const carriedName = routeName.trim() || c.last_route_name || null;
               return (
                 <RecentChip key={i} grade={c.grade} style={st.label} color={st.color} text={st.text}
+                  tilt={cardTilt(i)}
                   onClick={() => commit(c.grade, sendTypeToStyle(c.send_type), {
                     system: c.grade_system as GradeSystem,
                     routeName: carriedName,
@@ -347,10 +362,11 @@ export default function TickSheet() {
             <div style={{ flex: 1, height: 0, borderTop: "2px dashed var(--ink-2)", opacity: 0.4 }} />
           </div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            {feed.map((e) => {
+            {feed.map((e, i) => {
               const st = STYLE_BY_ID[sendTypeToStyle(e.send_type)];
               return (
                 <FeedEntry key={e.id} grade={e.grade} style={st.label} color={st.color} text={st.text} time={timeAgo(e.logged_at, now)}
+                  tilt={cardTilt(i)}
                   onClick={() => setDetail({ kind: mode, entry: e })} />
               );
             })}
