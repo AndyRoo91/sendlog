@@ -165,7 +165,7 @@ export default function DetailSheet({ sessionId, target, onClose, onSavedBoulder
 
         <div style={{ marginBottom: 10 }}>
           <label>Style</label>
-          <StyleRibbonRow selected={styleId} onPick={setStyleId} />
+          <StyleRibbonRow mode={target.kind} selected={styleId} onPick={setStyleId} />
         </div>
 
         <div style={{ marginBottom: 10 }}>

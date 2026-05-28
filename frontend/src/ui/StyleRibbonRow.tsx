@@ -1,17 +1,24 @@
-import { STYLES } from "./styleMap";
+import { STYLES, STYLE_BY_ID, STYLES_BY_MODE } from "./styleMap";
 import type { StyleId } from "./styleMap";
 
 interface Props {
   selected?: StyleId | null;
   big?: boolean;
   onPick?: (id: StyleId) => void;
+  /** Restrict to a mode's chip set; omit to show all six. */
+  mode?: "boulder" | "lead";
+  /** Or pass an explicit ordered list (overrides `mode`). */
+  styles?: StyleId[];
 }
 
-/** The 4-up FLASH / SEND / WORK / FALL ribbon grid. */
-export default function StyleRibbonRow({ selected = null, big = false, onPick }: Props) {
+/** Style ribbon grid. Auto-adapts grid columns to the chip count. */
+export default function StyleRibbonRow({ selected = null, big = false, onPick, mode, styles }: Props) {
+  const ids = styles ?? (mode ? STYLES_BY_MODE[mode] : STYLES.map((s) => s.id));
+  const cols = ids.length >= 6 ? 3 : ids.length === 5 ? 5 : 4;
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
-      {STYLES.map((s) => {
+    <div style={{ display: "grid", gridTemplateColumns: `repeat(${cols}, 1fr)`, gap: 8 }}>
+      {ids.map((id) => {
+        const s = STYLE_BY_ID[id];
         const isSel = selected === s.id;
         return (
           <div

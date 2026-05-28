@@ -148,6 +148,7 @@ export interface ProgressPoint {
 
 export interface LeadPyramidRow {
   grade: string;
+  onsight: number;
   flash: number;
   redpoint: number;
 }
@@ -156,6 +157,7 @@ export interface ProgressData {
   fingerboard_max_weight: ProgressPoint[];
   boulder_max_grade: ProgressPoint[];
   strength_max_weight: ProgressPoint[];
+  lead_onsight_progression: ProgressPoint[];
   lead_flash_progression: ProgressPoint[];
   lead_redpoint_progression: ProgressPoint[];
   lead_send_pyramid: LeadPyramidRow[];
