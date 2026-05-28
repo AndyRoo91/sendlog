@@ -174,6 +174,9 @@ export interface ProgressData {
   lead_redpoint_progression: ProgressPoint[];
   lead_send_pyramid: LeadPyramidRow[];
   boulder_send_pyramid: BoulderPyramidRow[];
+  session_volume: ProgressPoint[];
+  send_rate: ProgressPoint[];
+  falls_trend: ProgressPoint[];
 }
 
 const BASE = "/api";
