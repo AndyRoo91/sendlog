@@ -45,7 +45,7 @@ A running list of features and hardening work to tackle in future sessions. Sizi
 - [ ] In-app export/import (JSON) + an upload size limit (M)
 
 ### Phase B — Photos done right
-- [ ] Server-side resize + thumbnails, EXIF auto-rotate, HEIC→JPEG conversion on upload (Pillow) (M)
+- [x] Server-side resize + thumbnails, EXIF auto-rotate, HEIC→JPEG conversion on upload (Pillow) (M)
 - [ ] Generic lightbox for any photo (not just topos) (S)
 - [ ] Multiple photos per project + drag-to-reposition pins (M)
 - [ ] Boulder projects/pins (reuse the Route machinery) (M)
