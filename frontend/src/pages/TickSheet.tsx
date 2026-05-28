@@ -66,6 +66,9 @@ export default function TickSheet() {
   const [showAllBoulder, setShowAllBoulder] = useState(false);
   const [commitTick, setCommitTick] = useState<CommitTick | null>(null);
   const [achievementQueue, setAchievementQueue] = useState<Achievement[]>([]);
+  // The entry id of the most recent PB tick; FeedEntry pulses while it sits here.
+  const [pbEntryId, setPbEntryId] = useState<number | null>(null);
+  const pbClearTimer = useRef<number | null>(null);
   const [detail, setDetail] = useState<DetailTarget | null>(null);
   const [now, setNow] = useState(Date.now());
   const [ending, setEnding] = useState(false);
@@ -95,6 +98,7 @@ export default function TickSheet() {
   // Clear any pending selection timeout on unmount (REVIEW.md §4).
   useEffect(() => () => {
     if (selectTimer.current) window.clearTimeout(selectTimer.current);
+    if (pbClearTimer.current) window.clearTimeout(pbClearTimer.current);
   }, []);
 
   function selectGrade(g: string) {
@@ -124,7 +128,11 @@ export default function TickSheet() {
       if (typeof navigator !== "undefined" && navigator.vibrate) {
         navigator.vibrate(isNewMax ? [40, 60, 80] : 50);
       }
+      // Stash whether this commit was a PB so we can flag the matching feed
+      // chip once the server has assigned an id (set below in the try block).
+      const wasPB = isNewMax;
       try {
+        let createdId: number | undefined;
         if (mode === "lead") {
           const created = await api.addLead(sessionId, {
             route_name: opts?.routeName ?? null,
@@ -135,6 +143,7 @@ export default function TickSheet() {
             falls: opts?.falls ?? 0,
             notes: null,
           });
+          createdId = created.id;
           setSession((s) => s && {
             ...s, started_at: s.started_at ?? optimisticStart,
             lead_route_entries: [...s.lead_route_entries, { ...created, photos: [] }],
@@ -144,10 +153,17 @@ export default function TickSheet() {
           const created = await api.addBoulder(sessionId, {
             grade, send_type: STYLE_TO_SEND_TYPE[styleId], attempts: null, notes: null,
           });
+          createdId = created.id;
           setSession((s) => s && {
             ...s, started_at: s.started_at ?? optimisticStart,
             boulder_entries: [...s.boulder_entries, { ...created, photos: [] }],
           });
+        }
+        if (wasPB && createdId != null) {
+          setPbEntryId(createdId);
+          if (pbClearTimer.current) window.clearTimeout(pbClearTimer.current);
+          // Stop highlighting after the shake animation has had time to play.
+          pbClearTimer.current = window.setTimeout(() => setPbEntryId(null), 3000);
         }
         setRouteName(""); // clears on every commit, including from RecentChip
         refreshRecents();
@@ -404,6 +420,7 @@ export default function TickSheet() {
               return (
                 <FeedEntry key={e.id} grade={e.grade} style={st.label} color={st.color} text={st.text} time={timeAgo(e.logged_at, now)}
                   tilt={cardTilt(i)}
+                  isPB={e.id === pbEntryId}
                   onClick={() => setDetail({ kind: mode, entry: e })}
                   onDelete={async () => {
                     try {

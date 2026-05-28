@@ -19,6 +19,12 @@ interface Props {
 
 const PHRASES = ["burned it!", "send city!", "filthy!", "money.", "boom.", "crushed it.", "yewww!", "too easy.", "get in!", "laps.", "cooked it.", "heaps good."];
 const NEW_MAX_PHRASES = ["NEW MAX! 🔥", "fresh ceiling!", "limit crusher.", "that's a PB!", "uncharted grades!", "new territory!"];
+const NIGHT_OWL_PHRASES = ["🦉 night burn.", "🦉 owl city.", "🦉 burning the wick.", "🦉 graveyard send.", "🦉 still up, still sending."];
+
+function isNightOwlHour(): boolean {
+  const h = new Date().getHours();
+  return h >= 23 || h < 4;
+}
 
 /** ~600ms celebratory overlay: green tick, mustard rays, ink banner. */
 export default function AfterCommitOverlay({ tick, onDone, holdMs = 400 }: Props) {
@@ -27,7 +33,11 @@ export default function AfterCommitOverlay({ tick, onDone, holdMs = 400 }: Props
 
   useEffect(() => {
     if (!tick) return;
-    const pool = tick.isNewMax ? NEW_MAX_PHRASES : PHRASES;
+    // Pool priority: PB > night-owl > regular. PB shouldn't get swallowed
+    // by the easter egg when both apply.
+    const pool = tick.isNewMax ? NEW_MAX_PHRASES
+      : isNightOwlHour() ? NIGHT_OWL_PHRASES
+      : PHRASES;
     setPhrase(pool[Math.floor(Math.random() * pool.length)]);
     setVisible(true);
     const fadeOut = setTimeout(() => setVisible(false), 100 + holdMs);

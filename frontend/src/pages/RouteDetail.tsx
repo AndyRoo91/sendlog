@@ -8,6 +8,7 @@ import { photoUrl } from "../lib/photos";
 import { STYLE_BY_ID, sendTypeToStyle, Lightbox } from "../ui";
 import TopoPinEditor from "../components/TopoPinEditor";
 import PhotoUploader from "../components/PhotoUploader";
+import ColourPickOverlay from "../components/ColourPickOverlay";
 
 function PinOverlay({ pins }: { pins: RoutePin[] }) {
   const ordered = [...pins].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : a.id - b.id));
@@ -41,6 +42,7 @@ export default function RouteDetail() {
   const [editing, setEditing] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [lightbox, setLightbox] = useState<string | null>(null);
+  const [picking, setPicking] = useState(false);
 
   useEffect(() => { api.getRoute(routeId).then(setRoute); }, [routeId]);
 
@@ -87,9 +89,12 @@ export default function RouteDetail() {
                 style={{ display: "block", width: "100%", border: "var(--b) solid var(--ink)" }} />
               <PinOverlay pins={route.pins} />
             </div>
-            <div className="gap-row" style={{ justifyContent: "space-between", marginTop: 12 }}>
+            <div className="gap-row" style={{ justifyContent: "space-between", marginTop: 12, flexWrap: "wrap", gap: 8 }}>
               <span className="muted" style={{ fontSize: 12 }}>{route.pins.length} pin{route.pins.length === 1 ? "" : "s"} across sessions</span>
-              <button className="btn-primary btn-sm" onClick={() => setEditing(true)}>📍 Add / edit pins</button>
+              <div className="gap-row" style={{ gap: 6 }}>
+                <button className="btn-secondary btn-sm" onClick={() => setPicking(true)}>🎨 Find same colour</button>
+                <button className="btn-primary btn-sm" onClick={() => setEditing(true)}>📍 Add / edit pins</button>
+              </div>
             </div>
           </>
         ) : (
@@ -167,6 +172,12 @@ export default function RouteDetail() {
       )}
 
       {lightbox && <Lightbox src={lightbox} onClose={() => setLightbox(null)} />}
+      {picking && route.topo_filename && (
+        <ColourPickOverlay
+          imageSrc={`/photos/${route.topo_filename}`}
+          onClose={() => setPicking(false)}
+        />
+      )}
     </div>
   );
 }

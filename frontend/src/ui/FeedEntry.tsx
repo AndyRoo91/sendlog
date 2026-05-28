@@ -11,6 +11,7 @@ interface Props {
   tilt?: number;
   onClick?: () => void;
   onDelete?: () => void;
+  isPB?: boolean;
 }
 
 const DRAG_TRIGGER = -110;          // px past which release fires delete
@@ -19,7 +20,7 @@ const VERTICAL_CANCEL = 12;          // px of vertical move → bail out (let pa
 const CLICK_SUPPRESS = 6;            // px of horizontal move → suppress the tap
 
 /** Logged-tick chip shown in the session feed strip. Supports swipe-left to delete. */
-export default function FeedEntry({ grade, style, color, text = "var(--cream)", time, tilt = 0, onClick, onDelete }: Props) {
+export default function FeedEntry({ grade, style, color, text = "var(--cream)", time, tilt = 0, onClick, onDelete, isPB = false }: Props) {
   const [dx, setDx] = useState(0);
   const [dragging, setDragging] = useState(false);
   const startRef = useRef<{ x: number; y: number } | null>(null);
@@ -94,13 +95,17 @@ export default function FeedEntry({ grade, style, color, text = "var(--cream)", 
       <div
         role={onClick ? "button" : undefined}
         tabIndex={onClick ? 0 : undefined}
-        aria-label={onClick ? `Edit ${grade} ${style} tick` : undefined}
+        aria-label={onClick ? `${isPB ? "Personal best — " : ""}Edit ${grade} ${style} tick` : undefined}
+        className={isPB && dx === 0 ? "pb-pulse" : undefined}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerCancel={reset}
         onKeyDown={onClick ? onKey(onClick) : undefined}
         style={{
+          // --tilt feeds into the pb-shake keyframe so the chip's resting
+          // rotation is preserved across the animation.
+          ["--tilt" as string]: `rotate(${tilt}deg)`,
           position: "relative",
           border: "var(--b) solid var(--ink)",
           background: color,
