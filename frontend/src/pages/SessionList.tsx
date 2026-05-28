@@ -1,17 +1,55 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api/client";
 import type { SessionSummary } from "../api/client";
 import { format } from "date-fns";
-import { Ribbon } from "../ui";
+import { Ribbon, Toast } from "../ui";
+import { useToast } from "../lib/useToast";
 
 export default function SessionList() {
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
   const [loading, setLoading] = useState(true);
+  const [importing, setImporting] = useState(false);
+  const { message: toastMsg, toast, dismiss: dismissToast } = useToast();
+  const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     api.listSessions().then((s) => { setSessions(s); setLoading(false); });
   }, []);
+
+  async function handleExport() {
+    try {
+      const blob = await api.exportData();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      const date = new Date().toISOString().slice(0, 10);
+      a.href = url;
+      a.download = `sendlog-export-${date}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      toast(err instanceof Error ? err.message : "Export failed.");
+    }
+  }
+
+  async function handleImport(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+    setImporting(true);
+    try {
+      const text = await file.text();
+      const payload = JSON.parse(text);
+      const result = await api.importData(payload);
+      toast(`Imported ${result.sessions_imported} sessions + ${result.routes_imported} routes.`);
+      const updated = await api.listSessions();
+      setSessions(updated);
+    } catch (err) {
+      toast(err instanceof Error ? err.message : "Import failed — check the file format.");
+    } finally {
+      setImporting(false);
+    }
+  }
 
   return (
     <div className="page">
@@ -56,6 +94,24 @@ export default function SessionList() {
           </Link>
         ))}
       </div>
+
+      {/* Data backup row */}
+      <div style={{ marginTop: 32, borderTop: "2px dashed var(--ink-2)", paddingTop: 16, opacity: 0.7 }}>
+        <div style={{ fontFamily: "var(--font-banner)", fontSize: 10, letterSpacing: "0.1em", color: "var(--ink-2)", marginBottom: 10 }}>
+          ★ DATA BACKUP
+        </div>
+        <div style={{ display: "flex", gap: 10 }}>
+          <button className="btn-secondary btn-sm" onClick={handleExport}>
+            ↓ EXPORT JSON
+          </button>
+          <button className="btn-secondary btn-sm" onClick={() => fileRef.current?.click()} disabled={importing}>
+            {importing ? "IMPORTING…" : "↑ IMPORT JSON"}
+          </button>
+          <input ref={fileRef} type="file" accept=".json,application/json" style={{ display: "none" }} onChange={handleImport} />
+        </div>
+      </div>
+
+      <Toast message={toastMsg} onDismiss={dismissToast} />
     </div>
   );
 }
