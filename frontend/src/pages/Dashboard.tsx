@@ -3,6 +3,31 @@ import { Link } from "react-router-dom";
 import { api } from "../api/client";
 import type { SessionSummary } from "../api/client";
 import { format } from "date-fns";
+import { ICON, Ribbon } from "../ui";
+
+interface StatProps {
+  label: string;
+  value: string;
+  color: string;
+  rotate?: number;
+}
+
+function Stat({ label, value, color, rotate = 0 }: StatProps) {
+  return (
+    <div className="card-flat offset-ink" style={{
+      padding: "12px 10px", textAlign: "center", transform: `rotate(${rotate}deg)`,
+      background: "var(--cream)",
+    }}>
+      <div style={{
+        fontFamily: "var(--font-banner)", fontSize: 10, letterSpacing: "0.08em",
+        color: "var(--ink-2)", marginBottom: 6, textTransform: "uppercase",
+      }}>{label}</div>
+      <div style={{
+        fontFamily: "var(--font-display)", fontSize: 30, lineHeight: 1, color,
+      }}>{value}</div>
+    </div>
+  );
+}
 
 export default function Dashboard() {
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
@@ -19,60 +44,78 @@ export default function Dashboard() {
     const now = new Date();
     return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
   }).length;
+  const last = sessions[0] ? format(new Date(sessions[0].date), "MMM d") : "—";
 
   return (
     <div className="page">
-      <div className="gap-row" style={{ justifyContent: "space-between", marginBottom: 24 }}>
-        <h1>Dashboard</h1>
+      <div className="gap-row" style={{ justifyContent: "space-between", marginBottom: 20, alignItems: "flex-start" }}>
+        <Ribbon color="var(--red)" textColor="var(--cream)">★ DASHBOARD ★</Ribbon>
         <Link to="/sessions/new">
           <button className="btn-primary">+ Log Session</button>
         </Link>
       </div>
 
-      <div className="grid-3" style={{ marginBottom: 16 }}>
-        <div className="card">
-          <div className="muted" style={{ fontSize: 13, marginBottom: 4 }}>Total Sessions</div>
-          <div style={{ fontSize: 28, fontWeight: 700 }}>{totalSessions}</div>
-        </div>
-        <div className="card">
-          <div className="muted" style={{ fontSize: 13, marginBottom: 4 }}>This Month</div>
-          <div style={{ fontSize: 28, fontWeight: 700 }}>{thisMonth}</div>
-        </div>
-        <div className="card">
-          <div className="muted" style={{ fontSize: 13, marginBottom: 4 }}>Last Session</div>
-          <div style={{ fontSize: 18, fontWeight: 600 }}>
-            {sessions[0] ? format(new Date(sessions[0].date), "MMM d") : "—"}
-          </div>
-        </div>
+      <div style={{
+        display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14, marginBottom: 22,
+      }}>
+        <Stat label="Total" value={String(totalSessions)} color="var(--ink)" rotate={0.5} />
+        <Stat label="This month" value={String(thisMonth)} color="var(--cobalt)" rotate={-1} />
+        <Stat label="Last" value={last} color="var(--red)" rotate={0.5} />
       </div>
 
       <Link to="/routes" style={{ textDecoration: "none" }}>
-        <div className="card gap-row" style={{ justifyContent: "space-between", alignItems: "center", marginBottom: 24, cursor: "pointer" }}>
-          <div>
-            <div style={{ fontFamily: "var(--font-display)", fontSize: 18 }}>📍 Projects</div>
-            <div className="muted" style={{ fontSize: 12 }}>Track high-points on a route photo across sessions</div>
+        <div className="card-flat offset-mustard" style={{
+          display: "flex", alignItems: "center", gap: 14, padding: "14px 16px",
+          marginBottom: 24, cursor: "pointer", background: "var(--ink)",
+          transform: "rotate(-0.5deg)",
+        }}>
+          <span style={{
+            display: "inline-flex", width: 36, height: 36, alignItems: "center",
+            justifyContent: "center", color: "var(--mustard)",
+          }}>{ICON.pin}</span>
+          <div style={{ flex: 1 }}>
+            <div style={{
+              fontFamily: "var(--font-display)", fontSize: 18, color: "var(--cream)",
+            }}>PROJECTS</div>
+            <div style={{
+              fontFamily: "var(--font-banner)", fontSize: 10, letterSpacing: "0.08em",
+              color: "var(--mustard)",
+            }}>HIGH-POINTS ON A ROUTE PHOTO, ACROSS SESSIONS</div>
           </div>
-          <span style={{ fontFamily: "var(--font-banner)", fontSize: 18 }}>→</span>
+          <span style={{
+            fontFamily: "var(--font-banner)", fontSize: 18, color: "var(--mustard)",
+          }}>→</span>
         </div>
       </Link>
 
-      <div className="card">
+      <div className="card-flat offset-ink" style={{ padding: 16 }}>
         <div className="section-header">
-          <h2>Recent Sessions</h2>
-          <Link to="/sessions" style={{ fontSize: 13 }}>View all</Link>
+          <div style={{
+            fontFamily: "var(--font-banner)", fontSize: 12, letterSpacing: "0.12em",
+            color: "var(--ink)",
+          }}>RECENT SESSIONS</div>
+          <Link to="/sessions" style={{ fontSize: 12, fontFamily: "var(--font-banner)", letterSpacing: "0.08em" }}>VIEW ALL →</Link>
         </div>
         {loading && <p className="muted">Loading…</p>}
         {!loading && recent.length === 0 && (
           <p className="muted">No sessions yet. <Link to="/sessions/new">Log your first one!</Link></p>
         )}
         <div className="gap-col">
-          {recent.map((s) => (
+          {recent.map((s, i) => (
             <Link key={s.id} to={`/sessions/${s.id}`} style={{ textDecoration: "none" }}>
-              <div className="card" style={{ padding: "14px 16px", cursor: "pointer" }}>
+              <div className="card-flat" style={{
+                padding: "12px 14px", cursor: "pointer",
+                transform: `rotate(${i % 2 === 0 ? -0.4 : 0.3}deg)`,
+                boxShadow: "2px 2px 0 var(--ink)",
+              }}>
                 <div className="gap-row" style={{ justifyContent: "space-between" }}>
                   <div>
-                    <span style={{ fontWeight: 600 }}>{format(new Date(s.date), "EEE, MMM d yyyy")}</span>
-                    {s.location && <span className="muted" style={{ marginLeft: 10 }}>{s.location}</span>}
+                    <span style={{ fontFamily: "var(--font-banner)", fontSize: 12, letterSpacing: "0.06em" }}>
+                      {format(new Date(s.date), "EEE · MMM d").toUpperCase()}
+                    </span>
+                    {s.location && (
+                      <span className="muted" style={{ marginLeft: 10, fontSize: 13 }}>{s.location}</span>
+                    )}
                   </div>
                   {s.duration_minutes && (
                     <span className="muted" style={{ fontSize: 13 }}>{s.duration_minutes} min</span>

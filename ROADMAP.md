@@ -73,10 +73,10 @@ A running list of features and hardening work to tackle in future sessions. Sizi
 Full detail in [REVIEW.md](REVIEW.md). The visual system currently stops at the Tick Sheet — the lobby screens still wear the pre-redesign skin, plus a set of form papercuts and small bugs.
 
 **Visual-system spread (highest perceived-quality lift)**
-- [ ] Reskin Dashboard to the new system: Ribbon page title, `.card-flat` + `offset-ink` stat cards, display/banner type, card rotation rhythm, drop the 📍 emoji (M)
-- [ ] Reskin SessionList in the same pass (S)
-- [ ] Reskin Progress: Ribbon title + banner chart headings, retokenise containers (S)
-- [ ] Halftone overlay applied consistently (`.paper` vs `.paper-plain`) (S)
+- [x] Reskin Dashboard to the new system: Ribbon page title, `.card-flat` + `offset-ink` stat cards, display/banner type, card rotation rhythm, drop the 📍 emoji (M)
+- [x] Reskin SessionList in the same pass (S)
+- [x] Reskin Progress: Ribbon title + banner chart headings, retokenise containers (S)
+- [x] Halftone overlay applied consistently (`.paper` vs `.paper-plain`) (S)
 
 **Form fixes pass**
 - [ ] Replace `onContextMenu` long-press with a pointerdown timer (~450ms) + movement-cancel threshold (M)

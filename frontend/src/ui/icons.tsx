@@ -11,4 +11,5 @@ export const ICON: Record<string, ReactNode> = {
   log: svg(<><circle cx="12" cy="12" r="9" /><path d="M12 7v10M7 12h10" /></>),
   charts: svg(<><path d="M4 20h16" /><path d="M7 16V9M12 16V4M17 16v-6" /></>),
   list: svg(<path d="M4 6h16M4 12h16M4 18h10" />),
+  pin: svg(<><path d="M12 21s-7-7.5-7-12a7 7 0 1 1 14 0c0 4.5-7 12-7 12z" /><circle cx="12" cy="9" r="2.5" /></>),
 };
