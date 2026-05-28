@@ -266,4 +266,16 @@ export const api = {
   updatePin: (pinId: number, payload: Partial<PinPayload>) =>
     req<RoutePin>(`/pins/${pinId}`, { method: "PATCH", body: JSON.stringify(payload) }),
   deletePin: (pinId: number) => req<void>(`/pins/${pinId}`, { method: "DELETE" }),
+
+  // --- Export / Import ---
+  exportData: async (): Promise<Blob> => {
+    const res = await fetch(`${BASE}/export`);
+    if (!res.ok) throw new Error(`${res.status}: ${await res.text()}`);
+    return res.blob();
+  },
+  importData: (payload: object) =>
+    req<{ sessions_imported: number; routes_imported: number }>("/import", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
 };

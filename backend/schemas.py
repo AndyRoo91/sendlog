@@ -1,4 +1,5 @@
 from datetime import date as DateType, datetime
+from typing import Any
 from pydantic import BaseModel
 
 
@@ -248,3 +249,20 @@ class RouteDetail(RouteBase):
     pins: list[RoutePin] = []
     ticks: list[LeadRouteEntry] = []
     model_config = {"from_attributes": True}
+
+
+# ---------------------------------------------------------------------------
+# Export / Import
+# ---------------------------------------------------------------------------
+
+class ImportPayload(BaseModel):
+    """Accepted body for POST /api/import. Uses Any so unknown future fields
+    are ignored gracefully."""
+    version: int = 1
+    sessions: list[Any] = []
+    routes: list[Any] = []
+
+
+class ImportResult(BaseModel):
+    sessions_imported: int
+    routes_imported: int

@@ -680,6 +680,156 @@ def delete_pin(pin_id: int, db: DBSession = Depends(get_db)):
 
 
 # ---------------------------------------------------------------------------
+# Export / Import
+# ---------------------------------------------------------------------------
+
+@app.get("/api/export")
+def export_data(db: DBSession = Depends(get_db)):
+    """Dump all sessions (with entries) and routes (with pins) as JSON.
+    Photo files are not included — data only."""
+    sessions = db.query(models.Session).order_by(models.Session.date).all()
+    routes = db.query(models.Route).order_by(models.Route.id).all()
+
+    def _isoformat(dt: datetime | None) -> str | None:
+        return dt.isoformat() if dt else None
+
+    return {
+        "version": 1,
+        "exported_at": datetime.utcnow().isoformat(),
+        "sessions": [
+            {
+                "date": s.date.isoformat(),
+                "location": s.location,
+                "duration_minutes": s.duration_minutes,
+                "notes": s.notes,
+                "started_at": _isoformat(s.started_at),
+                "ended_at": _isoformat(s.ended_at),
+                "warmup_entries": [
+                    {"activity": e.activity, "duration_minutes": e.duration_minutes, "notes": e.notes}
+                    for e in s.warmup_entries
+                ],
+                "fingerboard_entries": [
+                    {"edge_mm": e.edge_mm, "added_weight_kg": e.added_weight_kg,
+                     "hang_duration_s": e.hang_duration_s, "num_sets": e.num_sets, "notes": e.notes}
+                    for e in s.fingerboard_entries
+                ],
+                "boulder_entries": [
+                    {"grade": e.grade, "send_type": e.send_type, "attempts": e.attempts,
+                     "notes": e.notes, "logged_at": _isoformat(e.logged_at)}
+                    for e in s.boulder_entries
+                ],
+                "strength_entries": [
+                    {"exercise": e.exercise, "reps": e.reps,
+                     "added_weight_kg": e.added_weight_kg, "notes": e.notes}
+                    for e in s.strength_entries
+                ],
+                "lead_route_entries": [
+                    {"route_name": e.route_name, "grade": e.grade, "grade_system": e.grade_system,
+                     "send_type": e.send_type, "attempts": e.attempts, "falls": e.falls,
+                     "notes": e.notes, "logged_at": _isoformat(e.logged_at)}
+                    for e in s.lead_route_entries
+                ],
+            }
+            for s in sessions
+        ],
+        "routes": [
+            {
+                "name": r.name,
+                "grade": r.grade,
+                "grade_system": r.grade_system,
+                "location": r.location,
+                "notes": r.notes,
+                "pins": [
+                    {"date": p.date.isoformat(), "x": p.x, "y": p.y, "kind": p.kind, "note": p.note}
+                    for p in r.pins
+                ],
+            }
+            for r in routes
+        ],
+    }
+
+
+_SESSION_FIELDS = {"date", "location", "duration_minutes", "notes", "started_at", "ended_at"}
+_WARMUP_FIELDS = {"activity", "duration_minutes", "notes"}
+_FINGER_FIELDS = {"edge_mm", "added_weight_kg", "hang_duration_s", "num_sets", "notes"}
+_BOULDER_FIELDS = {"grade", "send_type", "attempts", "notes", "logged_at"}
+_STRENGTH_FIELDS = {"exercise", "reps", "added_weight_kg", "notes"}
+_LEAD_FIELDS = {"route_name", "grade", "grade_system", "send_type", "attempts", "falls", "notes", "logged_at"}
+_ROUTE_FIELDS = {"name", "grade", "grade_system", "location", "notes"}
+_PIN_FIELDS = {"date", "x", "y", "kind", "note"}
+
+
+def _pick(d: dict, keys: set) -> dict:
+    return {k: v for k, v in d.items() if k in keys and v is not None or k in keys and v == 0}
+
+
+def _parse_date(v: str | None):
+    from datetime import date as _date
+    return _date.fromisoformat(v) if v else None
+
+
+def _parse_dt(v: str | None):
+    return datetime.fromisoformat(v) if v else None
+
+
+@app.post("/api/import", response_model=schemas.ImportResult, status_code=201)
+def import_data(payload: schemas.ImportPayload, db: DBSession = Depends(get_db)):
+    """Append exported data as new records (new IDs). Idempotent-safe: calling
+    twice imports duplicates, so this is intended as a restore tool, not a sync."""
+    if payload.version != 1:
+        raise HTTPException(status_code=400, detail=f"Unsupported export version: {payload.version}")
+
+    sessions_imported = 0
+    for s in payload.sessions:
+        if not isinstance(s, dict) or "date" not in s:
+            continue
+        session = models.Session(
+            date=_parse_date(s.get("date")),
+            location=s.get("location"),
+            duration_minutes=s.get("duration_minutes"),
+            notes=s.get("notes"),
+            started_at=_parse_dt(s.get("started_at")),
+            ended_at=_parse_dt(s.get("ended_at")),
+        )
+        db.add(session)
+        db.flush()
+        for e in s.get("warmup_entries", []):
+            db.add(models.WarmupEntry(session_id=session.id, **{k: e[k] for k in _WARMUP_FIELDS if k in e}))
+        for e in s.get("fingerboard_entries", []):
+            db.add(models.FingerboardEntry(session_id=session.id, **{k: e[k] for k in _FINGER_FIELDS if k in e}))
+        for e in s.get("boulder_entries", []):
+            entry_kwargs = {k: e[k] for k in _BOULDER_FIELDS if k in e}
+            if "logged_at" in entry_kwargs:
+                entry_kwargs["logged_at"] = _parse_dt(entry_kwargs["logged_at"])
+            db.add(models.LimitBoulderEntry(session_id=session.id, **entry_kwargs))
+        for e in s.get("strength_entries", []):
+            db.add(models.StrengthEntry(session_id=session.id, **{k: e[k] for k in _STRENGTH_FIELDS if k in e}))
+        for e in s.get("lead_route_entries", []):
+            entry_kwargs = {k: e[k] for k in _LEAD_FIELDS if k in e}
+            if "logged_at" in entry_kwargs:
+                entry_kwargs["logged_at"] = _parse_dt(entry_kwargs["logged_at"])
+            db.add(models.LeadRouteEntry(session_id=session.id, **entry_kwargs))
+        sessions_imported += 1
+
+    routes_imported = 0
+    for r in payload.routes:
+        if not isinstance(r, dict) or "name" not in r:
+            continue
+        route = models.Route(**{k: r[k] for k in _ROUTE_FIELDS if k in r})
+        db.add(route)
+        db.flush()
+        for p in r.get("pins", []):
+            pin_kwargs = {k: p[k] for k in _PIN_FIELDS if k in p}
+            if "date" in pin_kwargs:
+                pin_kwargs["date"] = _parse_date(pin_kwargs["date"])
+            db.add(models.RoutePin(route_id=route.id, **pin_kwargs))
+        routes_imported += 1
+
+    db.commit()
+    return schemas.ImportResult(sessions_imported=sessions_imported, routes_imported=routes_imported)
+
+
+# ---------------------------------------------------------------------------
 # Serve React SPA
 # ---------------------------------------------------------------------------
 
