@@ -1,5 +1,6 @@
 import { STYLES, STYLE_BY_ID, STYLES_BY_MODE } from "./styleMap";
 import type { StyleId } from "./styleMap";
+import { onKey } from "../lib/a11y";
 
 interface Props {
   selected?: StyleId | null;
@@ -24,7 +25,12 @@ export default function StyleRibbonRow({ selected = null, big = false, onPick, m
           <div
             key={s.id}
             className="chunky"
+            role={onPick ? "button" : undefined}
+            tabIndex={onPick ? 0 : undefined}
+            aria-label={`${s.label} style`}
+            aria-pressed={isSel}
             onClick={onPick ? () => onPick(s.id) : undefined}
+            onKeyDown={onPick ? onKey(() => onPick(s.id)) : undefined}
             style={{
               background: s.color,
               color: s.text,

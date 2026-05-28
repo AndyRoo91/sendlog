@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { onKey } from "../lib/a11y";
 import { Link, useNavigate } from "react-router-dom";
 import { api } from "../api/client";
 import type { RouteSummary } from "../api/client";
@@ -93,7 +94,9 @@ export default function RoutesList() {
           {/* Kind toggle */}
           <div style={{ display: "flex", gap: 8 }}>
             {(["lead", "boulder"] as const).map((k) => (
-              <div key={k} className="chunky" onClick={() => setNewKind(k)}
+              <div key={k} className="chunky" role="button" tabIndex={0}
+              aria-pressed={newKind === k}
+              onClick={() => setNewKind(k)} onKeyDown={onKey(() => setNewKind(k))}
                 style={{
                   flex: 1, textAlign: "center", padding: "8px 0",
                   fontFamily: "var(--font-banner)", fontSize: 11, letterSpacing: "0.08em",

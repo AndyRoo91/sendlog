@@ -6,6 +6,7 @@ import { GradeChip, StyleRibbonRow, STYLE_BY_ID, STYLE_TO_SEND_TYPE, sendTypeToS
 import type { StyleId } from "../ui";
 import type { GradeSystem } from "../lib/grades";
 import PhotoUploader from "./PhotoUploader";
+import { onKey } from "../lib/a11y";
 
 export interface DetailTarget {
   kind: "boulder" | "lead";
@@ -28,11 +29,15 @@ function Stepper({ label, value, min, onChange }: { label: string; value: number
     <div>
       <label>{label}</label>
       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-        <div className="chunky" style={{ width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center", background: "var(--cream)", boxShadow: "2px 2px 0 var(--ink)" }}
-          onClick={() => onChange(Math.max(min, value - 1))}>–</div>
-        <div style={{ fontFamily: "var(--font-display)", fontSize: 22, minWidth: 28, textAlign: "center" }}>{value}</div>
-        <div className="chunky" style={{ width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center", background: "var(--mustard)", boxShadow: "2px 2px 0 var(--ink)" }}
-          onClick={() => onChange(value + 1)}>+</div>
+        <div role="button" tabIndex={0} aria-label={`Decrease ${label}`} className="chunky"
+          style={{ width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center", background: "var(--cream)", boxShadow: "2px 2px 0 var(--ink)" }}
+          onClick={() => onChange(Math.max(min, value - 1))}
+          onKeyDown={onKey(() => onChange(Math.max(min, value - 1)))}>–</div>
+        <div aria-live="polite" style={{ fontFamily: "var(--font-display)", fontSize: 22, minWidth: 28, textAlign: "center" }}>{value}</div>
+        <div role="button" tabIndex={0} aria-label={`Increase ${label}`} className="chunky"
+          style={{ width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center", background: "var(--mustard)", boxShadow: "2px 2px 0 var(--ink)" }}
+          onClick={() => onChange(value + 1)}
+          onKeyDown={onKey(() => onChange(value + 1))}>+</div>
       </div>
     </div>
   );
@@ -142,7 +147,7 @@ export default function DetailSheet({ sessionId, target, onClose, onSavedBoulder
               {entry?.id ? "edit this tick" : "log with detail"}
             </div>
           </div>
-          <div className="chunky" onClick={onClose} style={{ width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center", background: "var(--cream)", fontFamily: "var(--font-banner)", fontSize: 16 }}>×</div>
+          <div role="button" tabIndex={0} aria-label="Close" className="chunky" onClick={onClose} onKeyDown={onKey(onClose)} style={{ width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center", background: "var(--cream)", fontFamily: "var(--font-banner)", fontSize: 16 }}>×</div>
         </div>
 
         {isLead && (
@@ -210,12 +215,15 @@ export default function DetailSheet({ sessionId, target, onClose, onSavedBoulder
           </div>
         )}
 
-        <div className="chunky" onClick={saving ? undefined : save} style={{ padding: "14px 0", textAlign: "center", fontSize: 18, background: "var(--ink)", color: "var(--mustard)", boxShadow: "4px 4px 0 var(--red)", letterSpacing: "0.04em", opacity: saving ? 0.6 : 1 }}>
+        <div role="button" tabIndex={saving ? -1 : 0} aria-disabled={saving}
+          className="chunky" onClick={saving ? undefined : save} onKeyDown={saving ? undefined : onKey(save)}
+          style={{ padding: "14px 0", textAlign: "center", fontSize: 18, background: "var(--ink)", color: "var(--mustard)", boxShadow: "4px 4px 0 var(--red)", letterSpacing: "0.04em", opacity: saving ? 0.6 : 1 }}>
           ★ {saving ? "SAVING…" : "SAVE TICK"} ★
         </div>
 
         {entry?.id && (
-          <div onClick={remove} style={{ textAlign: "center", marginTop: 12, fontFamily: "var(--font-banner)", fontSize: 12, color: "var(--red)", letterSpacing: "0.06em", cursor: "pointer" }}>
+          <div role="button" tabIndex={0} onClick={remove} onKeyDown={onKey(remove)}
+            style={{ textAlign: "center", marginTop: 12, fontFamily: "var(--font-banner)", fontSize: 12, color: "var(--red)", letterSpacing: "0.06em", cursor: "pointer" }}>
             DELETE TICK
           </div>
         )}

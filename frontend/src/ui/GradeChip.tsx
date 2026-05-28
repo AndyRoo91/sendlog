@@ -1,4 +1,5 @@
 import type { CSSProperties, MouseEvent } from "react";
+import { onKey } from "../lib/a11y";
 
 interface Props {
   grade: string;
@@ -22,7 +23,11 @@ export default function GradeChip({
 }: Props) {
   return (
     <div
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      aria-label={onClick ? `Select grade ${grade}` : undefined}
       onClick={onClick}
+      onKeyDown={onClick ? onKey(onClick) : undefined}
       onContextMenu={onContextMenu}
       style={{
         width: big ? 80 : 64,

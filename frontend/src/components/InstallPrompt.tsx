@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { onKey } from "../lib/a11y";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -48,11 +49,11 @@ export default function InstallPrompt() {
         </div>
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 6, flexShrink: 0 }}>
-        <div className="chunky" onClick={install}
+        <div role="button" tabIndex={0} className="chunky" onClick={install} onKeyDown={onKey(install)}
           style={{ padding: "6px 12px", background: "var(--mustard)", color: "var(--ink)", fontFamily: "var(--font-banner)", fontSize: 11, letterSpacing: "0.06em", textAlign: "center" }}>
           INSTALL
         </div>
-        <div onClick={() => setDismissed(true)}
+        <div role="button" tabIndex={0} onClick={() => setDismissed(true)} onKeyDown={onKey(() => setDismissed(true))}
           style={{ textAlign: "center", fontFamily: "var(--font-banner)", fontSize: 10, color: "var(--ink-2)", cursor: "pointer", letterSpacing: "0.06em" }}>
           NOT NOW
         </div>

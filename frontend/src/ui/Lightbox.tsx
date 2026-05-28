@@ -15,6 +15,9 @@ export default function Lightbox({ src, onClose }: Props) {
 
   return (
     <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="Photo lightbox"
       onClick={onClose}
       style={{
         position: "fixed", inset: 0, zIndex: 150,
@@ -33,18 +36,20 @@ export default function Lightbox({ src, onClose }: Props) {
           boxShadow: "6px 6px 0 var(--ink)",
         }}
       />
-      <div
+      <button
         onClick={onClose}
+        aria-label="Close photo"
         style={{
           position: "absolute", top: 16, right: 16,
           fontFamily: "var(--font-banner)", fontSize: 12, letterSpacing: "0.08em",
           color: "var(--cream)", background: "var(--ink)",
           border: "var(--b) solid var(--cream)",
           padding: "5px 10px", cursor: "pointer",
+          borderRadius: 0,
         }}
       >
         ✕ CLOSE
-      </div>
+      </button>
     </div>
   );
 }
