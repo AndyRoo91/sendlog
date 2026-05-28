@@ -194,6 +194,10 @@ class ProgressData(BaseModel):
     lead_send_pyramid: list[LeadPyramidRow]
     # Boulder (V-scale)
     boulder_send_pyramid: list[BoulderPyramidRow] = []
+    # Volume / trends
+    session_volume: list[ProgressPoint] = []
+    send_rate: list[ProgressPoint] = []
+    falls_trend: list[ProgressPoint] = []
 
 
 # --- Routes (projects) + pins ---

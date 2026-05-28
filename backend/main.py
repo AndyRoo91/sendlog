@@ -529,6 +529,42 @@ def get_progress(db: DBSession = Depends(get_db)):
     ]
     bl_pyramid_rows.sort(key=lambda r: grade_to_int(r.grade, BOULDER_GRADE_ORDER), reverse=True)
 
+    # Volume / trends — iterate all sessions that have any climbing entries.
+    SEND_TYPES = {"onsight", "flash", "redpoint", "pinkpoint"}
+    volume_points: list[schemas.ProgressPoint] = []
+    send_rate_points: list[schemas.ProgressPoint] = []
+    falls_points: list[schemas.ProgressPoint] = []
+
+    all_sessions = db.query(models.Session).order_by(models.Session.date).all()
+    for s in all_sessions:
+        total_ticks = len(s.boulder_entries) + len(s.lead_route_entries)
+        if total_ticks == 0:
+            continue
+
+        # Volume: total climbing ticks this session
+        volume_points.append(schemas.ProgressPoint(
+            date=s.date, value=total_ticks,
+            label=f"{total_ticks} tick{'s' if total_ticks != 1 else ''}",
+        ))
+
+        # Send rate: sends / total ticks (%)
+        sends = sum(1 for e in s.boulder_entries if e.send_type in SEND_TYPES)
+        sends += sum(1 for e in s.lead_route_entries if e.send_type in SEND_TYPES)
+        rate = round(sends / total_ticks * 100)
+        send_rate_points.append(schemas.ProgressPoint(
+            date=s.date, value=rate,
+            label=f"{sends}/{total_ticks} sends ({rate}%)",
+        ))
+
+        # Falls trend: avg falls per lead route (lead-only sessions with falls data)
+        lead_with_falls = [e for e in s.lead_route_entries if e.falls is not None]
+        if lead_with_falls:
+            avg_falls = round(sum(e.falls for e in lead_with_falls) / len(lead_with_falls), 1)
+            falls_points.append(schemas.ProgressPoint(
+                date=s.date, value=avg_falls,
+                label=f"avg {avg_falls} falls/route",
+            ))
+
     return schemas.ProgressData(
         fingerboard_max_weight=fb_points,
         boulder_max_grade=bl_points,
@@ -538,6 +574,9 @@ def get_progress(db: DBSession = Depends(get_db)):
         lead_redpoint_progression=rp_prog,
         lead_send_pyramid=pyramid_rows,
         boulder_send_pyramid=bl_pyramid_rows,
+        session_volume=volume_points,
+        send_rate=send_rate_points,
+        falls_trend=falls_points,
     )
 
 

@@ -9,6 +9,9 @@ def test_progress_shape_empty(client):
         "lead_redpoint_progression": [],
         "lead_send_pyramid": [],
         "boulder_send_pyramid": [],
+        "session_volume": [],
+        "send_rate": [],
+        "falls_trend": [],
     }
 
 
@@ -65,6 +68,50 @@ def test_progress_boulder_max(client):
     p = client.get("/api/progress").json()
     assert len(p["boulder_max_grade"]) == 1
     assert p["boulder_max_grade"][0]["label"] == "V6"
+
+
+def test_progress_volume_send_rate_falls(client):
+    """Session volume, send rate, and falls trend computed correctly."""
+    s = client.post("/api/sessions", json={"date": "2026-05-10"}).json()
+    # 2 sends, 1 working = 2/3 sends = 67%
+    client.post(f"/api/sessions/{s['id']}/boulder", json={"grade": "V5", "send_type": "redpoint"})
+    client.post(f"/api/sessions/{s['id']}/boulder", json={"grade": "V4", "send_type": "flash"})
+    client.post(f"/api/sessions/{s['id']}/boulder", json={"grade": "V3", "send_type": "working"})
+    # 1 lead with 3 falls
+    client.post(f"/api/sessions/{s['id']}/lead",
+                json={"grade": "20", "grade_system": "ewbank", "send_type": "redpoint", "falls": 3})
+
+    p = client.get("/api/progress").json()
+
+    assert len(p["session_volume"]) == 1
+    assert p["session_volume"][0]["value"] == 4  # 3 boulder + 1 lead
+
+    assert len(p["send_rate"]) == 1
+    assert p["send_rate"][0]["value"] == 75  # 3 sends out of 4 ticks (lead redpoint counts)
+
+    assert len(p["falls_trend"]) == 1
+    assert p["falls_trend"][0]["value"] == 3.0
+
+
+def test_progress_volume_excludes_empty_sessions(client):
+    """Sessions with no climbing ticks (warmup-only) are excluded from volume."""
+    s = client.post("/api/sessions", json={"date": "2026-05-10"}).json()
+    client.post(f"/api/sessions/{s['id']}/warmup", json={"activity": "stretch"})
+
+    p = client.get("/api/progress").json()
+    assert p["session_volume"] == []
+    assert p["send_rate"] == []
+
+
+def test_progress_falls_trend_excludes_no_falls_data(client):
+    """Sessions where no lead entry has falls data are excluded from falls trend."""
+    s = client.post("/api/sessions", json={"date": "2026-05-10"}).json()
+    # lead with no falls field
+    client.post(f"/api/sessions/{s['id']}/lead",
+                json={"grade": "20", "grade_system": "ewbank", "send_type": "redpoint"})
+
+    p = client.get("/api/progress").json()
+    assert p["falls_trend"] == []
 
 
 def test_progress_boulder_send_pyramid(client):

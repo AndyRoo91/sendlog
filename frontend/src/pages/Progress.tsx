@@ -142,6 +142,34 @@ function LeadPyramid({ rows }: { rows: LeadPyramidRow[] }) {
   );
 }
 
+/** Session volume — total ticks per session as a bar chart. */
+function VolumeChart({ data }: { data: ProgressPoint[] }) {
+  if (data.length === 0) {
+    return (
+      <div className={CHART_CARD_CLS} style={{ padding: 16 }}>
+        <div style={CHART_TITLE_STYLE}>Session Volume (ticks per session)</div>
+        <p className="muted" style={{ fontSize: 13 }}>No sessions with climbing entries yet.</p>
+      </div>
+    );
+  }
+  const chartData = data.map((p) => ({ date: format(new Date(p.date), "MMM d"), value: p.value }));
+  return (
+    <div className={CHART_CARD_CLS} style={{ padding: 16 }}>
+      <div style={CHART_TITLE_STYLE}>Session Volume (ticks per session)</div>
+      <ResponsiveContainer width="100%" height={220}>
+        <BarChart data={chartData} margin={{ top: 4, right: 16, bottom: 4, left: 0 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke={GRID} vertical={false} />
+          <XAxis dataKey="date" stroke="#3a2e22" tick={AXIS} />
+          <YAxis stroke="#3a2e22" tick={AXIS} width={36} allowDecimals={false} />
+          <Tooltip contentStyle={TOOLTIP_STYLE} labelStyle={{ color: INK, fontWeight: 700 }}
+            formatter={(v) => [`${v} ticks`, "Volume"]} />
+          <Bar dataKey="value" name="Ticks" fill={SEA} stroke={INK} strokeWidth={2} radius={[3, 3, 0, 0]} />
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
 /** Boulder send pyramid — flash + send stacked, hardest grade at top. */
 function BoulderPyramid({ rows }: { rows: BoulderPyramidRow[] }) {
   if (rows.length === 0) {
@@ -193,6 +221,21 @@ export default function Progress() {
           color={SEA}
           yTickFormatter={(v) => BOULDER_GRADES[v] ?? `V${v}`}
           tooltipFormatter={(v) => BOULDER_GRADES[v] ?? `V${v}`}
+        />
+        <VolumeChart data={data.session_volume} />
+        <ChartCard
+          title="Send Rate (% sends per session)"
+          data={data.send_rate}
+          color="#e88aa3"
+          yTickFormatter={(v) => `${v}%`}
+          tooltipFormatter={(v) => `${v}%`}
+        />
+        <ChartCard
+          title="Falls Trend (avg falls/route, lead only)"
+          data={data.falls_trend}
+          color={FLASH}
+          yTickFormatter={(v) => `${v}`}
+          tooltipFormatter={(v) => `${v} falls`}
         />
         <ChartCard
           title="Fingerboard Max Added Weight"
