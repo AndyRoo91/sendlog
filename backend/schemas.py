@@ -110,6 +110,7 @@ class SessionBase(BaseModel):
     location: str | None = None
     duration_minutes: int | None = None
     notes: str | None = None
+    mood: int | None = None  # 1..5 self-rating
 
 
 class SessionCreate(SessionBase):
@@ -145,6 +146,7 @@ class SessionPatch(BaseModel):
     location: str | None = None
     duration_minutes: int | None = None
     notes: str | None = None
+    mood: int | None = None
 
 
 class SessionSummary(SessionBase):
@@ -183,6 +185,32 @@ class BoulderPyramidRow(BaseModel):
     send: int = 0
 
 
+class MoodSendRatePoint(BaseModel):
+    mood: int            # 1..5
+    send_rate: float     # 0..100 (avg % across sessions at this mood)
+    sessions: int
+
+
+class LocationBreakdownRow(BaseModel):
+    location: str
+    sessions: int
+    total_ticks: int
+    send_rate: float     # 0..100
+
+
+class AttemptsHistogramRow(BaseModel):
+    bucket: str          # "1", "2", "3", "4", "5+"
+    count: int
+
+
+class PBTimelinePoint(BaseModel):
+    date: DateType
+    lead_pb: int | None = None        # running max Ewbank number (int) sent so far
+    boulder_pb: int | None = None     # running max V-scale ladder index sent so far
+    lead_grade: str | None = None
+    boulder_grade: str | None = None
+
+
 class ProgressData(BaseModel):
     fingerboard_max_weight: list[ProgressPoint]
     boulder_max_grade: list[ProgressPoint]
@@ -198,6 +226,11 @@ class ProgressData(BaseModel):
     session_volume: list[ProgressPoint] = []
     send_rate: list[ProgressPoint] = []
     falls_trend: list[ProgressPoint] = []
+    # Phase I additions
+    mood_vs_send_rate: list[MoodSendRatePoint] = []
+    location_breakdown: list[LocationBreakdownRow] = []
+    attempts_histogram: list[AttemptsHistogramRow] = []
+    pb_timeline: list[PBTimelinePoint] = []
 
 
 # --- Routes (projects) + pins ---

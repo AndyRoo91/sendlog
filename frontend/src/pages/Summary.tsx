@@ -41,11 +41,23 @@ export default function Summary() {
 
   const [session, setSession] = useState<SessionDetail | null>(null);
   const [notes, setNotes] = useState("");
+  const [mood, setMood] = useState<number | null>(null);
   const [sharing, setSharing] = useState(false);
 
   useEffect(() => {
-    api.getSession(sessionId).then((s) => { setSession(s); setNotes(s.notes ?? ""); });
+    api.getSession(sessionId).then((s) => {
+      setSession(s);
+      setNotes(s.notes ?? "");
+      setMood(s.mood ?? null);
+    });
   }, [sessionId]);
+
+  async function setMoodPersisted(m: number) {
+    const next = mood === m ? null : m;   // tap-again clears
+    setMood(next);
+    if (typeof navigator !== "undefined" && navigator.vibrate) navigator.vibrate(20);
+    try { await api.patchSession(sessionId, { mood: next }); } catch { /* eventual */ }
+  }
 
   const all: AnyEntry[] = useMemo(() => {
     if (!session) return [];
@@ -95,6 +107,14 @@ export default function Summary() {
     navigate("/");
   }
 
+  const MOOD_OPTIONS: { value: number; emoji: string; label: string }[] = [
+    { value: 1, emoji: "😩", label: "COOKED" },
+    { value: 2, emoji: "😕", label: "FLAT" },
+    { value: 3, emoji: "🙂", label: "OK" },
+    { value: 4, emoji: "😎", label: "SENDY" },
+    { value: 5, emoji: "🔥", label: "FIRE" },
+  ];
+
   if (!session) return <div className="page"><p className="muted">Loading…</p></div>;
 
   const maxCount = Math.max(1, ...stats.pyramid.map((p) => p.count));
@@ -139,6 +159,38 @@ export default function Summary() {
               <div style={{ width: 24, fontFamily: "var(--font-display)", fontSize: 14 }}>×{row.count}</div>
             </div>
           ))}
+        </div>
+
+        <div style={{ marginTop: 14 }}>
+          <div style={{
+            fontFamily: "var(--font-banner)", fontSize: 10, color: "var(--ink-2)",
+            letterSpacing: "0.1em", textAlign: "center", marginBottom: 6,
+          }}>HOW DID IT FEEL?</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 6 }}>
+            {MOOD_OPTIONS.map((m) => {
+              const active = mood === m.value;
+              return (
+                <div key={m.value} role="button" tabIndex={0}
+                  aria-label={`Mood: ${m.label}`} aria-pressed={active}
+                  onClick={() => setMoodPersisted(m.value)}
+                  onKeyDown={onKey(() => setMoodPersisted(m.value))}
+                  style={{
+                    border: "var(--b) solid var(--ink)",
+                    background: active ? "var(--mustard)" : "var(--cream)",
+                    boxShadow: active ? "2px 2px 0 var(--ink)" : "none",
+                    padding: "6px 0 4px", textAlign: "center", cursor: "pointer",
+                    transform: active ? "translate(-1px, -1px)" : "none",
+                    transition: "transform 80ms ease",
+                  }}>
+                  <div style={{ fontSize: 22, lineHeight: 1 }}>{m.emoji}</div>
+                  <div style={{
+                    fontFamily: "var(--font-banner)", fontSize: 8, letterSpacing: "0.06em",
+                    marginTop: 3, color: "var(--ink)",
+                  }}>{m.label}</div>
+                </div>
+              );
+            })}
+          </div>
         </div>
 
         <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="how'd it feel?"

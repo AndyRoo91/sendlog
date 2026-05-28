@@ -124,6 +124,7 @@ export interface SessionSummary {
   notes?: string | null;
   started_at?: string | null;
   ended_at?: string | null;
+  mood?: number | null;   // 1..5 self-rating
 }
 
 export interface SessionDetail extends SessionSummary {
@@ -174,6 +175,32 @@ export interface Achievement {
   unlocked_at?: string | null;
 }
 
+export interface MoodSendRatePoint {
+  mood: number;        // 1..5
+  send_rate: number;   // 0..100
+  sessions: number;
+}
+
+export interface LocationBreakdownRow {
+  location: string;
+  sessions: number;
+  total_ticks: number;
+  send_rate: number;
+}
+
+export interface AttemptsHistogramRow {
+  bucket: string;   // "1", "2", "3", "4", "5+"
+  count: number;
+}
+
+export interface PBTimelinePoint {
+  date: string;
+  lead_pb?: number | null;
+  boulder_pb?: number | null;
+  lead_grade?: string | null;
+  boulder_grade?: string | null;
+}
+
 export interface ProgressData {
   fingerboard_max_weight: ProgressPoint[];
   boulder_max_grade: ProgressPoint[];
@@ -186,6 +213,10 @@ export interface ProgressData {
   session_volume: ProgressPoint[];
   send_rate: ProgressPoint[];
   falls_trend: ProgressPoint[];
+  mood_vs_send_rate: MoodSendRatePoint[];
+  location_breakdown: LocationBreakdownRow[];
+  attempts_histogram: AttemptsHistogramRow[];
+  pb_timeline: PBTimelinePoint[];
 }
 
 const BASE = "/api";
@@ -208,6 +239,7 @@ export interface SessionHeader {
   location?: string | null;
   duration_minutes?: number | null;
   notes?: string | null;
+  mood?: number | null;
 }
 
 export const api = {

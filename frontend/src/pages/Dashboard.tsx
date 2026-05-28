@@ -189,9 +189,16 @@ export default function Dashboard() {
                       <span className="muted" style={{ marginLeft: 10, fontSize: 13 }}>{s.location}</span>
                     )}
                   </div>
-                  {s.duration_minutes && (
-                    <span className="muted" style={{ fontSize: 13 }}>{s.duration_minutes} min</span>
-                  )}
+                  <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    {s.mood != null && (
+                      <span aria-label={`Mood ${s.mood} of 5`} style={{ fontSize: 16, lineHeight: 1 }}>
+                        {["😩","😕","🙂","😎","🔥"][s.mood - 1] ?? ""}
+                      </span>
+                    )}
+                    {s.duration_minutes && (
+                      <span className="muted" style={{ fontSize: 13 }}>{s.duration_minutes} min</span>
+                    )}
+                  </span>
                 </div>
                 {s.notes && <p className="muted" style={{ fontSize: 13, marginTop: 4 }}>{s.notes}</p>}
               </div>
