@@ -179,6 +179,20 @@ input, select, textarea {
   width: 100%; outline: none;
 }
 input:focus, select:focus, textarea:focus { box-shadow: 2px 2px 0 var(--cobalt); }
+
+/* ─── Focus-visible ring for keyboard navigation ─────────────── */
+:focus-visible {
+  outline: 3px solid var(--cobalt);
+  outline-offset: 3px;
+}
+/* Buttons and .chunky divs get the ring without offset (they have their own borders) */
+button:focus-visible,
+[role="button"]:focus-visible {
+  outline: 3px solid var(--cobalt);
+  outline-offset: 2px;
+}
+/* Suppress outline for mouse/touch users */
+:focus:not(:focus-visible) { outline: none; }
 textarea { resize: vertical; min-height: 72px; }
 
 label { font-size: 11px; font-family: var(--font-banner); letter-spacing: 0.06em; color: var(--ink-2); display: block; margin-bottom: 4px; text-transform: uppercase; }

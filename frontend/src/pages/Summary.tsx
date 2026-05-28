@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { onKey } from "../lib/a11y";
 import { useNavigate, useParams } from "react-router-dom";
 import { format } from "date-fns";
 import { toPng } from "html-to-image";
@@ -145,10 +146,13 @@ export default function Summary() {
       </div>
 
       <div style={{ padding: "20px 16px 0", display: "flex", gap: 8 }}>
-        <div className="chunky" onClick={sharing ? undefined : share} style={{ flex: 1, padding: "12px 0", textAlign: "center", fontSize: 13, background: "var(--cream)", boxShadow: "3px 3px 0 var(--ink)", opacity: sharing ? 0.6 : 1 }}>
+        <div role="button" tabIndex={sharing ? -1 : 0} aria-disabled={sharing}
+          className="chunky" onClick={sharing ? undefined : share} onKeyDown={sharing ? undefined : onKey(share)}
+          style={{ flex: 1, padding: "12px 0", textAlign: "center", fontSize: 13, background: "var(--cream)", boxShadow: "3px 3px 0 var(--ink)", opacity: sharing ? 0.6 : 1 }}>
           {sharing ? "RENDERING…" : "SHARE"}
         </div>
-        <div className="chunky" onClick={done} style={{ flex: 1, padding: "12px 0", textAlign: "center", fontSize: 13, background: "var(--ink)", color: "var(--mustard)", boxShadow: "3px 3px 0 var(--red)" }}>
+        <div role="button" tabIndex={0} className="chunky" onClick={done} onKeyDown={onKey(done)}
+          style={{ flex: 1, padding: "12px 0", textAlign: "center", fontSize: 13, background: "var(--ink)", color: "var(--mustard)", boxShadow: "3px 3px 0 var(--red)" }}>
           DONE
         </div>
       </div>

@@ -1,3 +1,5 @@
+import { onKey } from "../lib/a11y";
+
 interface Props {
   message: string | null;
   onDismiss: () => void;
@@ -8,7 +10,11 @@ export default function Toast({ message, onDismiss }: Props) {
   if (!message) return null;
   return (
     <div
+      role="alert"
+      aria-live="assertive"
+      tabIndex={0}
       onClick={onDismiss}
+      onKeyDown={onKey(onDismiss)}
       style={{
         position: "fixed", top: 16, left: "50%", transform: "translateX(-50%)",
         zIndex: 200, maxWidth: 380, width: "calc(100% - 32px)",

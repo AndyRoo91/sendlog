@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { onKey } from "../lib/a11y";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { format } from "date-fns";
 import { api } from "../api/client";
@@ -354,9 +355,15 @@ export default function TickSheet() {
         {mode === "lead" && (
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 12, justifyContent: "center" }}>
             <span style={{ fontFamily: "var(--font-banner)", fontSize: 11, color: "var(--ink-2)", letterSpacing: "0.08em" }}>FALLS</span>
-            <div className="chunky" onClick={() => setFalls((f) => Math.max(0, f - 1))} style={{ width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", background: "var(--cream)", boxShadow: "2px 2px 0 var(--ink)" }}>–</div>
-            <div style={{ fontFamily: "var(--font-display)", fontSize: 28, minWidth: 28, textAlign: "center" }}>{falls}</div>
-            <div className="chunky" onClick={() => setFalls((f) => f + 1)} style={{ width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", background: "var(--mustard)", boxShadow: "2px 2px 0 var(--ink)" }}>+</div>
+            <div role="button" tabIndex={0} aria-label="Decrease falls" className="chunky"
+              onClick={() => setFalls((f) => Math.max(0, f - 1))}
+              onKeyDown={onKey(() => setFalls((f) => Math.max(0, f - 1)))}
+              style={{ width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", background: "var(--cream)", boxShadow: "2px 2px 0 var(--ink)" }}>–</div>
+            <div aria-live="polite" aria-label={`${falls} falls`} style={{ fontFamily: "var(--font-display)", fontSize: 28, minWidth: 28, textAlign: "center" }}>{falls}</div>
+            <div role="button" tabIndex={0} aria-label="Increase falls" className="chunky"
+              onClick={() => setFalls((f) => f + 1)}
+              onKeyDown={onKey(() => setFalls((f) => f + 1))}
+              style={{ width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", background: "var(--mustard)", boxShadow: "2px 2px 0 var(--ink)" }}>+</div>
           </div>
         )}
       </div>

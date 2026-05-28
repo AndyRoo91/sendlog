@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { onKey } from "../lib/a11y";
 import Ray from "./Ray";
 import { STYLE_BY_ID } from "./styleMap";
 import type { StyleId } from "./styleMap";
@@ -40,7 +41,11 @@ export default function AfterCommitOverlay({ tick, onDone, holdMs = 400 }: Props
 
   return (
     <div
+      role="button"
+      tabIndex={0}
+      aria-label="Dismiss"
       onClick={() => { setVisible(false); onDone(); }}
+      onKeyDown={onKey(() => { setVisible(false); onDone(); })}
       style={{
         position: "fixed", inset: 0, zIndex: 100,
         display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",

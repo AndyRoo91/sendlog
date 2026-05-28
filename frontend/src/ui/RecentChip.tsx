@@ -1,3 +1,5 @@
+import { onKey } from "../lib/a11y";
+
 interface Props {
   grade: string;
   style: string;
@@ -11,7 +13,11 @@ interface Props {
 export default function RecentChip({ grade, style, color, text = "var(--cream)", tilt = 0, onClick }: Props) {
   return (
     <div
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      aria-label={onClick ? `Repeat ${grade} ${style}` : undefined}
       onClick={onClick}
+      onKeyDown={onClick ? onKey(onClick) : undefined}
       style={{
         flex: 1,
         minWidth: 0,
@@ -34,6 +40,7 @@ export default function RecentChip({ grade, style, color, text = "var(--cream)",
         <span style={{ fontFamily: "var(--font-banner)", fontSize: 10, letterSpacing: "0.08em", marginTop: 2 }}>{style}</span>
       </div>
       <div
+        aria-hidden="true"
         style={{
           width: 36,
           height: 36,

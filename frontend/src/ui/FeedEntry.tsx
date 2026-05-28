@@ -1,3 +1,5 @@
+import { onKey } from "../lib/a11y";
+
 interface Props {
   grade: string;
   style: string;
@@ -12,7 +14,11 @@ interface Props {
 export default function FeedEntry({ grade, style, color, text = "var(--cream)", time, tilt = 0, onClick }: Props) {
   return (
     <div
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      aria-label={onClick ? `Edit ${grade} ${style} tick` : undefined}
       onClick={onClick}
+      onKeyDown={onClick ? onKey(onClick) : undefined}
       style={{
         border: "var(--b) solid var(--ink)",
         background: color,
