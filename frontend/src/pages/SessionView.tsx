@@ -590,6 +590,11 @@ function SessionHeader({ session, onUpdate }: { session: SessionDetail; onUpdate
   const [duration, setDuration] = useState(session.duration_minutes?.toString() ?? "");
   const [notes, setNotes] = useState(session.notes ?? "");
   const [saving, setSaving] = useState(false);
+  const [locations, setLocations] = useState<string[]>([]);
+
+  useEffect(() => {
+    api.listLocations().then(setLocations).catch(() => {});
+  }, []);
 
   async function save() {
     setSaving(true);
@@ -609,7 +614,14 @@ function SessionHeader({ session, onUpdate }: { session: SessionDetail; onUpdate
       <div className="card gap-col" style={{ marginBottom: 24 }}>
         <div className="grid-3">
           <div><label>Date</label><input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
-          <div><label>Location</label><input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Gym / crag" /></div>
+          <div>
+            <label>Location</label>
+            <input value={location} onChange={(e) => setLocation(e.target.value)}
+              placeholder="Gym / crag" list="sv-location-suggestions" autoComplete="off" />
+            <datalist id="sv-location-suggestions">
+              {locations.map((l) => <option key={l} value={l} />)}
+            </datalist>
+          </div>
           <div><label>Duration (min)</label><input type="number" value={duration} onChange={(e) => setDuration(e.target.value)} placeholder="90" /></div>
         </div>
         <div><label>Notes</label><textarea value={notes} onChange={(e) => setNotes(e.target.value)} /></div>
