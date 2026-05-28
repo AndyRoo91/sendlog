@@ -43,6 +43,8 @@ def run_migrations() -> None:
             conn.execute(text("ALTER TABLE sessions ADD COLUMN started_at DATETIME"))
         if "ended_at" not in sess_cols:
             conn.execute(text("ALTER TABLE sessions ADD COLUMN ended_at DATETIME"))
+        if "mood" not in sess_cols:
+            conn.execute(text("ALTER TABLE sessions ADD COLUMN mood INTEGER"))
 
         # Boulder send_type (migrated from sent) + logged_at
         b_cols = columns("boulder_entries")

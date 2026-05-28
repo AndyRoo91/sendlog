@@ -14,6 +14,7 @@ class Session(Base):
     notes: Mapped[str | None] = mapped_column(Text)
     started_at: Mapped[datetime | None] = mapped_column(DateTime)
     ended_at: Mapped[datetime | None] = mapped_column(DateTime)
+    mood: Mapped[int | None] = mapped_column(Integer)  # 1..5 self-rating set on session close
 
     warmup_entries: Mapped[list["WarmupEntry"]] = relationship(
         back_populates="session", cascade="all, delete-orphan"

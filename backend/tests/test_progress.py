@@ -12,6 +12,16 @@ def test_progress_shape_empty(client):
         "session_volume": [],
         "send_rate": [],
         "falls_trend": [],
+        "mood_vs_send_rate": [],
+        "location_breakdown": [],
+        "attempts_histogram": [
+            {"bucket": "1", "count": 0},
+            {"bucket": "2", "count": 0},
+            {"bucket": "3", "count": 0},
+            {"bucket": "4", "count": 0},
+            {"bucket": "5+", "count": 0},
+        ],
+        "pb_timeline": [],
     }
 
 
@@ -136,3 +146,105 @@ def test_progress_boulder_send_pyramid(client):
     grades = [row["grade"] for row in p["boulder_send_pyramid"]]
     assert grades[0] == "V7"
     assert grades[1] == "V5"
+
+
+# ---------- Phase I: mood / location / attempts / PB ----------
+
+def test_mood_persists_on_session(client):
+    """SessionPatch.mood and SessionCreate.mood both persist."""
+    s = client.post("/api/sessions", json={"date": "2026-05-10", "mood": 4}).json()
+    assert s["mood"] == 4
+    r = client.patch(f"/api/sessions/{s['id']}", json={"mood": 5})
+    assert r.json()["mood"] == 5
+    # Clearing the mood
+    r = client.patch(f"/api/sessions/{s['id']}", json={"mood": None})
+    assert r.json()["mood"] is None
+
+
+def test_progress_mood_vs_send_rate(client):
+    """Average send-rate per mood across the sessions that reported it."""
+    # Mood 5 session: 2 sends out of 2 ticks → 100%
+    s1 = client.post("/api/sessions", json={"date": "2026-05-01", "mood": 5}).json()
+    client.post(f"/api/sessions/{s1['id']}/boulder", json={"grade": "V3", "send_type": "flash"})
+    client.post(f"/api/sessions/{s1['id']}/boulder", json={"grade": "V3", "send_type": "redpoint"})
+    # Mood 2 session: 0 sends out of 2 ticks → 0%
+    s2 = client.post("/api/sessions", json={"date": "2026-05-02", "mood": 2}).json()
+    client.post(f"/api/sessions/{s2['id']}/boulder", json={"grade": "V3", "send_type": "working"})
+    client.post(f"/api/sessions/{s2['id']}/boulder", json={"grade": "V3", "send_type": "working"})
+    # No-mood session — excluded from the breakdown
+    s3 = client.post("/api/sessions", json={"date": "2026-05-03"}).json()
+    client.post(f"/api/sessions/{s3['id']}/boulder", json={"grade": "V3", "send_type": "flash"})
+
+    p = client.get("/api/progress").json()
+    by_mood = {r["mood"]: r for r in p["mood_vs_send_rate"]}
+    assert by_mood == {
+        2: {"mood": 2, "send_rate": 0.0, "sessions": 1},
+        5: {"mood": 5, "send_rate": 100.0, "sessions": 1},
+    }
+
+
+def test_progress_location_breakdown(client):
+    """Per-location aggregates: sessions, total ticks, send rate (%)."""
+    sa = client.post("/api/sessions", json={"date": "2026-05-01", "location": "Arapiles"}).json()
+    client.post(f"/api/sessions/{sa['id']}/boulder", json={"grade": "V3", "send_type": "flash"})
+    client.post(f"/api/sessions/{sa['id']}/boulder", json={"grade": "V3", "send_type": "working"})
+    sb = client.post("/api/sessions", json={"date": "2026-05-02", "location": "Arapiles"}).json()
+    client.post(f"/api/sessions/{sb['id']}/boulder", json={"grade": "V3", "send_type": "redpoint"})
+    sc = client.post("/api/sessions", json={"date": "2026-05-03", "location": "The Reach"}).json()
+    client.post(f"/api/sessions/{sc['id']}/boulder", json={"grade": "V3", "send_type": "redpoint"})
+    # No-location session — excluded
+    client.post("/api/sessions", json={"date": "2026-05-04"})
+
+    p = client.get("/api/progress").json()
+    by_loc = {r["location"]: r for r in p["location_breakdown"]}
+    assert by_loc["Arapiles"]["sessions"] == 2
+    assert by_loc["Arapiles"]["total_ticks"] == 3
+    assert by_loc["Arapiles"]["send_rate"] == round(2 / 3 * 100, 1)
+    assert by_loc["The Reach"]["sessions"] == 1
+    assert by_loc["The Reach"]["send_rate"] == 100.0
+    # Sort: most ticks first
+    assert p["location_breakdown"][0]["location"] == "Arapiles"
+
+
+def test_progress_attempts_histogram(client):
+    s = client.post("/api/sessions", json={"date": "2026-05-10"}).json()
+    # 2 sends on attempt 1
+    for _ in range(2):
+        client.post(f"/api/sessions/{s['id']}/boulder",
+                    json={"grade": "V3", "send_type": "flash", "attempts": 1})
+    # 1 send on attempt 4
+    client.post(f"/api/sessions/{s['id']}/lead",
+                json={"grade": "22", "grade_system": "ewbank", "send_type": "redpoint", "attempts": 4})
+    # 1 send on attempt 7 (5+ bucket)
+    client.post(f"/api/sessions/{s['id']}/lead",
+                json={"grade": "22", "grade_system": "ewbank", "send_type": "redpoint", "attempts": 7})
+    # Non-send (working) → excluded from histogram
+    client.post(f"/api/sessions/{s['id']}/boulder",
+                json={"grade": "V3", "send_type": "working", "attempts": 2})
+
+    p = client.get("/api/progress").json()
+    by_b = {r["bucket"]: r["count"] for r in p["attempts_histogram"]}
+    assert by_b == {"1": 2, "2": 0, "3": 0, "4": 1, "5+": 1}
+
+
+def test_progress_pb_timeline(client):
+    """Only emit a point when either PB improves; runs forward as a running max."""
+    s1 = client.post("/api/sessions", json={"date": "2026-05-01"}).json()
+    client.post(f"/api/sessions/{s1['id']}/boulder", json={"grade": "V3", "send_type": "flash"})
+    client.post(f"/api/sessions/{s1['id']}/lead",
+                json={"grade": "20", "grade_system": "ewbank", "send_type": "redpoint"})
+    # Session 2 — no new PBs, no point emitted
+    s2 = client.post("/api/sessions", json={"date": "2026-05-02"}).json()
+    client.post(f"/api/sessions/{s2['id']}/boulder", json={"grade": "V2", "send_type": "flash"})
+    # Session 3 — boulder PB only
+    s3 = client.post("/api/sessions", json={"date": "2026-05-10"}).json()
+    client.post(f"/api/sessions/{s3['id']}/boulder", json={"grade": "V5", "send_type": "redpoint"})
+
+    p = client.get("/api/progress").json()
+    pts = p["pb_timeline"]
+    assert len(pts) == 2  # only session 1 and session 3 produced new PBs
+    assert pts[0]["lead_grade"] == "20"
+    assert pts[0]["boulder_grade"] == "V3"
+    # session 3 boulder PB advanced, lead still 20 (running)
+    assert pts[1]["lead_grade"] == "20"
+    assert pts[1]["boulder_grade"] == "V5"

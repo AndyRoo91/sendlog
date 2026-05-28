@@ -163,6 +163,7 @@ def create_session(payload: schemas.SessionCreate, db: DBSession = Depends(get_d
         location=payload.location,
         duration_minutes=payload.duration_minutes,
         notes=payload.notes,
+        mood=payload.mood,
     )
     db.add(session)
     db.commit()
@@ -595,6 +596,100 @@ def get_progress(db: DBSession = Depends(get_db)):
                 label=f"avg {avg_falls} falls/route",
             ))
 
+    # --- Phase I: mood / location / attempts / PB ---
+    # Mood vs send rate: average send rate (%) per mood bucket across sessions
+    # that had any ticks.
+    mood_buckets: dict[int, list[float]] = {}
+    for s in all_sessions:
+        if s.mood is None:
+            continue
+        total = len(s.boulder_entries) + len(s.lead_route_entries)
+        if total == 0:
+            continue
+        sends = sum(1 for e in s.boulder_entries if e.send_type in SEND_TYPES)
+        sends += sum(1 for e in s.lead_route_entries if e.send_type in SEND_TYPES)
+        mood_buckets.setdefault(s.mood, []).append(sends / total * 100)
+    mood_rows = [
+        schemas.MoodSendRatePoint(
+            mood=m, sessions=len(rates),
+            send_rate=round(sum(rates) / len(rates), 1) if rates else 0.0,
+        )
+        for m, rates in sorted(mood_buckets.items())
+    ]
+
+    # Location breakdown: per-location session count, total ticks, send rate (%).
+    loc_data: dict[str, dict] = {}
+    for s in all_sessions:
+        loc = (s.location or "").strip()
+        if not loc:
+            continue
+        bucket = loc_data.setdefault(loc, {"sessions": 0, "ticks": 0, "sends": 0})
+        bucket["sessions"] += 1
+        total = len(s.boulder_entries) + len(s.lead_route_entries)
+        bucket["ticks"] += total
+        bucket["sends"] += sum(1 for e in s.boulder_entries if e.send_type in SEND_TYPES)
+        bucket["sends"] += sum(1 for e in s.lead_route_entries if e.send_type in SEND_TYPES)
+    location_rows = [
+        schemas.LocationBreakdownRow(
+            location=loc, sessions=d["sessions"], total_ticks=d["ticks"],
+            send_rate=round(d["sends"] / d["ticks"] * 100, 1) if d["ticks"] else 0.0,
+        )
+        for loc, d in loc_data.items()
+    ]
+    location_rows.sort(key=lambda r: r.total_ticks, reverse=True)
+    location_rows = location_rows[:10]
+
+    # Attempts histogram: count sends grouped by attempts (1, 2, 3, 4, 5+).
+    attempts_counts = {"1": 0, "2": 0, "3": 0, "4": 0, "5+": 0}
+    for e in db.query(models.LeadRouteEntry).all():
+        if e.send_type not in SEND_TYPES or e.attempts is None:
+            continue
+        bucket = str(e.attempts) if e.attempts <= 4 else "5+"
+        if bucket in attempts_counts:
+            attempts_counts[bucket] += 1
+    for e in db.query(models.LimitBoulderEntry).all():
+        if e.send_type not in SEND_TYPES or e.attempts is None:
+            continue
+        bucket = str(e.attempts) if e.attempts <= 4 else "5+"
+        if bucket in attempts_counts:
+            attempts_counts[bucket] += 1
+    attempts_rows = [
+        schemas.AttemptsHistogramRow(bucket=b, count=c)
+        for b, c in attempts_counts.items()
+    ]
+
+    # PB timeline: per session date, the running max lead grade (Ewbank int) +
+    # running max boulder grade (vscale ladder idx) sent so far.
+    pb_points: list[schemas.PBTimelinePoint] = []
+    lead_pb_n = -1
+    boulder_pb_n = -1
+    lead_pb_label: str | None = None
+    boulder_pb_label: str | None = None
+    for s in all_sessions:
+        changed = False
+        for e in s.lead_route_entries:
+            if e.send_type in SEND_TYPES and e.grade_system == "ewbank":
+                n = ewbank_num(e.grade)
+                if n > lead_pb_n:
+                    lead_pb_n = n
+                    lead_pb_label = e.grade
+                    changed = True
+        for e in s.boulder_entries:
+            if e.send_type in SEND_TYPES:
+                n = grade_to_int(e.grade, BOULDER_GRADE_ORDER)
+                if n > boulder_pb_n:
+                    boulder_pb_n = n
+                    boulder_pb_label = e.grade
+                    changed = True
+        if changed:
+            pb_points.append(schemas.PBTimelinePoint(
+                date=s.date,
+                lead_pb=lead_pb_n if lead_pb_n >= 0 else None,
+                boulder_pb=boulder_pb_n if boulder_pb_n >= 0 else None,
+                lead_grade=lead_pb_label,
+                boulder_grade=boulder_pb_label,
+            ))
+
     return schemas.ProgressData(
         fingerboard_max_weight=fb_points,
         boulder_max_grade=bl_points,
@@ -607,6 +702,10 @@ def get_progress(db: DBSession = Depends(get_db)):
         session_volume=volume_points,
         send_rate=send_rate_points,
         falls_trend=falls_points,
+        mood_vs_send_rate=mood_rows,
+        location_breakdown=location_rows,
+        attempts_histogram=attempts_rows,
+        pb_timeline=pb_points,
     )
 
 
