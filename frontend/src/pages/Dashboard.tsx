@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api/client";
 import type { Achievement, SessionSummary } from "../api/client";
 import { format } from "date-fns";
 import { ICON, Ribbon } from "../ui";
+import { isDuckOn, setDuck, useDuckMode, useKonami } from "../lib/duckMode";
 
 interface StatProps {
   label: string;
@@ -33,11 +34,22 @@ export default function Dashboard() {
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [achievements, setAchievements] = useState<Achievement[]>([]);
+  const duck = useDuckMode();
 
   useEffect(() => {
     api.listSessions().then((s) => { setSessions(s); setLoading(false); });
     api.listAchievements().then(setAchievements).catch(() => {});
   }, []);
+
+  // Konami → toggle duck mode. Quick double-vibrate so something happens on phones too.
+  const onKonami = useCallback(() => {
+    const next = !isDuckOn();
+    setDuck(next);
+    if (typeof navigator !== "undefined" && navigator.vibrate) {
+      navigator.vibrate([40, 60, 40]);
+    }
+  }, []);
+  useKonami(onKonami);
 
   const recent = sessions.slice(0, 5);
   const totalSessions = sessions.length;
@@ -72,6 +84,20 @@ export default function Dashboard() {
         </Link>
       </div>
 
+      {duck && (
+        <div role="button" tabIndex={0} aria-label="Disable duck mode"
+          onClick={() => setDuck(false)}
+          onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setDuck(false); } }}
+          style={{
+            background: "var(--mustard)", color: "var(--ink)", textAlign: "center",
+            padding: "6px 10px", fontFamily: "var(--font-banner)", fontSize: 11,
+            letterSpacing: "0.1em", marginBottom: 10, transform: "rotate(0.4deg)",
+            border: "var(--b) solid var(--ink)", boxShadow: "2px 2px 0 var(--ink)",
+            cursor: "pointer",
+          }}>
+          🦆 QUACK MODE — TAP TO TURN OFF
+        </div>
+      )}
       {nudge && (
         <div className="card-flat" style={{
           padding: "10px 14px", marginBottom: 16, background: nudge.color,

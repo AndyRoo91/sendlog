@@ -1,6 +1,14 @@
 import type { CSSProperties, ReactNode } from "react";
+import { useDuckMode } from "../lib/duckMode";
 
 type RibbonFont = "banner" | "display" | "hand";
+
+/** Recursively walk children and swap ★ → 🦆 in any string nodes. */
+function duckify(node: ReactNode): ReactNode {
+  if (typeof node === "string") return node.replaceAll("★", "🦆");
+  if (Array.isArray(node)) return node.map(duckify);
+  return node;
+}
 
 interface Props {
   children: ReactNode;
@@ -26,6 +34,8 @@ export default function Ribbon({
   font = "banner",
   style = {},
 }: Props) {
+  const duck = useDuckMode();
+  const content = duck ? duckify(children) : children;
   return (
     <div style={{ display: "inline-flex", alignItems: "stretch", transform: `rotate(${rotate}deg)`, ...style }}>
       <svg width="14" viewBox="0 0 14 40" preserveAspectRatio="none" style={{ display: "block" }}>
@@ -45,7 +55,7 @@ export default function Ribbon({
           alignItems: "center",
         }}
       >
-        {children}
+        {content}
       </div>
       <svg width="14" viewBox="0 0 14 40" preserveAspectRatio="none" style={{ display: "block" }}>
         <polygon points="0,0 14,20 0,40" fill={color} stroke="var(--ink)" strokeWidth="2" />
