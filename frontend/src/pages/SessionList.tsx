@@ -10,12 +10,22 @@ export default function SessionList() {
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [importing, setImporting] = useState(false);
+  const [query, setQuery] = useState("");
   const { message: toastMsg, toast, dismiss: dismissToast } = useToast();
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     api.listSessions().then((s) => { setSessions(s); setLoading(false); });
   }, []);
+
+  const q = query.trim().toLowerCase();
+  const visible = q
+    ? sessions.filter((s) =>
+        s.date.includes(q) ||
+        (s.location ?? "").toLowerCase().includes(q) ||
+        (s.notes ?? "").toLowerCase().includes(q)
+      )
+    : sessions;
 
   async function handleExport() {
     try {
@@ -60,15 +70,31 @@ export default function SessionList() {
         </Link>
       </div>
 
+      {!loading && sessions.length > 0 && (
+        <div style={{ marginBottom: 14 }}>
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="🔍 Search by date, location, notes…"
+            style={{ fontFamily: "var(--font-hand)", fontSize: 15 }}
+          />
+        </div>
+      )}
+
       {loading && <p className="muted">Loading…</p>}
       {!loading && sessions.length === 0 && (
         <div className="card-flat offset-ink" style={{ padding: 16 }}>
           <p className="muted">No sessions yet. <Link to="/sessions/new">Log your first one!</Link></p>
         </div>
       )}
+      {!loading && sessions.length > 0 && visible.length === 0 && (
+        <div className="card-flat offset-ink" style={{ padding: 16 }}>
+          <p className="muted">No sessions match "{query}".</p>
+        </div>
+      )}
 
       <div className="gap-col">
-        {sessions.map((s, i) => (
+        {visible.map((s, i) => (
           <Link key={s.id} to={`/sessions/${s.id}`} style={{ textDecoration: "none" }}>
             <div className="card-flat offset-ink" style={{
               padding: "14px 16px", cursor: "pointer",
