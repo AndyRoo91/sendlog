@@ -79,16 +79,16 @@ Full detail in [REVIEW.md](REVIEW.md). The visual system currently stops at the 
 - [x] Halftone overlay applied consistently (`.paper` vs `.paper-plain`) (S)
 
 **Form fixes pass**
-- [ ] Replace `onContextMenu` long-press with a pointerdown timer (~450ms) + movement-cancel threshold (M)
-- [ ] Fix the 6s selection timeout silently dropping state — countdown ring or warn-on-tap (S)
-- [ ] Lead recents carry `last_route_name`; prefer current input over stored name (M)
-- [ ] Sliding boulder grade window (centre on recent max, "show all" affordance) (M)
-- [ ] End-session affordance equal in weight to START TIMER (S)
+- [x] Replace `onContextMenu` long-press with a pointerdown timer (~450ms) + movement-cancel threshold (M)
+- [x] Fix the 6s selection timeout silently dropping state — countdown ring or warn-on-tap (S)
+- [x] Lead recents carry `last_route_name`; prefer current input over stored name (M)
+- [x] Sliding boulder grade window (centre on recent max, "show all" affordance) (M)
+- [x] End-session affordance equal in weight to START TIMER (S)
 - [ ] Card rotation (±0.5–2°) on recents, feed entries, timer/end chips (S)
-- [ ] Keep the "pick a style" ribbon mustard on select (fix red-on-red) (S)
-- [ ] TabBar bottom padding (~110px / safe-area inset) so feed rows clear it (S)
-- [ ] Differentiate empty-state copy per mode ("no leads yet" vs "no ticks yet") (S)
-- [ ] `RecentChip` commit clears `routeName`; move `falls` into lead-only branch; clear `selectTimer` on unmount; stop-propagation on detail-sheet long-press (S)
+- [x] Keep the "pick a style" ribbon mustard on select (fix red-on-red) (S)
+- [x] TabBar bottom padding (~110px / safe-area inset) so feed rows clear it (S)
+- [x] Differentiate empty-state copy per mode ("no leads yet" vs "no ticks yet") (S)
+- [x] `RecentChip` commit clears `routeName`; move `falls` into lead-only branch; clear `selectTimer` on unmount; stop-propagation on detail-sheet long-press (S)
 
 **Surprise pool**
 - [ ] Wire 6–8 randomised after-commit phrases in `AfterCommitOverlay`; add "new max this session" variant (S)

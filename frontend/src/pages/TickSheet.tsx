@@ -4,15 +4,16 @@ import { format } from "date-fns";
 import { api } from "../api/client";
 import type { SessionDetail, BoulderEntry, LeadRouteEntry, RecentCombo } from "../api/client";
 import {
-  SessionStrip, ModeToggle, StyleRibbonRow, GradeChip, StarBurst,
+  SessionStrip, ModeToggle, StyleRibbonRow,
   FeedEntry, RecentChip, Ribbon, AfterCommitOverlay,
   STYLE_BY_ID, STYLE_TO_SEND_TYPE, sendTypeToStyle,
 } from "../ui";
 import type { StyleId, CommitTick, ClimbMode } from "../ui";
-import { BOULDER_GRADES, leadGradeWindow } from "../lib/grades";
+import { BOULDER_GRADES, boulderGradeWindow, leadGradeWindow, gradeOrder } from "../lib/grades";
 import type { GradeSystem } from "../lib/grades";
 import DetailSheet from "../components/DetailSheet";
 import type { DetailTarget } from "../components/DetailSheet";
+import GradeChipSlot from "../components/GradeChipSlot";
 
 const SELECTION_MS = 6000;
 const LEAD_SYSTEMS: GradeSystem[] = ["ewbank", "yds", "french"];
@@ -54,6 +55,7 @@ export default function TickSheet() {
   const [routeName, setRouteName] = useState("");
   const [falls, setFalls] = useState(0);
   const [selected, setSelected] = useState<string | null>(null);
+  const [showAllBoulder, setShowAllBoulder] = useState(false);
   const [commitTick, setCommitTick] = useState<CommitTick | null>(null);
   const [detail, setDetail] = useState<DetailTarget | null>(null);
   const [now, setNow] = useState(Date.now());
@@ -78,6 +80,11 @@ export default function TickSheet() {
     const t = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(t);
   }, [session?.started_at, session?.ended_at]);
+
+  // Clear any pending selection timeout on unmount (REVIEW.md §4).
+  useEffect(() => () => {
+    if (selectTimer.current) window.clearTimeout(selectTimer.current);
+  }, []);
 
   function selectGrade(g: string) {
     setSelected(g);
@@ -107,7 +114,7 @@ export default function TickSheet() {
             ...s, started_at: s.started_at ?? optimisticStart,
             lead_route_entries: [...s.lead_route_entries, { ...created, photos: [] }],
           });
-          setRouteName(""); setFalls(0);
+          setFalls(0);
         } else {
           const created = await api.addBoulder(sessionId, {
             grade, send_type: STYLE_TO_SEND_TYPE[styleId], attempts: null, notes: null,
@@ -117,6 +124,7 @@ export default function TickSheet() {
             boulder_entries: [...s.boulder_entries, { ...created, photos: [] }],
           });
         }
+        setRouteName(""); // clears on every commit, including from RecentChip
         refreshRecents();
       } catch {
         setCommitTick(null);
@@ -163,7 +171,15 @@ export default function TickSheet() {
   }
 
   const entries: AnyEntry[] = (mode === "lead" ? session?.lead_route_entries : session?.boulder_entries) ?? [];
-  const grades = mode === "lead" ? leadGradeWindow(gradeSystem) : BOULDER_GRADES.slice(0, 12);
+  const boulderMaxIdx = useMemo(() => {
+    if (mode !== "boulder") return -1;
+    return entries
+      .map((e) => gradeOrder("vscale", e.grade))
+      .reduce((a, b) => Math.max(a, b), -1);
+  }, [entries, mode]);
+  const grades = mode === "lead"
+    ? leadGradeWindow(gradeSystem)
+    : (showAllBoulder ? BOULDER_GRADES : boulderGradeWindow(boulderMaxIdx >= 0 ? boulderMaxIdx : null));
 
   const tallies = useMemo(() => {
     const map: Record<string, { count: number; latest: StyleId; at: number }> = {};
@@ -192,15 +208,17 @@ export default function TickSheet() {
   const recentCards = recents.filter((c) => c.kind === mode).slice(0, 2);
 
   return (
-    <div className="paper-plain no-scrollbar" style={{ overflow: "auto", paddingBottom: 24 }}>
+    <div className="paper-plain no-scrollbar" style={{ overflow: "auto", paddingBottom: 110 }}>
       {/* Top strip */}
       {running ? (
-        <div style={{ position: "relative" }}>
+        <div>
           <SessionStrip where={where} elapsed={fmtElapsed(session.started_at!, now)} date={dateLabel} />
-          <button onClick={endSession} disabled={ending}
-            style={{ position: "absolute", right: 16, bottom: 12, background: "var(--mustard)", color: "var(--ink)", boxShadow: "2px 2px 0 var(--red)", fontSize: 11, padding: "5px 10px" }}>
-            {ending ? "…" : "✦ END"}
-          </button>
+          <div style={{ display: "flex", justifyContent: "flex-end", padding: "8px 16px 0" }}>
+            <button onClick={endSession} disabled={ending}
+              style={{ background: "var(--mustard)", color: "var(--ink)", boxShadow: "3px 3px 0 var(--ink)" }}>
+              {ending ? "ENDING…" : "● END SESSION"}
+            </button>
+          </div>
         </div>
       ) : (
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 16px 12px", background: "var(--ink)", color: "var(--cream)" }}>
@@ -249,18 +267,23 @@ export default function TickSheet() {
           <div style={{ display: "flex", gap: 10 }}>
             {recentCards.map((c, i) => {
               const st = STYLE_BY_ID[sendTypeToStyle(c.send_type)];
+              // Prefer what the user typed; fall back to the stored name.
+              const carriedName = routeName.trim() || c.last_route_name || null;
               return (
                 <RecentChip key={i} grade={c.grade} style={st.label} color={st.color} text={st.text}
-                  onClick={() => commit(c.grade, sendTypeToStyle(c.send_type), { system: c.grade_system as GradeSystem })} />
+                  onClick={() => commit(c.grade, sendTypeToStyle(c.send_type), {
+                    system: c.grade_system as GradeSystem,
+                    routeName: carriedName,
+                  })} />
               );
             })}
           </div>
         </div>
       )}
 
-      {/* Tap a grade */}
+      {/* Tap a grade — stays mustard on select so the row below doesn't read red-on-red */}
       <div style={{ padding: "14px 16px 0", textAlign: "center" }}>
-        <Ribbon color={selected ? "var(--red)" : "var(--mustard)"} textColor={selected ? "var(--cream)" : "var(--ink)"}>
+        <Ribbon color="var(--mustard)" textColor="var(--ink)">
           {selected ? `★ ${selected} — PICK A STYLE ★` : "★ TAP A GRADE ★"}
         </Ribbon>
       </div>
@@ -268,24 +291,33 @@ export default function TickSheet() {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, padding: "12px 18px 4px" }}>
         {grades.map((g) => {
           const t = tallies[g];
-          const isSel = selected === g;
           const color = t ? STYLE_BY_ID[t.latest].color : "var(--cream)";
           return (
-            <div key={g} style={{ display: "flex", justifyContent: "center", position: "relative" }}>
-              {isSel && (
-                <div style={{ position: "absolute", inset: -12, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
-                  <StarBurst size={96} color="var(--red)" />
-                </div>
-              )}
-              <div style={{ position: "relative", zIndex: 1, transform: isSel ? "scale(1.06)" : "none", transition: "transform 160ms ease" }}>
-                <GradeChip grade={g} color={color} tally={t?.count ?? 0}
-                  onClick={() => selectGrade(g)}
-                  onContextMenu={(e) => { e.preventDefault(); setDetail({ kind: mode, grade: g, gradeSystem }); }} />
-              </div>
-            </div>
+            <GradeChipSlot
+              key={g}
+              grade={g}
+              color={color}
+              tally={t?.count ?? 0}
+              selected={selected === g}
+              selectionMs={SELECTION_MS}
+              onTap={() => selectGrade(g)}
+              onLong={() => { setSelected(null); setDetail({ kind: mode, grade: g, gradeSystem }); }}
+            />
           );
         })}
       </div>
+
+      {mode === "boulder" && BOULDER_GRADES.length > grades.length && (
+        <div style={{ textAlign: "center", marginTop: 6 }}>
+          <button
+            className="btn-sm btn-secondary"
+            onClick={() => setShowAllBoulder((v) => !v)}
+            style={{ fontSize: 10, padding: "3px 10px" }}
+          >
+            {showAllBoulder ? "↑ COLLAPSE" : `↓ SHOW ALL ${BOULDER_GRADES.length}`}
+          </button>
+        </div>
+      )}
 
       {/* Style row (+ falls stepper in lead) */}
       <div style={{ padding: "16px 16px 0" }}>
@@ -327,7 +359,8 @@ export default function TickSheet() {
       ) : (
         <div style={{ padding: "26px 28px 0", textAlign: "center" }}>
           <div style={{ fontFamily: "var(--font-hand)", fontSize: 18, color: "var(--ink-2)", transform: "rotate(-1deg)", display: "inline-block" }}>
-            empty session.<br /><span style={{ color: "var(--red)" }}>go climb something.</span>
+            {mode === "lead" ? "no leads yet." : "no boulders yet."}<br />
+            <span style={{ color: "var(--red)" }}>go climb something.</span>
           </div>
         </div>
       )}
