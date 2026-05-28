@@ -5,10 +5,11 @@ import { api } from "../api/client";
 import type { SessionDetail, BoulderEntry, LeadRouteEntry, RecentCombo } from "../api/client";
 import {
   SessionStrip, ModeToggle, StyleRibbonRow,
-  FeedEntry, RecentChip, Ribbon, AfterCommitOverlay,
+  FeedEntry, RecentChip, Ribbon, AfterCommitOverlay, Toast,
   STYLE_BY_ID, STYLE_TO_SEND_TYPE, sendTypeToStyle,
 } from "../ui";
 import type { StyleId, CommitTick, ClimbMode } from "../ui";
+import { useToast } from "../lib/useToast";
 import { BOULDER_GRADES, boulderGradeWindow, leadGradeWindow, gradeOrder } from "../lib/grades";
 import type { GradeSystem } from "../lib/grades";
 import DetailSheet from "../components/DetailSheet";
@@ -64,6 +65,7 @@ export default function TickSheet() {
   const [detail, setDetail] = useState<DetailTarget | null>(null);
   const [now, setNow] = useState(Date.now());
   const [ending, setEnding] = useState(false);
+  const { message: toastMsg, toast, dismiss: dismissToast } = useToast();
   const selectTimer = useRef<number | null>(null);
   const tickKey = useRef(0);
 
@@ -140,16 +142,21 @@ export default function TickSheet() {
         }
         setRouteName(""); // clears on every commit, including from RecentChip
         refreshRecents();
-      } catch {
+      } catch (err) {
         setCommitTick(null);
+        toast(err instanceof Error ? err.message : "Failed to save tick — check your connection.");
       }
     },
     [session, sessionId, mode, gradeSystem, refreshRecents]
   );
 
   async function startTimer() {
-    setSession(await api.startSession(sessionId));
-    setNow(Date.now());
+    try {
+      setSession(await api.startSession(sessionId));
+      setNow(Date.now());
+    } catch (err) {
+      toast(err instanceof Error ? err.message : "Couldn't start timer — check your connection.");
+    }
   }
 
   async function endSession() {
@@ -157,6 +164,8 @@ export default function TickSheet() {
     try {
       await api.endSession(sessionId);
       navigate(`/sessions/${sessionId}/summary`);
+    } catch (err) {
+      toast(err instanceof Error ? err.message : "Couldn't end session — check your connection.");
     } finally { setEnding(false); }
   }
 
@@ -387,6 +396,7 @@ export default function TickSheet() {
         </Link>
       </div>
 
+      <Toast message={toastMsg} onDismiss={dismissToast} />
       <AfterCommitOverlay tick={commitTick} onDone={() => setCommitTick(null)} />
 
       {detail && (
