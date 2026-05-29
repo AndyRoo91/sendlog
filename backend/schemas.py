@@ -91,6 +91,7 @@ class LeadRouteEntryBase(BaseModel):
     falls: int | None = None
     notes: str | None = None
     route_id: int | None = None
+    rating: int | None = None   # 1..5 friend-sticker rating
 
 
 class LeadRouteEntryCreate(LeadRouteEntryBase):

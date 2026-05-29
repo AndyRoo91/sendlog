@@ -114,6 +114,7 @@ class LeadRouteEntry(Base):
     notes: Mapped[str | None] = mapped_column(Text)
     logged_at: Mapped[datetime | None] = mapped_column(DateTime, default=datetime.utcnow)
     route_id: Mapped[int | None] = mapped_column(ForeignKey("routes.id"), index=True)
+    rating: Mapped[int | None] = mapped_column(Integer)  # 1..5 friend-sticker rating
 
     session: Mapped["Session"] = relationship(back_populates="lead_route_entries")
 
