@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api/client";
 import type { BoulderEntry, LeadRouteEntry, EntryPhoto, RouteSummary } from "../api/client";
-import { GradeChip, StyleRibbonRow, STYLE_BY_ID, STYLE_TO_SEND_TYPE, sendTypeToStyle } from "../ui";
+import { GradeChip, StyleRibbonRow, STYLE_BY_ID, STYLE_TO_SEND_TYPE, sendTypeToStyle, StickerRating } from "../ui";
 import type { StyleId } from "../ui";
 import type { GradeSystem } from "../lib/grades";
 import PhotoUploader from "./PhotoUploader";
@@ -57,6 +57,7 @@ export default function DetailSheet({ sessionId, target, onClose, onSavedBoulder
   const [falls, setFalls] = useState<number>(lead?.falls ?? 0);
   const [notes, setNotes] = useState(entry?.notes ?? "");
   const [photos, setPhotos] = useState<EntryPhoto[]>(entry?.photos ?? []);
+  const [rating, setRating] = useState<number | null>(lead?.rating ?? null);
   const [saving, setSaving] = useState(false);
 
   // project linking (lead only)
@@ -86,7 +87,7 @@ export default function DetailSheet({ sessionId, target, onClose, onSavedBoulder
         const payload = {
           route_name: routeName || null, grade, grade_system: gradeSystem,
           send_type: STYLE_TO_SEND_TYPE[styleId], attempts, falls, notes: notes || null,
-          route_id: linkedId,
+          route_id: linkedId, rating,
         };
         const saved = lead?.id
           ? await api.updateLead(lead.id, payload)
@@ -202,6 +203,20 @@ export default function DetailSheet({ sessionId, target, onClose, onSavedBoulder
           <label>Style</label>
           <StyleRibbonRow mode={target.kind} selected={styleId} onPick={setStyleId} />
         </div>
+
+        {isLead && (
+          <div style={{ marginBottom: 10 }}>
+            <label>Friend rating · out of 5</label>
+            {/* Seed by entry id so the same tick keeps the same five faces.
+                Falls back to session+routeId for new ticks (they get their
+                final stable seed once saved). */}
+            <StickerRating
+              seed={lead?.id ?? (sessionId * 1000 + (routeId ?? 0))}
+              value={rating}
+              onChange={setRating}
+            />
+          </div>
+        )}
 
         <div style={{ marginBottom: 10 }}>
           <label>Notes</label>

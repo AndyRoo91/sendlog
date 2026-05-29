@@ -57,6 +57,7 @@ export interface LeadRouteEntry {
   photos?: EntryPhoto[];
   logged_at?: string | null;
   route_id?: number | null;
+  rating?: number | null;   // 1..5 friend-sticker rating
 }
 
 export interface RoutePin {

@@ -23,38 +23,44 @@ const STICKERS: string[] = [
   "STK-20260519-WA0006.webp",
 ];
 
-/** Tiny deterministic hash so each (seed, slot) pair maps to a stable sticker
- *  without back-to-back duplicates within the same route. */
-function pickStickerForSlot(seed: number, slot: number): string {
-  // splitmix-ish int hash — plenty for picking 1 of 13.
+/** Tiny deterministic hash — splitmix-ish int hash, plenty for picking 1 of N. */
+function pickStickerForSlot(seed: number, slot: number): number {
   let h = (seed * 31 + slot * 2654435761) | 0;
   h ^= h >>> 16;
   h = Math.imul(h, 0x85ebca6b);
   h ^= h >>> 13;
-  const idx = Math.abs(h) % STICKERS.length;
-  return STICKERS[idx];
+  return Math.abs(h) % STICKERS.length;
 }
 
-/** Stable seeded triple, with no two adjacent slots showing the same sticker. */
-function tripleFor(seed: number): [string, string, string] {
-  const a = pickStickerForSlot(seed, 0);
-  let b = pickStickerForSlot(seed, 1);
-  if (b === a) b = STICKERS[(STICKERS.indexOf(b) + 1) % STICKERS.length];
-  let c = pickStickerForSlot(seed, 2);
-  if (c === a || c === b) c = STICKERS[(STICKERS.indexOf(c) + 1) % STICKERS.length];
-  if (c === a || c === b) c = STICKERS[(STICKERS.indexOf(c) + 1) % STICKERS.length];
-  return [a, b, c];
+/** Stable seeded list of N unique stickers for the given seed. If N > pool
+ *  size we fall back to allowing repeats (shouldn't happen with 5 of 13). */
+function pickerFor(seed: number, slots: number): string[] {
+  const used = new Set<number>();
+  const out: string[] = [];
+  for (let i = 0; i < slots; i++) {
+    let idx = pickStickerForSlot(seed, i);
+    // Walk forward through the pool until we find an unused one.
+    let probe = 0;
+    while (used.has(idx) && probe < STICKERS.length) {
+      idx = (idx + 1) % STICKERS.length;
+      probe++;
+    }
+    used.add(idx);
+    out.push(STICKERS[idx]);
+  }
+  return out;
 }
 
 interface Props {
-  seed: number;                          // typically the route id
-  value: number | null | undefined;      // 1..3 or null/undefined for unrated
+  seed: number;                          // typically the route or tick id
+  value: number | null | undefined;      // 1..slots, or null/undefined for unrated
   onChange?: (next: number | null) => void;  // omit for read-only display
-  size?: number;                          // px per sticker, default 44
+  size?: number;                          // px per sticker, default 36
+  slots?: number;                         // total slots, default 5
 }
 
-export default function StickerRating({ seed, value, onChange, size = 44 }: Props) {
-  const triple = tripleFor(seed);
+export default function StickerRating({ seed, value, onChange, size = 36, slots = 5 }: Props) {
+  const picks = pickerFor(seed, slots);
   const rating = value ?? 0;
   const readOnly = !onChange;
 
@@ -68,10 +74,10 @@ export default function StickerRating({ seed, value, onChange, size = 44 }: Prop
 
   return (
     <div role="radiogroup" aria-label="Friend rating"
-      style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
-      {triple.map((file, i) => {
+      style={{ display: "inline-flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+      {picks.map((file, i) => {
         const filled = i < rating;
-        const label = `${i + 1} of 3`;
+        const label = `${i + 1} of ${slots}`;
         return (
           <button
             key={i}
