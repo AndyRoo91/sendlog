@@ -1494,6 +1494,22 @@ PHOTOS_DIR.mkdir(parents=True, exist_ok=True)
 app.mount("/photos", StaticFiles(directory=PHOTOS_DIR), name="photos")
 
 if static_dir.exists():
+    _static_root = static_dir.resolve()
+
     @app.get("/{full_path:path}", include_in_schema=False)
     def serve_spa(full_path: str):
+        # Serve real files from the static dir if they exist (e.g. /stickers/*,
+        # /favicon.svg, /manifest.webmanifest) — otherwise fall back to
+        # index.html so the SPA router can handle client-side paths.
+        # Guard against path traversal by resolving and confirming the
+        # candidate is inside static_dir.
+        if full_path:
+            candidate = (static_dir / full_path).resolve()
+            try:
+                candidate.relative_to(_static_root)
+            except ValueError:
+                pass  # traversal attempt — fall through to index.html
+            else:
+                if candidate.is_file():
+                    return FileResponse(candidate)
         return FileResponse(static_dir / "index.html")
