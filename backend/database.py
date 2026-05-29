@@ -84,6 +84,10 @@ def run_migrations() -> None:
             conn.execute(text("ALTER TABLE routes ADD COLUMN kind VARCHAR(10)"))
             conn.execute(text("UPDATE routes SET kind = 'lead' WHERE kind IS NULL"))
 
+        # Friend-sticker rating (1..3, NULL = unrated)
+        if "rating" not in columns("routes"):
+            conn.execute(text("ALTER TABLE routes ADD COLUMN rating INTEGER"))
+
         # Phase F1: ownership columns. We add them nullable here; the seed step
         # in main.run_seed() backfills them and the ORM enforces NOT NULL going
         # forward so new rows always carry a user_id.

@@ -78,6 +78,7 @@ export interface RouteSummary {
   location?: string | null;
   notes?: string | null;
   topo_filename?: string | null;
+  rating?: number | null;       // 1..3 friend-sticker rating
   pin_count: number;
   last_pin_date?: string | null;
 }
@@ -96,6 +97,7 @@ export interface RoutePayload {
   grade_system?: string;
   location?: string | null;
   notes?: string | null;
+  rating?: number | null;
 }
 
 export interface PinPayload {

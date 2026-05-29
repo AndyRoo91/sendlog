@@ -1105,6 +1105,7 @@ def route_summary(r: models.Route) -> schemas.RouteSummary:
     return schemas.RouteSummary(
         id=r.id, name=r.name, kind=r.kind, grade=r.grade, grade_system=r.grade_system,
         location=r.location, notes=r.notes, topo_filename=r.topo_filename,
+        rating=r.rating,
         pin_count=len(r.pins), last_pin_date=max(dates) if dates else None,
     )
 

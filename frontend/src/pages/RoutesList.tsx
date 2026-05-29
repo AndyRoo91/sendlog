@@ -4,7 +4,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { api } from "../api/client";
 import type { RouteSummary } from "../api/client";
 import { thumbUrl } from "../lib/photos";
-import { Ribbon } from "../ui";
+import { Ribbon, StickerRating } from "../ui";
 
 export default function RoutesList() {
   const navigate = useNavigate();
@@ -65,6 +65,11 @@ export default function RoutesList() {
               {r.location ? `${r.location} · ` : ""}{r.pin_count} pin{r.pin_count === 1 ? "" : "s"}
               {r.last_pin_date ? ` · last ${r.last_pin_date}` : ""}
             </div>
+            {r.rating != null && r.rating > 0 && (
+              <div style={{ marginTop: 6 }}>
+                <StickerRating seed={r.id} value={r.rating} size={24} />
+              </div>
+            )}
           </div>
         </div>
       </Link>

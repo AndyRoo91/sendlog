@@ -5,7 +5,7 @@ import { api } from "../api/client";
 import type { RouteDetail as RouteDetailT, RoutePin, EntryPhoto } from "../api/client";
 import { pinKind } from "../lib/pins";
 import { photoUrl } from "../lib/photos";
-import { STYLE_BY_ID, sendTypeToStyle, Lightbox } from "../ui";
+import { STYLE_BY_ID, sendTypeToStyle, Lightbox, StickerRating } from "../ui";
 import TopoPinEditor from "../components/TopoPinEditor";
 import PhotoUploader from "../components/PhotoUploader";
 import ColourPickOverlay from "../components/ColourPickOverlay";
@@ -76,6 +76,26 @@ export default function RouteDetail() {
         <h1>{route.name}</h1>
         <div className="muted" style={{ fontSize: 13 }}>
           {route.grade ? `${route.grade} ${route.grade_system}` : ""}{route.location ? ` · ${route.location}` : ""}
+        </div>
+        <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 10 }}>
+          <span style={{
+            fontFamily: "var(--font-banner)", fontSize: 10, letterSpacing: "0.1em",
+            color: "var(--ink-2)",
+          }}>★ RATING</span>
+          <StickerRating
+            seed={route.id}
+            value={route.rating}
+            onChange={async (next) => {
+              // Optimistic update; revert on failure.
+              const prev = route.rating ?? null;
+              setRoute({ ...route, rating: next });
+              try {
+                await api.updateRoute(route.id, { rating: next });
+              } catch {
+                setRoute({ ...route, rating: prev });
+              }
+            }}
+          />
         </div>
       </div>
 
