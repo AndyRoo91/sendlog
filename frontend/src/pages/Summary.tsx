@@ -5,7 +5,8 @@ import { format } from "date-fns";
 import { toPng } from "html-to-image";
 import { api } from "../api/client";
 import type { SessionDetail, BoulderEntry, LeadRouteEntry } from "../api/client";
-import { Ribbon, STYLE_BY_ID, sendTypeToStyle } from "../ui";
+import { Ribbon, STYLE_BY_ID, sendTypeToStyle, Crag } from "../ui";
+import type { CragState } from "../ui";
 import { BOULDER_GRADES, LEAD_GRADE_OPTIONS } from "../lib/grades";
 import type { GradeSystem } from "../lib/grades";
 
@@ -118,6 +119,7 @@ export default function Summary() {
   if (!session) return <div className="page"><p className="muted">Loading…</p></div>;
 
   const maxCount = Math.max(1, ...stats.pyramid.map((p) => p.count));
+  const summaryState: CragState = stats.sends > 0 ? "stoked" : "shakeoff";
 
   return (
     <div className="paper-plain no-scrollbar" style={{ overflow: "auto", paddingBottom: 24 }}>
@@ -129,6 +131,18 @@ export default function Summary() {
       {/* Tick certificate (captured for share) */}
       <div ref={certRef} style={{ margin: "16px 14px 0", background: "var(--cream)", border: "var(--bw) solid var(--ink)", boxShadow: "6px 6px 0 var(--ink)", padding: "16px 14px", position: "relative" }}>
         <div style={{ position: "absolute", top: -2, left: 0, right: 0, height: 8, background: "repeating-linear-gradient(90deg, var(--paper) 0 6px, transparent 6px 12px)" }} />
+
+        {/* Crag — celebrates or shakes off, never sad */}
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, marginBottom: 14 }}>
+          <Crag state={summaryState} size={200} showBg={false} uid="summary-cert" />
+          <div style={{
+            fontFamily: "var(--font-hand)", fontSize: 22,
+            color: summaryState === "stoked" ? "var(--red)" : "var(--sea)",
+            transform: "rotate(-1deg)",
+          }}>
+            {summaryState === "stoked" ? "filthy session!" : "shake it off — go again"}
+          </div>
+        </div>
 
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 4 }}>
           <div style={{ fontFamily: "var(--font-banner)", fontSize: 11, letterSpacing: "0.1em" }}>{format(new Date(session.date), "EEE · d MMM").toUpperCase()}</div>

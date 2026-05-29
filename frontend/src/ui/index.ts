@@ -18,3 +18,5 @@ export type { StyleId, StyleDef } from "./styleMap";
 export type { ClimbMode } from "./ModeToggle";
 export { default as Toast } from "./Toast";
 export { default as Lightbox } from "./Lightbox";
+export { default as Crag, lobbyCondition } from "./Crag";
+export type { CragProps, CragState } from "./Crag";
