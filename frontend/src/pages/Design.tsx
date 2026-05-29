@@ -2,7 +2,9 @@ import type { ReactNode } from "react";
 import {
   Ray, StarBurst, Ribbon, Scroll, GradeChip, SessionStrip,
   FeedEntry, StyleRibbonRow, ModeToggle, RecentChip, STYLES,
+  Crag,
 } from "../ui";
+import type { CragState } from "../ui";
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -116,6 +118,45 @@ export default function Design() {
       <Section title="★ SESSION STRIP ★">
         <div style={{ border: "var(--b) solid var(--ink)" }}>
           <SessionStrip />
+        </div>
+      </Section>
+
+      <Section title="★ CRAG — ALL STATES ★">
+        <p className="muted" style={{ fontSize: 12, marginBottom: 4 }}>
+          Six states · size=160 with bg · each gets a unique uid to avoid filter-id collisions.
+        </p>
+        <div style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(3, 1fr)",
+          gap: 16,
+        }}>
+          {(["primed","training","detrained","stoked","shakeoff","resting"] as CragState[]).map((s) => (
+            <div key={s} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
+              <Crag state={s} size={160} showBg uid={`design-${s}`} />
+              <div style={{
+                fontFamily: "var(--font-banner)", fontSize: 10, letterSpacing: "0.1em",
+                color: "var(--ink-2)", textAlign: "center",
+              }}>
+                {s.toUpperCase()}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div style={{ marginTop: 20 }}>
+          <p className="muted" style={{ fontSize: 12, marginBottom: 8 }}>
+            showBg=false (transparent) · size=90 — for embedding in cards
+          </p>
+          <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-end" }}>
+            {(["primed","stoked","resting"] as CragState[]).map((s) => (
+              <div key={s} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+                <Crag state={s} size={90} showBg={false} uid={`design-sm-${s}`} />
+                <div style={{ fontFamily: "var(--font-banner)", fontSize: 10, letterSpacing: "0.1em", color: "var(--ink-2)" }}>
+                  {s}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </Section>
     </div>

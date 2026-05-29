@@ -3,7 +3,8 @@ import { Link } from "react-router-dom";
 import { api } from "../api/client";
 import type { Achievement, SessionSummary } from "../api/client";
 import { format } from "date-fns";
-import { ICON, Ribbon } from "../ui";
+import { ICON, Ribbon, Crag, lobbyCondition } from "../ui";
+import type { CragState } from "../ui";
 import { isDuckOn, setDuck, useDuckMode, useKonami } from "../lib/duckMode";
 
 interface StatProps {
@@ -66,6 +67,22 @@ export default function Dashboard() {
     const b = new Date(); b.setHours(0, 0, 0, 0);
     return Math.max(0, Math.round((b.getTime() - a.getTime()) / 86_400_000));
   }
+  // Lobby condition — count sessions that had started_at within the last 14 days.
+  const sessions14 = sessions.filter((s) => {
+    if (!s.started_at) return false;
+    const ms = Date.now() - new Date(s.started_at.endsWith("Z") || /[+-]\d\d:?\d\d$/.test(s.started_at) ? s.started_at : s.started_at + "Z").getTime();
+    return ms <= 14 * 24 * 60 * 60 * 1000;
+  }).length;
+  const cragState: CragState = lobbyCondition(sessions14);
+  const CRAG_COPY: Record<CragState, { head: string; body: string }> = {
+    primed:    { head: "still on form.",   body: "keep it rolling — Crag's ready when you are." },
+    training:  { head: "rebuilding!",      body: "eye of the tiger. consistency is the gain." },
+    detrained: { head: "off-season, eh?",  body: "Crag's been taking it easy too. whenever you're ready, he's in." },
+    stoked:    { head: "let's go!",        body: "you're sending. Crag is stoked." },
+    shakeoff:  { head: "go again.",        body: "shake it off and get back on." },
+    resting:   { head: "rest up.",         body: "recovery is training." },
+  };
+
   const daysSince = sessions[0] ? daysBetween(sessions[0].date) : null;
   const nudge: { text: string; color: string } | null =
     daysSince === null ? null
@@ -105,6 +122,32 @@ export default function Dashboard() {
           letterSpacing: "0.1em", textAlign: "center", transform: "rotate(-0.6deg)",
           boxShadow: "3px 3px 0 var(--ink)",
         }}>{nudge.text}</div>
+      )}
+
+      {/* Crag greeting — lobby idle card (one animated instance per screen) */}
+      {!loading && (
+        <div style={{
+          display: "flex", alignItems: "center", gap: 6,
+          padding: "10px 12px", marginBottom: 18,
+          background: "var(--cream)", border: "3px solid var(--ink)",
+          boxShadow: "4px 4px 0 var(--ink)",
+        }}>
+          <Crag state={cragState} size={90} showBg={false} uid="dashboard-lobby" />
+          <div style={{ flex: 1 }}>
+            <div style={{
+              fontFamily: "var(--font-hand)", fontSize: 18, color: "var(--sea)",
+              lineHeight: 1.1, marginBottom: 4,
+            }}>
+              {CRAG_COPY[cragState].head}
+            </div>
+            <div style={{
+              fontFamily: "var(--font-body)", fontWeight: 600, fontSize: 13,
+              color: "var(--ink-2)", lineHeight: 1.3,
+            }}>
+              {CRAG_COPY[cragState].body}
+            </div>
+          </div>
+        </div>
       )}
 
       <div style={{

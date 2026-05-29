@@ -229,3 +229,25 @@ label { font-size: 11px; font-family: var(--font-banner); letter-spacing: 0.06em
 .tag-green { background: var(--sea); }
 .tag-blue { background: var(--cobalt); }
 .tag-red { background: var(--red); }
+
+/* ---- Crag motion loops (viewBox 260×300, centre at 130,150) ---- */
+.mv { transform-box: fill-box; transform-origin: center; }
+.mv-headbang { animation: headbang 0.9s steps(2) infinite; }
+@keyframes headbang { 0%,100%{ transform: translate(130px,150px) rotate(0deg); } 50%{ transform: translate(130px,153px) rotate(-3deg); } }
+.mv-slouch { animation: slouch 3.4s ease-in-out infinite; }
+@keyframes slouch { 0%,100%{ transform: translate(130px,156px) rotate(2deg); } 50%{ transform: translate(130px,160px) rotate(3deg); } }
+.mv-jump { animation: jump 0.6s steps(3) infinite; }
+@keyframes jump { 0%,100%{ transform: translate(130px,150px); } 50%{ transform: translate(130px,138px); } }
+.mv-breathe { animation: breathe 3.8s ease-in-out infinite; }
+@keyframes breathe { 0%,100%{ transform: translate(130px,152px) scale(1); } 50%{ transform: translate(130px,150px) scale(1.03); } }
+.mv-pump { animation: pump 0.5s steps(2) infinite; }
+@keyframes pump { 0%,100%{ transform: translate(130px,150px) scale(1); } 50%{ transform: translate(130px,145px) scale(1.025); } }
+.mv-sparks { animation: sparks 0.5s steps(2) infinite; }
+@keyframes sparks { 0%{ opacity:1; } 50%{ opacity:0.2; } 100%{ opacity:1; } }
+.mv-zzz { animation: zzz 2.6s ease-in-out infinite; }
+@keyframes zzz { 0%{ opacity:0.2; } 50%{ opacity:1; } 100%{ opacity:0.2; } }
+.mv-sweat { animation: sweat 1.8s ease-in infinite; }
+@keyframes sweat { 0%{ transform:translateY(0); opacity:1; } 100%{ transform:translateY(8px); opacity:0; } }
+@media (prefers-reduced-motion: reduce) {
+  .mv, [class*="mv-"] { animation: none !important; }
+}
