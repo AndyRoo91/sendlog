@@ -141,6 +141,7 @@ class Route(Base):
     location: Mapped[str | None] = mapped_column(String(100))
     topo_filename: Mapped[str | None] = mapped_column(String(200))
     notes: Mapped[str | None] = mapped_column(Text)
+    rating: Mapped[int | None] = mapped_column(Integer)  # 1..3 friend-sticker rating
     created_at: Mapped[datetime | None] = mapped_column(DateTime, default=datetime.utcnow)
 
     pins: Mapped[list["RoutePin"]] = relationship(

@@ -268,6 +268,7 @@ class RouteBase(BaseModel):
     grade_system: str = "ewbank"
     location: str | None = None
     notes: str | None = None
+    rating: int | None = None   # 1..3 friend-sticker rating
 
 
 class RouteCreate(RouteBase):
@@ -281,6 +282,7 @@ class RouteUpdate(BaseModel):
     grade_system: str | None = None
     location: str | None = None
     notes: str | None = None
+    rating: int | None = None
 
 
 class RouteSummary(RouteBase):
