@@ -19,7 +19,6 @@ import DetailSheet from "../components/DetailSheet";
 import type { DetailTarget } from "../components/DetailSheet";
 import GradeChipSlot from "../components/GradeChipSlot";
 
-const SELECTION_MS = 6000;
 const LEAD_SYSTEMS: GradeSystem[] = ["ewbank", "yds", "french"];
 
 // Deterministic card tilt table — cycles through feed/recent chips for a pinboard feel.
@@ -73,8 +72,9 @@ export default function TickSheet() {
   const [detail, setDetail] = useState<DetailTarget | null>(null);
   const [now, setNow] = useState(Date.now());
   const [ending, setEnding] = useState(false);
-  const { message: toastMsg, toast, dismiss: dismissToast } = useToast();
-  const selectTimer = useRef<number | null>(null);
+  const [confirmEnd, setConfirmEnd] = useState(false);
+  const { message: toastMsg, action: toastAction, toast, dismiss: dismissToast } = useToast();
+  const confirmEndTimer = useRef<number | null>(null);
   const tickKey = useRef(0);
 
   const refreshRecents = useCallback(() => {
@@ -96,16 +96,16 @@ export default function TickSheet() {
     return () => clearInterval(t);
   }, [session?.started_at, session?.ended_at]);
 
-  // Clear any pending selection timeout on unmount (REVIEW.md §4).
+  // Clear any pending timers on unmount (REVIEW.md §4).
   useEffect(() => () => {
-    if (selectTimer.current) window.clearTimeout(selectTimer.current);
+    if (confirmEndTimer.current) window.clearTimeout(confirmEndTimer.current);
     if (pbClearTimer.current) window.clearTimeout(pbClearTimer.current);
   }, []);
 
+  // Selection persists until you commit or pick another grade — no auto-deselect,
+  // so pausing mid-log (someone talks to you) doesn't drop your pick.
   function selectGrade(g: string) {
-    setSelected(g);
-    if (selectTimer.current) clearTimeout(selectTimer.current);
-    selectTimer.current = window.setTimeout(() => setSelected(null), SELECTION_MS);
+    setSelected((cur) => (cur === g ? null : g));
   }
 
   const commit = useCallback(
@@ -168,6 +168,23 @@ export default function TickSheet() {
         }
         setRouteName(""); // clears on every commit, including from RecentChip
         refreshRecents();
+        // Offer a quick undo — deletes the just-logged entry without hunting the feed.
+        if (createdId != null) {
+          const undoId = createdId;
+          const undoMode = mode;
+          toast(`Logged ${grade} · ${STYLE_BY_ID[styleId].label}`, {
+            label: "UNDO",
+            run: async () => {
+              try {
+                if (undoMode === "lead") await api.deleteLead(undoId);
+                else await api.deleteBoulder(undoId);
+                onDeleted(undoMode, undoId);
+              } catch {
+                toast("Couldn't undo — remove it from the feed instead.");
+              }
+            },
+          });
+        }
         // Check for newly-unlocked achievements; queue them for the overlay.
         api.checkAchievements()
           .then((r) => {
@@ -201,6 +218,23 @@ export default function TickSheet() {
     } catch (err) {
       toast(err instanceof Error ? err.message : "Couldn't end session — check your connection.");
     } finally { setEnding(false); }
+  }
+
+  // End immediately when there's nothing to lose; otherwise arm a two-tap
+  // confirm so a stray tap can't end a session full of ticks.
+  function requestEnd() {
+    const hasEntries =
+      (session?.lead_route_entries.length ?? 0) + (session?.boulder_entries.length ?? 0) > 0;
+    if (!hasEntries) { endSession(); return; }
+    if (confirmEnd) {
+      if (confirmEndTimer.current) window.clearTimeout(confirmEndTimer.current);
+      setConfirmEnd(false);
+      endSession();
+      return;
+    }
+    setConfirmEnd(true);
+    if (confirmEndTimer.current) window.clearTimeout(confirmEndTimer.current);
+    confirmEndTimer.current = window.setTimeout(() => setConfirmEnd(false), 4000);
   }
 
   // --- detail sheet upsert helpers ---
@@ -271,9 +305,13 @@ export default function TickSheet() {
         <div>
           <SessionStrip where={where} elapsed={fmtElapsed(session.started_at!, now)} date={dateLabel} />
           <div style={{ display: "flex", justifyContent: "flex-end", padding: "8px 16px 0" }}>
-            <button onClick={endSession} disabled={ending}
-              style={{ background: "var(--mustard)", color: "var(--ink)", boxShadow: "3px 3px 0 var(--ink)" }}>
-              {ending ? "ENDING…" : "● END SESSION"}
+            <button onClick={requestEnd} disabled={ending}
+              style={{
+                background: confirmEnd ? "var(--red)" : "var(--mustard)",
+                color: confirmEnd ? "var(--cream)" : "var(--ink)",
+                boxShadow: "3px 3px 0 var(--ink)",
+              }}>
+              {ending ? "ENDING…" : confirmEnd ? "● TAP AGAIN TO END" : "● END SESSION"}
             </button>
           </div>
         </div>
@@ -287,7 +325,7 @@ export default function TickSheet() {
         </div>
       )}
 
-      <ModeToggle active={mode} onChange={setMode} />
+      <ModeToggle active={mode} onChange={(m) => { setMode(m); setSelected(null); }} />
 
       {/* Lead-only: route name + grade system chips */}
       {mode === "lead" && (
@@ -361,7 +399,6 @@ export default function TickSheet() {
               color={color}
               tally={t?.count ?? 0}
               selected={selected === g}
-              selectionMs={SELECTION_MS}
               onTap={() => selectGrade(g)}
               onLong={() => { setSelected(null); setDetail({ kind: mode, grade: g, gradeSystem }); }}
             />
@@ -456,7 +493,7 @@ export default function TickSheet() {
         </Link>
       </div>
 
-      <Toast message={toastMsg} onDismiss={dismissToast} />
+      <Toast message={toastMsg} action={toastAction} onDismiss={dismissToast} />
       <AfterCommitOverlay tick={commitTick} onDone={() => setCommitTick(null)} />
       <AchievementOverlay queue={achievementQueue} onDone={() => setAchievementQueue((q) => q.slice(1))} />
 

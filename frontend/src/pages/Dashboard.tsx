@@ -54,6 +54,9 @@ export default function Dashboard() {
 
   const recent = sessions.slice(0, 5);
   const totalSessions = sessions.length;
+  // A session that's been started but not ended is still "running" — surface it
+  // so you can jump straight back to logging instead of hunting the list.
+  const runningSession = sessions.find((s) => s.started_at && !s.ended_at) ?? null;
   const thisMonth = sessions.filter((s) => {
     const d = new Date(s.date);
     const now = new Date();
@@ -114,6 +117,27 @@ export default function Dashboard() {
           }}>
           🦆 QUACK MODE — TAP TO TURN OFF
         </div>
+      )}
+      {runningSession && (
+        <Link to={`/sessions/${runningSession.id}`} style={{ textDecoration: "none" }}>
+          <div className="card-flat" style={{
+            padding: "10px 14px", marginBottom: 16, background: "var(--sea)",
+            color: "var(--cream)", display: "flex", alignItems: "center", gap: 10,
+            transform: "rotate(-0.5deg)", boxShadow: "3px 3px 0 var(--ink)",
+            border: "var(--b) solid var(--ink)", cursor: "pointer",
+          }}>
+            <span style={{ fontSize: 12, color: "var(--mustard)" }}>●</span>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontFamily: "var(--font-banner)", fontSize: 12, letterSpacing: "0.1em" }}>
+                SESSION RUNNING{runningSession.location ? ` · ${runningSession.location.toUpperCase()}` : ""}
+              </div>
+              <div style={{ fontFamily: "var(--font-body)", fontWeight: 600, fontSize: 12, opacity: 0.9 }}>
+                tap to jump back in and keep logging
+              </div>
+            </div>
+            <span style={{ fontFamily: "var(--font-banner)", fontSize: 18, color: "var(--mustard)" }}>→</span>
+          </div>
+        </Link>
       )}
       {nudge && (
         <div className="card-flat" style={{
