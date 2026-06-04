@@ -120,12 +120,6 @@ h3 { font-size: 15px; }
   transform: rotate(-4deg);
 }
 
-/* Selection countdown ring (used by Tick Sheet selected chip). */
-@keyframes sendlog-countdown {
-  from { stroke-dashoffset: 0; }
-  to   { stroke-dashoffset: 213.628; } /* 2π·r where r=34 */
-}
-
 /* New-personal-best chip celebration — bouncy shake, plays a few times then settles. */
 @keyframes sendlog-pb-shake {
   0%   { transform: var(--tilt) translate(0, 0)   scale(1); }
