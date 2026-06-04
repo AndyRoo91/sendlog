@@ -137,7 +137,7 @@ The daily-use surface is `TickSheet`; most of these cut friction there or close 
 
 | Item | Size | Notes |
 |------|------|-------|
-| **Offline commit queue** | L | `commit()` is optimistic but a network failure *loses the tick* (toast + rollback). Crags have no signal — this is the real-world risk. Queue failed `addLead`/`addBoulder` payloads in IndexedDB/localStorage, flush on reconnect, show a "N pending sync" chip. Pairs with the existing service worker. |
+| **Offline commit queue** ✅ | L | `commit()` is optimistic but a network failure *loses the tick* (toast + rollback). Crags have no signal — this is the real-world risk. Queue failed `addLead`/`addBoulder` payloads in IndexedDB/localStorage, flush on reconnect, show a "N pending sync" chip. Pairs with the existing service worker. |
 | **Undo last tick from toast** | S | Post-commit toast gets an "Undo" action → deletes the just-created entry. Today you must scroll the feed and swipe-delete the right chip. |
 | **Selection timeout fix** | S | `SELECTION_MS = 6000` deselects your grade if you pause mid-log. Drop the auto-deselect; clear only on commit or on selecting another grade. |
 | **Resume in-progress session** | S | A session can be `started_at` with no `ended_at`. Surface a "● SESSION RUNNING · 47 min" banner on Dashboard → resume. |
