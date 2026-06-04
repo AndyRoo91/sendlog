@@ -13,6 +13,8 @@ import {
 import type { StyleId, CommitTick, ClimbMode } from "../ui";
 import type { Achievement } from "../api/client";
 import { useToast } from "../lib/useToast";
+import { enqueue, dequeue, queueSize, subscribe, flush, TICK_SYNCED_EVENT } from "../lib/syncQueue";
+import type { TickSyncedDetail } from "../lib/syncQueue";
 import { BOULDER_GRADES, boulderGradeWindow, leadGradeWindow, gradeOrder } from "../lib/grades";
 import type { GradeSystem } from "../lib/grades";
 import DetailSheet from "../components/DetailSheet";
@@ -73,6 +75,10 @@ export default function TickSheet() {
   const [now, setNow] = useState(Date.now());
   const [ending, setEnding] = useState(false);
   const [confirmEnd, setConfirmEnd] = useState(false);
+  // Ids of optimistic entries still waiting to reach the server (negative temp
+  // ids). Used to badge them and to route deletes through the queue.
+  const [pendingIds, setPendingIds] = useState<Set<number>>(() => new Set());
+  const [pendingSync, setPendingSync] = useState(() => queueSize());
   const { message: toastMsg, action: toastAction, toast, dismiss: dismissToast } = useToast();
   const confirmEndTimer = useRef<number | null>(null);
   const tickKey = useRef(0);
@@ -102,6 +108,51 @@ export default function TickSheet() {
     if (pbClearTimer.current) window.clearTimeout(pbClearTimer.current);
   }, []);
 
+  // Keep the pending-sync count live and nudge a flush when we land here
+  // (e.g. arriving back in signal). The queue module also flushes on `online`.
+  useEffect(() => {
+    const unsub = subscribe(() => setPendingSync(queueSize()));
+    void flush();
+    return unsub;
+  }, []);
+
+  // When a queued tick finally syncs in the background, swap our optimistic
+  // placeholder (matched by clientId == temp id) for the real server entry.
+  useEffect(() => {
+    function onSynced(e: Event) {
+      const d = (e as CustomEvent<TickSyncedDetail>).detail;
+      if (d.sessionId !== sessionId) return;
+      const tempId = Number(d.clientId);
+      replaceEntry(d.kind, tempId, { ...(d.entry as AnyEntry), photos: [] });
+      markPending(tempId, false);
+    }
+    window.addEventListener(TICK_SYNCED_EVENT, onSynced);
+    return () => window.removeEventListener(TICK_SYNCED_EVENT, onSynced);
+  }, [sessionId]);
+
+  function markPending(id: number, on: boolean) {
+    setPendingIds((p) => {
+      const n = new Set(p);
+      if (on) n.add(id); else n.delete(id);
+      return n;
+    });
+  }
+
+  function replaceEntry(kind: ClimbMode, oldId: number, next: AnyEntry) {
+    setSession((s) => {
+      if (!s) return s;
+      return kind === "lead"
+        ? { ...s, lead_route_entries: s.lead_route_entries.map((e) => (e.id === oldId ? next as LeadRouteEntry : e)) }
+        : { ...s, boulder_entries: s.boulder_entries.map((e) => (e.id === oldId ? next as BoulderEntry : e)) };
+    });
+  }
+
+  function removeLocalEntry(kind: ClimbMode, id: number) {
+    setSession((s) => s && (kind === "lead"
+      ? { ...s, lead_route_entries: s.lead_route_entries.filter((e) => e.id !== id) }
+      : { ...s, boulder_entries: s.boulder_entries.filter((e) => e.id !== id) }));
+  }
+
   // Selection persists until you commit or pick another grade — no auto-deselect,
   // so pausing mid-log (someone talks to you) doesn't drop your pick.
   function selectGrade(g: string) {
@@ -129,56 +180,65 @@ export default function TickSheet() {
       if (typeof navigator !== "undefined" && navigator.vibrate) {
         navigator.vibrate(isNewMax ? [40, 60, 80] : 50);
       }
-      // Stash whether this commit was a PB so we can flag the matching feed
-      // chip once the server has assigned an id (set below in the try block).
+
+      const committedMode = mode;
       const wasPB = isNewMax;
+      // A unique negative id stands in until the server assigns a real one. It
+      // also doubles as the queue clientId so a background sync can find it.
+      const tempId = -(Date.now() + tickKey.current);
+      const nowISO = new Date().toISOString();
+      const payload =
+        committedMode === "lead"
+          ? {
+              route_name: opts?.routeName ?? null,
+              grade,
+              grade_system: opts?.system ?? gradeSystem,
+              send_type: STYLE_TO_SEND_TYPE[styleId],
+              attempts: 1,
+              falls: opts?.falls ?? 0,
+              notes: null,
+            }
+          : { grade, send_type: STYLE_TO_SEND_TYPE[styleId], attempts: null, notes: null };
+
+      // Show the tick immediately — even with no signal — so logging never
+      // stalls on the network. We reconcile (or roll back) once we know.
+      const optimistic = { id: tempId, session_id: sessionId, ...payload, logged_at: nowISO, photos: [] };
+      setSession((s) => s && {
+        ...s, started_at: s.started_at ?? optimisticStart,
+        ...(committedMode === "lead"
+          ? { lead_route_entries: [...s.lead_route_entries, optimistic as LeadRouteEntry] }
+          : { boulder_entries: [...s.boulder_entries, optimistic as BoulderEntry] }),
+      });
+      markPending(tempId, true);
+      if (committedMode === "lead") setFalls(0);
+      setRouteName(""); // clears on every commit, including from RecentChip
+      if (wasPB) {
+        setPbEntryId(tempId);
+        if (pbClearTimer.current) window.clearTimeout(pbClearTimer.current);
+        pbClearTimer.current = window.setTimeout(() => setPbEntryId(null), 3000);
+      }
+
       try {
-        let createdId: number | undefined;
-        if (mode === "lead") {
-          const created = await api.addLead(sessionId, {
-            route_name: opts?.routeName ?? null,
-            grade,
-            grade_system: opts?.system ?? gradeSystem,
-            send_type: STYLE_TO_SEND_TYPE[styleId],
-            attempts: 1,
-            falls: opts?.falls ?? 0,
-            notes: null,
-          });
-          createdId = created.id;
-          setSession((s) => s && {
-            ...s, started_at: s.started_at ?? optimisticStart,
-            lead_route_entries: [...s.lead_route_entries, { ...created, photos: [] }],
-          });
-          setFalls(0);
-        } else {
-          const created = await api.addBoulder(sessionId, {
-            grade, send_type: STYLE_TO_SEND_TYPE[styleId], attempts: null, notes: null,
-          });
-          createdId = created.id;
-          setSession((s) => s && {
-            ...s, started_at: s.started_at ?? optimisticStart,
-            boulder_entries: [...s.boulder_entries, { ...created, photos: [] }],
-          });
+        const created = committedMode === "lead"
+          ? await api.addLead(sessionId, payload as Parameters<typeof api.addLead>[1])
+          : await api.addBoulder(sessionId, payload as Parameters<typeof api.addBoulder>[1]);
+        // Swap the placeholder for the real entry.
+        replaceEntry(committedMode, tempId, { ...created, photos: [] });
+        markPending(tempId, false);
+        if (wasPB && created.id != null) {
+          setPbEntryId((cur) => (cur === tempId ? created.id! : cur));
         }
-        if (wasPB && createdId != null) {
-          setPbEntryId(createdId);
-          if (pbClearTimer.current) window.clearTimeout(pbClearTimer.current);
-          // Stop highlighting after the shake animation has had time to play.
-          pbClearTimer.current = window.setTimeout(() => setPbEntryId(null), 3000);
-        }
-        setRouteName(""); // clears on every commit, including from RecentChip
         refreshRecents();
         // Offer a quick undo — deletes the just-logged entry without hunting the feed.
-        if (createdId != null) {
-          const undoId = createdId;
-          const undoMode = mode;
+        if (created.id != null) {
+          const undoId = created.id;
           toast(`Logged ${grade} · ${STYLE_BY_ID[styleId].label}`, {
             label: "UNDO",
             run: async () => {
               try {
-                if (undoMode === "lead") await api.deleteLead(undoId);
+                if (committedMode === "lead") await api.deleteLead(undoId);
                 else await api.deleteBoulder(undoId);
-                onDeleted(undoMode, undoId);
+                onDeleted(committedMode, undoId);
               } catch {
                 toast("Couldn't undo — remove it from the feed instead.");
               }
@@ -194,8 +254,24 @@ export default function TickSheet() {
           })
           .catch(() => { /* non-blocking — achievements are eventual */ });
       } catch (err) {
-        setCommitTick(null);
-        toast(err instanceof Error ? err.message : "Failed to save tick — check your connection.");
+        if (err instanceof TypeError) {
+          // Network/offline — park the tick and keep its placeholder on screen.
+          enqueue({ clientId: String(tempId), sessionId, kind: committedMode, payload, queuedAt: Date.now() });
+          toast("Saved offline · will sync when you're back online.", {
+            label: "UNDO",
+            run: () => {
+              dequeue(String(tempId));
+              removeLocalEntry(committedMode, tempId);
+              markPending(tempId, false);
+            },
+          });
+        } else {
+          // Server rejected it — roll the placeholder back.
+          removeLocalEntry(committedMode, tempId);
+          markPending(tempId, false);
+          setCommitTick(null);
+          toast(err instanceof Error ? err.message : "Failed to save tick.");
+        }
       }
     },
     [session, sessionId, mode, gradeSystem, refreshRecents]
@@ -322,6 +398,22 @@ export default function TickSheet() {
             <div style={{ fontFamily: "var(--font-display)", fontSize: 18 }}>{where}</div>
           </div>
           <button onClick={startTimer} style={{ background: "var(--red)", color: "var(--cream)", boxShadow: "3px 3px 0 var(--mustard)" }}>● START TIMER</button>
+        </div>
+      )}
+
+      {pendingSync > 0 && (
+        <div role="button" tabIndex={0}
+          onClick={() => { void flush(); }}
+          onKeyDown={onKey(() => { void flush(); })}
+          style={{
+            display: "flex", alignItems: "center", gap: 8, cursor: "pointer",
+            margin: "8px 16px 0", padding: "6px 12px",
+            background: "var(--mustard)", color: "var(--ink)",
+            border: "var(--b) solid var(--ink)", boxShadow: "2px 2px 0 var(--ink)",
+            fontFamily: "var(--font-banner)", fontSize: 11, letterSpacing: "0.08em",
+          }}>
+          <span aria-hidden>⟳</span>
+          {pendingSync} TICK{pendingSync === 1 ? "" : "S"} WAITING TO SYNC · TAP TO RETRY
         </div>
       )}
 
@@ -455,22 +547,45 @@ export default function TickSheet() {
             {feed.map((e, i) => {
               const st = STYLE_BY_ID[sendTypeToStyle(e.send_type)];
               const entryId = e.id!;
+              // Not yet on the server: temp id (<0) or still flagged pending.
+              const isPending = entryId < 0 || pendingIds.has(entryId);
               return (
-                <FeedEntry key={e.id} grade={e.grade} style={st.label} color={st.color} text={st.text} time={timeAgo(e.logged_at, now)}
-                  tilt={cardTilt(i)}
-                  isPB={e.id === pbEntryId}
-                  onClick={() => setDetail({ kind: mode, entry: e })}
-                  onDelete={async () => {
-                    try {
-                      if (mode === "lead") await api.deleteLead(entryId);
-                      else await api.deleteBoulder(entryId);
-                      onDeleted(mode, entryId);
-                      toast(`Deleted ${e.grade} · ${st.label}`);
-                    } catch (err) {
-                      toast(err instanceof Error ? err.message : "Couldn't delete tick.");
-                    }
-                  }}
-                />
+                <span key={e.id}
+                  title={isPending ? "Waiting to sync" : undefined}
+                  style={{ position: "relative", opacity: isPending ? 0.6 : 1 }}>
+                  {isPending && (
+                    <span aria-label="waiting to sync" style={{
+                      position: "absolute", top: -4, right: -4, zIndex: 2,
+                      fontSize: 11, lineHeight: 1, pointerEvents: "none",
+                    }}>⟳</span>
+                  )}
+                  <FeedEntry grade={e.grade} style={st.label} color={st.color} text={st.text} time={timeAgo(e.logged_at, now)}
+                    tilt={cardTilt(i)}
+                    isPB={e.id === pbEntryId}
+                    onClick={() => {
+                      if (isPending) { toast("Still syncing — give it a sec."); return; }
+                      setDetail({ kind: mode, entry: e });
+                    }}
+                    onDelete={async () => {
+                      if (isPending) {
+                        // Drop it from the queue and the screen without a server call.
+                        dequeue(String(entryId));
+                        removeLocalEntry(mode, entryId);
+                        markPending(entryId, false);
+                        toast(`Removed ${e.grade} · ${st.label}`);
+                        return;
+                      }
+                      try {
+                        if (mode === "lead") await api.deleteLead(entryId);
+                        else await api.deleteBoulder(entryId);
+                        onDeleted(mode, entryId);
+                        toast(`Deleted ${e.grade} · ${st.label}`);
+                      } catch (err) {
+                        toast(err instanceof Error ? err.message : "Couldn't delete tick.");
+                      }
+                    }}
+                  />
+                </span>
               );
             })}
           </div>
