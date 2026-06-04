@@ -17,10 +17,10 @@ interface Props {
 export default function GradeChipSlot({ grade, color, tally, selected, onTap, onLong }: Props) {
   const { handlers, didFire } = useLongPress(onLong);
   return (
-    <div style={{ display: "flex", justifyContent: "center", position: "relative" }}>
+    <div style={{ display: "flex", justifyContent: "center", position: "relative", zIndex: selected ? 5 : undefined }}>
       {selected && (
-        <div style={{ position: "absolute", inset: -12, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
-          <StarBurst size={96} color="var(--red)" />
+        <div style={{ position: "absolute", inset: -20, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
+          <StarBurst size={112} color="var(--red)" />
         </div>
       )}
       <div
