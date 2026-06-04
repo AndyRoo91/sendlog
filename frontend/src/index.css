@@ -134,6 +134,9 @@ h3 { font-size: 15px; }
   box-shadow: 4px 4px 0 var(--red), 0 0 0 3px var(--mustard) !important;
 }
 
+/* Pull-to-refresh spinner */
+@keyframes sendlog-ptr-spin { to { transform: rotate(360deg); } }
+
 /* ─── Tab bar (fixed to the centered phone column) ───────────── */
 
 .tabbar {
