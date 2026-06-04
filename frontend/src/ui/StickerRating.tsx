@@ -59,7 +59,7 @@ interface Props {
   slots?: number;                         // total slots, default 5
 }
 
-export default function StickerRating({ seed, value, onChange, size = 36, slots = 5 }: Props) {
+export default function StickerRating({ seed, value, onChange, size = 52, slots = 5 }: Props) {
   const picks = pickerFor(seed, slots);
   const rating = value ?? 0;
   const readOnly = !onChange;
