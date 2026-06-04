@@ -67,7 +67,7 @@ export default function RoutesList() {
             </div>
             {r.rating != null && r.rating > 0 && (
               <div style={{ marginTop: 6 }}>
-                <StickerRating seed={r.id} value={r.rating} size={24} />
+                <StickerRating seed={r.id} value={r.rating} size={32} />
               </div>
             )}
           </div>
