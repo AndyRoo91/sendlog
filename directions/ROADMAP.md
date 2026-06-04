@@ -143,7 +143,7 @@ The daily-use surface is `TickSheet`; most of these cut friction there or close 
 | **Resume in-progress session** | S | A session can be `started_at` with no `ended_at`. Surface a "● SESSION RUNNING · 47 min" banner on Dashboard → resume. |
 | **Auto-link ticks to Projects** | M | When a lead `route_name` matches an existing Route, set `route_id` automatically (schema already supports it). Unifies project high-points with session ticks. |
 | **Rest timer between burns** ✅ | M | Tappable 3–5 min countdown on the lead view — climbing-native, reuses elapsed-timer + haptics infra. |
-| **One-handed reachability** | M | Tap-grade (top) → reach to style row (bottom) is a thumb stretch each tick. Prototype sticky style row or long-press-grade → radial style picker. |
+| **One-handed reachability** ✅ | M | Tap-grade (top) → reach to style row (bottom) is a thumb stretch each tick. Shipped the sticky-style-bar approach: selecting a grade surfaces a `StylePicker` tray (style + lead falls) pinned in the thumb zone above the tab bar. |
 | **Confirm END SESSION when entries exist** | S | Stray tap currently ends + navigates to summary. |
 | **Pull-to-refresh on lists** ✅ | S | Mobile expectation on Dashboard/lists. |
 
