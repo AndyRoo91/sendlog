@@ -141,7 +141,6 @@ The daily-use surface is `TickSheet`; most of these cut friction there or close 
 | **Undo last tick from toast** | S | Post-commit toast gets an "Undo" action → deletes the just-created entry. Today you must scroll the feed and swipe-delete the right chip. |
 | **Selection timeout fix** | S | `SELECTION_MS = 6000` deselects your grade if you pause mid-log. Drop the auto-deselect; clear only on commit or on selecting another grade. |
 | **Resume in-progress session** | S | A session can be `started_at` with no `ended_at`. Surface a "● SESSION RUNNING · 47 min" banner on Dashboard → resume. |
-| **Recent-locations autocomplete on new session** | S | Reuse `GET /api/locations` datalist (already used elsewhere) on the new-session location field. |
 | **Auto-link ticks to Projects** | M | When a lead `route_name` matches an existing Route, set `route_id` automatically (schema already supports it). Unifies project high-points with session ticks. |
 | **Rest timer between burns** | M | Tappable 3–5 min countdown on the lead view — climbing-native, reuses elapsed-timer + haptics infra. |
 | **One-handed reachability** | M | Tap-grade (top) → reach to style row (bottom) is a thumb stretch each tick. Prototype sticky style row or long-press-grade → radial style picker. |

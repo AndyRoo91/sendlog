@@ -644,6 +644,29 @@ def delete_boulder(
 # Lead route entries
 # ---------------------------------------------------------------------------
 
+def resolve_lead_route_link(
+    route_id: int | None, route_name: str | None,
+    current_user: models.User, db: DBSession,
+) -> int | None:
+    """Auto-link a lead tick to an existing project when the typed route name
+    matches one (case-insensitive). Keeps a project's high-points and its
+    session ticks unified without manual bookkeeping. Conservative: only when
+    no explicit ``route_id`` was supplied and a name is present."""
+    if route_id is not None or not route_name or not route_name.strip():
+        return route_id
+    match = (
+        db.query(models.Route)
+        .filter(
+            models.Route.user_id == current_user.id,
+            models.Route.kind == "lead",
+            func.lower(models.Route.name) == route_name.strip().lower(),
+        )
+        .order_by(models.Route.id.desc())
+        .first()
+    )
+    return match.id if match else None
+
+
 @app.post("/api/sessions/{session_id}/lead", response_model=schemas.LeadRouteEntry, status_code=201)
 def add_lead(
     session_id: int, payload: schemas.LeadRouteEntryCreate,
@@ -653,6 +676,7 @@ def add_lead(
     session = get_session_or_404(session_id, db, current_user)
     auto_start(session)
     entry = models.LeadRouteEntry(session_id=session_id, **payload.model_dump())
+    entry.route_id = resolve_lead_route_link(payload.route_id, payload.route_name, current_user, db)
     db.add(entry)
     db.commit()
     db.refresh(entry)

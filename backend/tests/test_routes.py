@@ -59,6 +59,38 @@ def test_lead_tick_can_link_to_route(client, route):
     assert detail["ticks"][0]["id"] == tick["id"]
 
 
+def test_lead_tick_autolinks_by_name(client, route):
+    """A lead tick with no route_id but a matching name links to the project."""
+    sess = client.post("/api/sessions", json={"date": "2026-05-28"}).json()
+    # Case-insensitive, whitespace-tolerant match — no route_id supplied.
+    tick = client.post(f"/api/sessions/{sess['id']}/lead",
+                       json={"grade": "21", "grade_system": "ewbank", "send_type": "redpoint",
+                             "route_name": "  kachoong "}).json()
+    assert tick["route_id"] == route["id"]
+    detail = client.get(f"/api/routes/{route['id']}").json()
+    assert [t["id"] for t in detail["ticks"]] == [tick["id"]]
+
+
+def test_lead_tick_no_autolink_when_name_unknown(client, route):
+    """An unknown name leaves the tick unlinked rather than guessing."""
+    sess = client.post("/api/sessions", json={"date": "2026-05-28"}).json()
+    tick = client.post(f"/api/sessions/{sess['id']}/lead",
+                       json={"grade": "21", "grade_system": "ewbank", "send_type": "redpoint",
+                             "route_name": "Some Other Climb"}).json()
+    assert tick["route_id"] is None
+
+
+def test_lead_tick_autolink_only_matches_lead_projects(client):
+    """A boulder project shouldn't capture a lead tick of the same name."""
+    boulder = client.post("/api/routes", json={"name": "Twin Cracks", "kind": "boulder", "grade": "V4"}).json()
+    sess = client.post("/api/sessions", json={"date": "2026-05-28"}).json()
+    tick = client.post(f"/api/sessions/{sess['id']}/lead",
+                       json={"grade": "18", "grade_system": "ewbank", "send_type": "redpoint",
+                             "route_name": "Twin Cracks"}).json()
+    assert tick["route_id"] is None
+    assert boulder["kind"] == "boulder"
+
+
 def test_boulder_tick_can_link_to_boulder_project(client):
     """Boulder entries link to a route with kind='boulder' and appear in boulder_ticks."""
     project = client.post("/api/routes", json={
