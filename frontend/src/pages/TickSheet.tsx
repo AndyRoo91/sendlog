@@ -8,7 +8,7 @@ import {
   SessionStrip, ModeToggle, StyleRibbonRow,
   FeedEntry, RecentChip, Ribbon, AfterCommitOverlay, AchievementOverlay, Toast,
   STYLE_BY_ID, STYLE_TO_SEND_TYPE, sendTypeToStyle,
-  Crag,
+  Crag, RestTimer,
 } from "../ui";
 import type { StyleId, CommitTick, ClimbMode } from "../ui";
 import type { Achievement } from "../api/client";
@@ -532,6 +532,7 @@ export default function TickSheet() {
               style={{ width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", background: "var(--mustard)", boxShadow: "2px 2px 0 var(--ink)" }}>+</div>
           </div>
         )}
+        {mode === "lead" && running && <RestTimer />}
       </div>
 
       {/* Feed or empty */}

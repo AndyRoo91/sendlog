@@ -137,6 +137,15 @@ h3 { font-size: 15px; }
 /* Pull-to-refresh spinner */
 @keyframes sendlog-ptr-spin { to { transform: rotate(360deg); } }
 
+/* Rest timer — celebratory flash when the countdown completes. */
+@keyframes sendlog-rest-done {
+  0%, 100% { box-shadow: 3px 3px 0 var(--sea); }
+  50%      { box-shadow: 3px 3px 0 var(--mustard); }
+}
+@media (prefers-reduced-motion: reduce) {
+  [style*="sendlog-rest-done"] { animation: none !important; }
+}
+
 /* ─── Tab bar (fixed to the centered phone column) ───────────── */
 
 .tabbar {

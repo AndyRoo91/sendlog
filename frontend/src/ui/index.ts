@@ -22,3 +22,4 @@ export { default as Crag, lobbyCondition } from "./Crag";
 export type { CragProps, CragState } from "./Crag";
 export { default as StickerRating } from "./StickerRating";
 export { default as PullToRefresh } from "./PullToRefresh";
+export { default as RestTimer } from "./RestTimer";
