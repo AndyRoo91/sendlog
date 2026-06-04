@@ -137,6 +137,15 @@ h3 { font-size: 15px; }
 /* Pull-to-refresh spinner */
 @keyframes sendlog-ptr-spin { to { transform: rotate(360deg); } }
 
+/* Sticky style picker — slides up from the thumb zone on grade select. */
+@keyframes sendlog-picker-up {
+  from { transform: translateY(16px); opacity: 0; }
+  to   { transform: translateY(0); opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  [style*="sendlog-picker-up"] { animation: none !important; }
+}
+
 /* Rest timer — celebratory flash when the countdown completes. */
 @keyframes sendlog-rest-done {
   0%, 100% { box-shadow: 3px 3px 0 var(--sea); }

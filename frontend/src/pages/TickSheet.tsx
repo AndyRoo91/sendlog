@@ -5,7 +5,7 @@ import { format } from "date-fns";
 import { api } from "../api/client";
 import type { SessionDetail, BoulderEntry, LeadRouteEntry, RecentCombo } from "../api/client";
 import {
-  SessionStrip, ModeToggle, StyleRibbonRow,
+  SessionStrip, ModeToggle,
   FeedEntry, RecentChip, Ribbon, AfterCommitOverlay, AchievementOverlay, Toast,
   STYLE_BY_ID, STYLE_TO_SEND_TYPE, sendTypeToStyle,
   Crag, RestTimer,
@@ -20,6 +20,7 @@ import type { GradeSystem } from "../lib/grades";
 import DetailSheet from "../components/DetailSheet";
 import type { DetailTarget } from "../components/DetailSheet";
 import GradeChipSlot from "../components/GradeChipSlot";
+import StylePicker from "../components/StylePicker";
 
 const LEAD_SYSTEMS: GradeSystem[] = ["ewbank", "yds", "french"];
 
@@ -510,30 +511,13 @@ export default function TickSheet() {
         </div>
       )}
 
-      {/* Style row (+ falls stepper in lead) */}
-      <div style={{ padding: "16px 16px 0" }}>
-        <div style={{ fontFamily: "var(--font-banner)", fontSize: 11, color: "var(--ink-2)", letterSpacing: "0.1em", marginBottom: 8 }}>
-          THEN — HOW'D IT GO?
+      {/* Rest-between-burns timer (the style picker now lives in the sticky
+          bottom tray — see StylePicker below). */}
+      {mode === "lead" && running && (
+        <div style={{ padding: "16px 16px 0" }}>
+          <RestTimer />
         </div>
-        <div style={{ opacity: selected ? 1 : 0.45, transition: "opacity 160ms ease", pointerEvents: selected ? "auto" : "none" }}>
-          <StyleRibbonRow mode={mode} onPick={(styleId) => selected && commit(selected, styleId, { system: gradeSystem, routeName: routeName || null, falls })} />
-        </div>
-        {mode === "lead" && (
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 12, justifyContent: "center" }}>
-            <span style={{ fontFamily: "var(--font-banner)", fontSize: 11, color: "var(--ink-2)", letterSpacing: "0.08em" }}>FALLS</span>
-            <div role="button" tabIndex={0} aria-label="Decrease falls" className="chunky"
-              onClick={() => setFalls((f) => Math.max(0, f - 1))}
-              onKeyDown={onKey(() => setFalls((f) => Math.max(0, f - 1)))}
-              style={{ width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", background: "var(--cream)", boxShadow: "2px 2px 0 var(--ink)" }}>–</div>
-            <div aria-live="polite" aria-label={`${falls} falls`} style={{ fontFamily: "var(--font-display)", fontSize: 28, minWidth: 28, textAlign: "center" }}>{falls}</div>
-            <div role="button" tabIndex={0} aria-label="Increase falls" className="chunky"
-              onClick={() => setFalls((f) => f + 1)}
-              onKeyDown={onKey(() => setFalls((f) => f + 1))}
-              style={{ width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", background: "var(--mustard)", boxShadow: "2px 2px 0 var(--ink)" }}>+</div>
-          </div>
-        )}
-        {mode === "lead" && running && <RestTimer />}
-      </div>
+      )}
 
       {/* Feed or empty */}
       {hasEntries ? (
@@ -608,6 +592,17 @@ export default function TickSheet() {
           FULL LOG · WARMUP, BOARD ↗
         </Link>
       </div>
+
+      {selected && (
+        <StylePicker
+          mode={mode}
+          grade={selected}
+          falls={falls}
+          onFalls={(n) => setFalls(Math.max(0, n))}
+          onPick={(styleId) => commit(selected, styleId, { system: gradeSystem, routeName: routeName || null, falls })}
+          onDismiss={() => setSelected(null)}
+        />
+      )}
 
       <Toast message={toastMsg} action={toastAction} onDismiss={dismissToast} />
       <AfterCommitOverlay tick={commitTick} onDone={() => setCommitTick(null)} />
