@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { onKey } from "../lib/a11y";
 import { Link, useNavigate } from "react-router-dom";
 import { api } from "../api/client";
 import type { RouteSummary } from "../api/client";
 import { thumbUrl } from "../lib/photos";
-import { Ribbon, StickerRating } from "../ui";
+import { Ribbon, StickerRating, PullToRefresh } from "../ui";
+import { usePullToRefresh } from "../lib/usePullToRefresh";
 
 export default function RoutesList() {
   const navigate = useNavigate();
@@ -18,9 +19,16 @@ export default function RoutesList() {
   const [location, setLocation] = useState("");
   const [saving, setSaving] = useState(false);
 
+  const load = useCallback(async () => {
+    const r = await api.listRoutes();
+    setRoutes(r);
+    setLoading(false);
+  }, []);
+
   useEffect(() => {
     api.listRoutes().then((r) => { setRoutes(r); setLoading(false); });
   }, []);
+  const ptr = usePullToRefresh(load);
 
   async function create(e: React.FormEvent) {
     e.preventDefault();
@@ -78,6 +86,7 @@ export default function RoutesList() {
 
   return (
     <div className="page">
+      <PullToRefresh distance={ptr.distance} phase={ptr.phase} threshold={ptr.threshold} />
       <div className="gap-row" style={{ justifyContent: "space-between", marginBottom: 20 }}>
         <h1>Projects</h1>
         <button className="btn-primary" onClick={() => setOpen(!open)}>{open ? "Cancel" : "+ Project"}</button>

@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api/client";
 import type { SessionSummary } from "../api/client";
 import { format } from "date-fns";
-import { Ribbon, Toast } from "../ui";
+import { Ribbon, Toast, PullToRefresh } from "../ui";
 import { useToast } from "../lib/useToast";
+import { usePullToRefresh } from "../lib/usePullToRefresh";
 
 export default function SessionList() {
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
@@ -14,9 +15,16 @@ export default function SessionList() {
   const { message: toastMsg, toast, dismiss: dismissToast } = useToast();
   const fileRef = useRef<HTMLInputElement>(null);
 
+  const load = useCallback(async () => {
+    const s = await api.listSessions();
+    setSessions(s);
+    setLoading(false);
+  }, []);
+
   useEffect(() => {
     api.listSessions().then((s) => { setSessions(s); setLoading(false); });
   }, []);
+  const ptr = usePullToRefresh(load);
 
   const q = query.trim().toLowerCase();
   const visible = q
@@ -63,6 +71,7 @@ export default function SessionList() {
 
   return (
     <div className="page">
+      <PullToRefresh distance={ptr.distance} phase={ptr.phase} threshold={ptr.threshold} />
       <div className="gap-row" style={{ justifyContent: "space-between", marginBottom: 22, alignItems: "flex-start" }}>
         <Ribbon color="var(--cobalt)" textColor="var(--cream)">★ SESSIONS ★</Ribbon>
         <Link to="/sessions/new">
