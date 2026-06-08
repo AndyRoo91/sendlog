@@ -152,6 +152,48 @@ function PinForm() {
   );
 }
 
+function FeedSharingForm() {
+  const { user, setUser } = useAuth();
+  const sharing = user?.share_to_feed ?? true;
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function toggle() {
+    setError(null);
+    setBusy(true);
+    try {
+      const updated = await api.setFeedSharing(!sharing);
+      setUser(updated);
+    } catch (err) {
+      setError(friendlyError(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div>
+      <p className="muted" style={{ fontSize: 13, marginBottom: 12 }}>
+        {sharing
+          ? "Your sessions and achievements appear in the shared feed for everyone on this sendlog."
+          : "You're hidden from the shared feed — nobody sees your activity. You can still see theirs."}
+      </p>
+      <div role="button" tabIndex={0} aria-pressed={sharing}
+        onClick={busy ? undefined : toggle} onKeyDown={onKey(() => { if (!busy) toggle(); })}
+        className="chunky"
+        style={{
+          display: "inline-block", padding: "8px 14px", cursor: busy ? "default" : "pointer",
+          fontFamily: "var(--font-banner)", fontSize: 11, letterSpacing: "0.08em",
+          color: "var(--cream)", background: sharing ? "var(--sea)" : "var(--ink-2)",
+          boxShadow: "3px 3px 0 var(--ink)", opacity: busy ? 0.6 : 1,
+        }}>
+        {sharing ? "★ SHARING — ON" : "SHARING — OFF"}
+      </div>
+      <FormFeedback error={error} ok={null} />
+    </div>
+  );
+}
+
 interface SettingsProps {
   onLockNow: () => void;
 }
@@ -192,6 +234,7 @@ export default function Settings({ onLockNow }: SettingsProps) {
         </div>
       </Section>
 
+      <Section title="SHARED FEED"><FeedSharingForm /></Section>
       <Section title="CHANGE PASSWORD"><ChangePasswordForm /></Section>
       <Section title={hasPin ? "PIN" : "SET A PIN"}><PinForm /></Section>
     </div>

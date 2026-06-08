@@ -99,3 +99,8 @@ def run_migrations() -> None:
                 continue
             if "user_id" not in columns(table):
                 conn.execute(text(f"ALTER TABLE {table} ADD COLUMN user_id INTEGER"))
+
+        # Phase O1: shared-feed opt-out. Default existing users to sharing (on).
+        if "users" in tables and "share_to_feed" not in columns("users"):
+            conn.execute(text("ALTER TABLE users ADD COLUMN share_to_feed BOOLEAN"))
+            conn.execute(text("UPDATE users SET share_to_feed = 1 WHERE share_to_feed IS NULL"))

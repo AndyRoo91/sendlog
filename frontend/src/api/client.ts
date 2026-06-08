@@ -250,6 +250,29 @@ export interface AuthUser {
   username: string;
   is_admin: boolean;
   has_pin: boolean;
+  share_to_feed: boolean;
+}
+
+export interface FeedEvent {
+  kind: "session" | "achievement";
+  user_id: number;
+  username: string;
+  at: string;
+  // session events
+  session_id?: number | null;
+  date?: string | null;
+  location?: string | null;
+  total_ticks: number;
+  boulder_sends: number;
+  lead_sends: number;
+  hardest_boulder?: string | null;
+  hardest_lead?: string | null;
+  training_only: boolean;
+  is_pb: boolean;
+  // achievement events
+  code?: string | null;
+  title?: string | null;
+  emoji?: string | null;
 }
 
 export class AuthError extends Error {
@@ -292,6 +315,13 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ pin }),
     }),
+  setFeedSharing: (share: boolean) =>
+    req<AuthUser>("/auth/me/feed_sharing", {
+      method: "POST",
+      body: JSON.stringify({ share }),
+    }),
+
+  getFeed: (limit = 50) => req<FeedEvent[]>(`/feed?limit=${limit}`),
 
   listSessions: () => req<SessionSummary[]>("/sessions"),
   listLocations: () => req<string[]>("/locations"),

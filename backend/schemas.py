@@ -338,6 +338,32 @@ class AchievementCheckResult(BaseModel):
     newly_unlocked: list[Achievement]
 
 
+class FeedEvent(BaseModel):
+    """One item in the shared instance feed. Derived from existing data — a logged
+    session or an unlocked achievement — and tagged with the climber it belongs to."""
+    kind: str                       # "session" | "achievement"
+    user_id: int
+    username: str
+    at: datetime                    # sort key (session start/date or unlock time)
+
+    # session events
+    session_id: int | None = None
+    date: DateType | None = None
+    location: str | None = None
+    total_ticks: int = 0
+    boulder_sends: int = 0
+    lead_sends: int = 0
+    hardest_boulder: str | None = None
+    hardest_lead: str | None = None
+    training_only: bool = False     # board/strength day, no boulder/lead ticks
+    is_pb: bool = False             # this session set a new all-time PB for the user
+
+    # achievement events
+    code: str | None = None
+    title: str | None = None
+    emoji: str | None = None
+
+
 class BuddyState(BaseModel):
     """Climbing-buddy mood for the Dashboard greeting, computed from session data."""
     state: str          # one of the CragState values the frontend knows how to draw
@@ -361,7 +387,12 @@ class AuthUser(BaseModel):
     username: str
     is_admin: bool
     has_pin: bool
+    share_to_feed: bool = True
     model_config = {"from_attributes": True}
+
+
+class FeedSharingUpdate(BaseModel):
+    share: bool
 
 
 class PasswordChange(BaseModel):

@@ -11,6 +11,7 @@ import RouteDetail from "./pages/RouteDetail";
 import Design from "./pages/Design";
 import LoginPage from "./pages/LoginPage";
 import Settings from "./pages/Settings";
+import FeedPage from "./pages/FeedPage";
 
 // Heavy pages split into their own chunks
 const Progress = lazy(() => import("./pages/Progress"));
@@ -62,6 +63,7 @@ function Shell() {
             <Route path="/sessions/:id" element={<TickSheet />} />
             <Route path="/sessions/:id/summary" element={<Summary />} />
             <Route path="/sessions/:id/edit" element={<SessionView />} />
+            <Route path="/feed" element={<FeedPage />} />
             <Route path="/progress" element={<Progress />} />
             <Route path="/routes" element={<RoutesList />} />
             <Route path="/routes/:id" element={<RouteDetail />} />
