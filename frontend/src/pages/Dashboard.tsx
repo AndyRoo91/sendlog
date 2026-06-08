@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api/client";
-import type { Achievement, SessionSummary } from "../api/client";
+import type { Achievement, BuddyState, SessionSummary } from "../api/client";
 import { format } from "date-fns";
 import { ICON, Ribbon, Crag, lobbyCondition } from "../ui";
 import type { CragState } from "../ui";
@@ -35,11 +35,13 @@ export default function Dashboard() {
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [achievements, setAchievements] = useState<Achievement[]>([]);
+  const [buddy, setBuddy] = useState<BuddyState | null>(null);
   const duck = useDuckMode();
 
   useEffect(() => {
     api.listSessions().then((s) => { setSessions(s); setLoading(false); });
     api.listAchievements().then(setAchievements).catch(() => {});
+    api.getBuddy().then(setBuddy).catch(() => {});
   }, []);
 
   // Konami → toggle duck mode. Quick double-vibrate so something happens on phones too.
@@ -76,7 +78,6 @@ export default function Dashboard() {
     const ms = Date.now() - new Date(s.started_at.endsWith("Z") || /[+-]\d\d:?\d\d$/.test(s.started_at) ? s.started_at : s.started_at + "Z").getTime();
     return ms <= 14 * 24 * 60 * 60 * 1000;
   }).length;
-  const cragState: CragState = lobbyCondition(sessions14);
   const CRAG_COPY: Record<CragState, { head: string; body: string }> = {
     primed:    { head: "still on form.",   body: "keep it rolling — Crag's ready when you are." },
     training:  { head: "rebuilding!",      body: "eye of the tiger. consistency is the gain." },
@@ -87,6 +88,12 @@ export default function Dashboard() {
     cooked:    { head: "cooked, eh?",      body: "arms to jelly — that's a good day's work. rest up." },
     nervous:   { head: "deep breath.",     body: "new grade nerves are normal. trust the feet." },
   };
+  // Prefer the server-computed buddy mood; fall back to the recency-only
+  // heuristic if the call hasn't landed (or failed).
+  const cragState: CragState =
+    buddy && buddy.state in CRAG_COPY
+      ? (buddy.state as CragState)
+      : lobbyCondition(sessions14);
 
   const daysSince = sessions[0] ? daysBetween(sessions[0].date) : null;
   const nudge: { text: string; color: string } | null =
