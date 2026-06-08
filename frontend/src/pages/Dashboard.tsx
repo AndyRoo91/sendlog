@@ -165,7 +165,7 @@ export default function Dashboard() {
           background: "var(--cream)", border: "3px solid var(--ink)",
           boxShadow: "4px 4px 0 var(--ink)",
         }}>
-          <Crag state={cragState} size={90} showBg={false} uid="dashboard-lobby" />
+          <Crag state={cragState} size={90} showBg={false} uid="dashboard-lobby" build={buddy?.build ?? 0} />
           <div style={{ flex: 1 }}>
             <div style={{
               fontFamily: "var(--font-hand)", fontSize: 18, color: "var(--sea)",

@@ -99,6 +99,56 @@ def test_buddy_solid_session_is_primed(client):
     assert b["reason"] == "in_form"
 
 
+def test_buddy_build_zero_when_no_sessions(client):
+    assert client.get("/api/buddy").json()["build"] == 0
+
+
+def test_buddy_build_scrawny_easy_grades(client):
+    # A V2 send is below the strong threshold → still scrawny (tier 0).
+    s = client.post("/api/sessions", json={"date": day(0)}).json()
+    client.post(f"/api/sessions/{s['id']}/boulder", json={"grade": "V2", "send_type": "redpoint"})
+    assert client.get("/api/buddy").json()["build"] == 0
+
+
+def test_buddy_build_tiers_climb_with_grade(client):
+    # V3–V5 → tier 1, V6–V8 → tier 2, V9+ → tier 3.
+    s1 = client.post("/api/sessions", json={"date": day(-6)}).json()
+    client.post(f"/api/sessions/{s1['id']}/boulder", json={"grade": "V4", "send_type": "redpoint"})
+    assert client.get("/api/buddy").json()["build"] == 1
+
+    s2 = client.post("/api/sessions", json={"date": day(-3)}).json()
+    client.post(f"/api/sessions/{s2['id']}/boulder", json={"grade": "V7", "send_type": "redpoint"})
+    assert client.get("/api/buddy").json()["build"] == 2
+
+    s3 = client.post("/api/sessions", json={"date": day(0)}).json()
+    client.post(f"/api/sessions/{s3['id']}/boulder", json={"grade": "V10", "send_type": "redpoint"})
+    assert client.get("/api/buddy").json()["build"] == 3
+
+
+def test_buddy_build_persists_through_rest(client):
+    # Hard all-time send, then a long gap → mood detrained but build stays jacked.
+    s = client.post("/api/sessions", json={"date": day(-10)}).json()
+    client.post(f"/api/sessions/{s['id']}/boulder", json={"grade": "V9", "send_type": "redpoint"})
+    b = client.get("/api/buddy").json()
+    assert b["state"] == "detrained"
+    assert b["build"] == 3
+
+
+def test_buddy_build_from_lead_grade(client):
+    # Ewbank 24 falls in the 22–25 band → tier 2.
+    s = client.post("/api/sessions", json={"date": day(0)}).json()
+    client.post(f"/api/sessions/{s['id']}/lead",
+                json={"grade": "24", "grade_system": "ewbank", "send_type": "redpoint"})
+    assert client.get("/api/buddy").json()["build"] == 2
+
+
+def test_buddy_build_ignores_unsent_projects(client):
+    # Only working a hard grade (no send) doesn't inflate build.
+    s = client.post("/api/sessions", json={"date": day(0)}).json()
+    client.post(f"/api/sessions/{s['id']}/boulder", json={"grade": "V12", "send_type": "working"})
+    assert client.get("/api/buddy").json()["build"] == 0
+
+
 def test_buddy_requires_auth(client):
     client.cookies.clear()
     assert client.get("/api/buddy").status_code == 401

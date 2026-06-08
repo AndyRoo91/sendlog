@@ -343,6 +343,7 @@ class BuddyState(BaseModel):
     state: str          # one of the CragState values the frontend knows how to draw
     reason: str         # machine-readable trigger, e.g. "new_pb", "high_falls"
     days_since: int     # days since the most recent session (0 = today)
+    build: int = 0      # 0..3 physique tier from all-time hardest send (scrawny→jacked)
 
 
 # ---------------------------------------------------------------------------

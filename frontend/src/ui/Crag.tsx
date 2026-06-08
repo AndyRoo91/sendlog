@@ -64,6 +64,7 @@ export interface CragProps {
   size?:   number;       // px, default 300
   showBg?: boolean;      // default true; false = transparent
   uid?:    string;       // unique id for SVG filter/pattern defs — use when multiple Crags on one page
+  build?:  number;       // 0..3 physique tier — scales musculature (default 0 = scrawny)
 }
 
 // ---- reduced-motion hook ----
@@ -361,12 +362,19 @@ function Mouth({ kind }: MouthProps) {
 // ===========================================================
 // The Gecko
 // ===========================================================
-export default function Crag({ state = "primed", size = 300, showBg = true, uid }: CragProps) {
+export default function Crag({ state = "primed", size = 300, showBg = true, uid, build = 0 }: CragProps) {
   const id = uid ?? state;
   const p = POSES[state];
   const ink = GRIME.ink;
   const reduced = useReducedMotion();
   const motionClass = reduced ? "mv" : `mv mv-${p.motion}`;
+
+  // Physique tier (0..3) drives muscle definition. Bloated poses (detrained
+  // couch-belly) stay soft regardless — the gag is they've gone to seed.
+  const tier = Math.max(0, Math.min(3, Math.round(build)));
+  // -1 = no abs; 0 = baseline pose ripple; 1..3 = progressively jacked.
+  const absLevel = p.belly > 1.1 ? -1 : tier >= 1 ? tier : p.ripped ? 0 : -1;
+  const armR = 13 + tier * 1.7;   // beefier shoulders as build climbs
 
   return (
     <div style={{ width: size, height: size, position: "relative", flexShrink: 0 }}>
@@ -457,11 +465,22 @@ export default function Crag({ state = "primed", size = 300, showBg = true, uid 
                   />
                 ))}
               </g>
-              {/* abs when ripped */}
-              {p.ripped && (
-                <g opacity="0.6">
-                  <path d="M -16 -34 q 16 8 32 0" fill="none" stroke={ink} strokeWidth="2" />
-                  <path d="M -6 -30 l 0 30 M 4 -30 l 0 30" stroke={ink} strokeWidth="1.6" />
+              {/* abs — baseline ripple when in form, graduating to a full
+                  six-pack + obliques as the all-time build tier climbs */}
+              {absLevel >= 0 && (
+                <g opacity="0.6" fill="none" stroke={ink}>
+                  {/* pec line + two verticals (baseline, matches build 0) */}
+                  <path d="M -16 -34 q 16 8 32 0" strokeWidth="2" />
+                  <path d="M -6 -30 l 0 30 M 4 -30 l 0 30" strokeWidth="1.6" />
+                  {/* upper ab divider */}
+                  {absLevel >= 1 && <path d="M -14 -16 q 14 6 28 0" strokeWidth="1.6" />}
+                  {/* lower ab divider — completes the six-pack */}
+                  {absLevel >= 2 && <path d="M -13 -2 q 13 6 26 0" strokeWidth="1.5" />}
+                  {/* serratus / obliques flanking the core */}
+                  {absLevel >= 3 && (
+                    <path d="M -21 -12 q 6 8 4 20 M 21 -12 q -6 8 -4 20"
+                      strokeWidth="1.4" opacity="0.7" />
+                  )}
                 </g>
               )}
               {/* mottle */}
@@ -473,10 +492,11 @@ export default function Crag({ state = "primed", size = 300, showBg = true, uid 
 
             {/* BACK ARM */}
             <g transform={`translate(30 -28) rotate(${p.armR})`}>
-              <circle cx="0" cy="0" r="13" fill={p.skinSh} stroke={ink} strokeWidth="2.6" />
+              <circle cx="0" cy="0" r={armR} fill={p.skinSh} stroke={ink} strokeWidth="2.6" />
               <path d="M 0 0 Q 30 6 44 30 Q 50 42 40 48 Q 26 36 6 22 Q -2 10 0 0 Z"
                 fill={p.skinSh} stroke={ink} strokeWidth="3" strokeLinejoin="round" />
-              {p.ripped && <path d="M 12 10 q 12 8 22 22" fill="none" stroke={ink} strokeWidth="1.6" opacity="0.5" />}
+              {(p.ripped || absLevel >= 1) && <path d="M 12 10 q 12 8 22 22" fill="none" stroke={ink} strokeWidth="1.6" opacity="0.5" />}
+              {absLevel >= 2 && <path d="M 4 2 q 14 -4 20 10" fill="none" stroke={ink} strokeWidth="1.5" opacity="0.5" />}
               <g transform="translate(42 46) rotate(20) scale(0.62)">
                 <Hand skin={p.skinSh} ink={ink} fist={p.grip === "fist"} />
               </g>
@@ -484,10 +504,11 @@ export default function Crag({ state = "primed", size = 300, showBg = true, uid 
 
             {/* FRONT ARM */}
             <g transform={`translate(-30 -28) rotate(${p.armL})`}>
-              <circle cx="0" cy="0" r="13" fill={p.skin} stroke={ink} strokeWidth="2.6" />
+              <circle cx="0" cy="0" r={armR} fill={p.skin} stroke={ink} strokeWidth="2.6" />
               <path d="M 0 0 Q -30 6 -44 30 Q -50 42 -40 48 Q -26 36 -6 22 Q 2 10 0 0 Z"
                 fill={p.skin} stroke={ink} strokeWidth="3" strokeLinejoin="round" />
-              {p.ripped && <path d="M -12 10 q -12 8 -22 22" fill="none" stroke={ink} strokeWidth="1.6" opacity="0.5" />}
+              {(p.ripped || absLevel >= 1) && <path d="M -12 10 q -12 8 -22 22" fill="none" stroke={ink} strokeWidth="1.6" opacity="0.5" />}
+              {absLevel >= 2 && <path d="M -4 2 q -14 -4 -20 10" fill="none" stroke={ink} strokeWidth="1.5" opacity="0.5" />}
               <g transform="translate(-42 46) rotate(-20) scale(0.62)">
                 <Hand skin={p.skin} ink={ink} fist={p.grip === "fist"} />
               </g>
