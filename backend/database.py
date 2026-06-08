@@ -104,3 +104,19 @@ def run_migrations() -> None:
         if "users" in tables and "share_to_feed" not in columns("users"):
             conn.execute(text("ALTER TABLE users ADD COLUMN share_to_feed BOOLEAN"))
             conn.execute(text("UPDATE users SET share_to_feed = 1 WHERE share_to_feed IS NULL"))
+
+        # Phase O2: reactions/"props" on feed events.
+        if "reactions" not in tables:
+            conn.execute(text("""
+                CREATE TABLE reactions (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    feed_key VARCHAR(80) NOT NULL,
+                    user_id INTEGER NOT NULL REFERENCES users(id),
+                    emoji VARCHAR(8) NOT NULL,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(feed_key, user_id, emoji)
+                )
+            """))
+            conn.execute(text(
+                "CREATE INDEX IF NOT EXISTS ix_reactions_feed_key ON reactions(feed_key)"
+            ))

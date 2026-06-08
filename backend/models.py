@@ -1,5 +1,5 @@
 from datetime import date, datetime
-from sqlalchemy import Boolean, Date, DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, Date, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from database import Base
 
@@ -176,3 +176,17 @@ class RoutePin(Base):
     created_at: Mapped[datetime | None] = mapped_column(DateTime, default=datetime.utcnow)
 
     route: Mapped["Route"] = relationship(back_populates="pins")
+
+
+class Reaction(Base):
+    """A 'props' reaction from one user on a feed event (session or achievement).
+    ``feed_key`` is a stable string: ``s:{session_id}`` or ``a:{user_id}:{code}``."""
+    __tablename__ = "reactions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    feed_key: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+    emoji: Mapped[str] = mapped_column(String(8), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    __table_args__ = (UniqueConstraint("feed_key", "user_id", "emoji", name="uq_reaction"),)

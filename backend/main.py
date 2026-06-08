@@ -1,5 +1,6 @@
 import os
 import uuid
+from collections import defaultdict
 from contextlib import asynccontextmanager
 from datetime import date, datetime
 from pathlib import Path
@@ -1300,7 +1301,15 @@ def _session_at(s: models.Session) -> datetime:
     return datetime.combine(d, datetime.min.time())
 
 
-def _build_feed(db: DBSession, limit: int) -> list[schemas.FeedEvent]:
+def _feed_key(kind: str, *, session_id: int | None = None,
+              user_id: int | None = None, code: str | None = None) -> str:
+    """Stable string identifier for a feed event, used as the reactions lookup key."""
+    if kind == "session":
+        return f"s:{session_id}"
+    return f"a:{user_id}:{code}"
+
+
+def _build_feed(db: DBSession, limit: int, current_user_id: int) -> list[schemas.FeedEvent]:
     users = {
         u.id: u
         for u in db.query(models.User).filter(models.User.share_to_feed.isnot(False)).all()
@@ -1342,6 +1351,7 @@ def _build_feed(db: DBSession, limit: int) -> list[schemas.FeedEvent]:
             events.append(schemas.FeedEvent(
                 kind="session", user_id=uid, username=users[uid].username,
                 at=_session_at(s), session_id=s.id, date=s.date, location=s.location,
+                feed_key=_feed_key("session", session_id=s.id),
                 total_ticks=total,
                 boulder_sends=sum(1 for e in boulders if e.send_type in REDPOINT_SENDS),
                 lead_sends=sum(1 for e in leads if e.send_type in REDPOINT_SENDS),
@@ -1364,13 +1374,39 @@ def _build_feed(db: DBSession, limit: int) -> list[schemas.FeedEvent]:
         d = defs_by_code.get(a.code)
         events.append(schemas.FeedEvent(
             kind="achievement", user_id=a.user_id, username=users[a.user_id].username,
-            at=a.unlocked_at, code=a.code,
+            at=a.unlocked_at, feed_key=_feed_key("achievement", user_id=a.user_id, code=a.code),
+            code=a.code,
             title=d.title if d else a.code,
             emoji=d.emoji if d else "🏅",
         ))
 
     events.sort(key=lambda e: e.at, reverse=True)
-    return events[:limit]
+    page = events[:limit]
+
+    # --- Attach reactions (one bulk query for all events in the page) ---
+    if page:
+        all_keys = [e.feed_key for e in page]
+        rxn_rows = db.query(models.Reaction).filter(models.Reaction.feed_key.in_(all_keys)).all()
+        by_key: dict[str, list[models.Reaction]] = defaultdict(list)
+        for r in rxn_rows:
+            by_key[r.feed_key].append(r)
+        for e in page:
+            by_emoji: dict[str, list[models.Reaction]] = defaultdict(list)
+            for r in by_key[e.feed_key]:
+                by_emoji[r.emoji].append(r)
+            e.reactions = [
+                schemas.ReactionSummary(
+                    emoji=emoji,
+                    count=len(rxns),
+                    reacted=any(r.user_id == current_user_id for r in rxns),
+                    reaction_id=next(
+                        (r.id for r in rxns if r.user_id == current_user_id), None
+                    ),
+                )
+                for emoji, rxns in by_emoji.items()
+            ]
+
+    return page
 
 
 @app.get("/api/feed", response_model=list[schemas.FeedEvent])
@@ -1380,7 +1416,46 @@ def get_feed(
     current_user: models.User = Depends(auth.get_current_user),
 ):
     """Recent activity across all opted-in users on the instance, newest first."""
-    return _build_feed(db, max(1, min(limit, 200)))
+    return _build_feed(db, max(1, min(limit, 200)), current_user.id)
+
+
+@app.post("/api/feed/react", response_model=schemas.ReactionOut, status_code=201)
+def add_reaction(
+    payload: schemas.ReactPayload,
+    db: DBSession = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    """Give props to a feed event. Idempotent — re-posting the same emoji returns the existing row."""
+    if not payload.emoji or len(payload.emoji) > 8:
+        raise HTTPException(400, "Invalid emoji")
+    existing = (
+        db.query(models.Reaction)
+        .filter_by(feed_key=payload.feed_key, user_id=current_user.id, emoji=payload.emoji)
+        .first()
+    )
+    if existing:
+        return existing  # already reacted — idempotent
+    r = models.Reaction(feed_key=payload.feed_key, user_id=current_user.id, emoji=payload.emoji)
+    db.add(r)
+    db.commit()
+    db.refresh(r)
+    return r
+
+
+@app.delete("/api/feed/react/{reaction_id}", status_code=204)
+def remove_reaction(
+    reaction_id: int,
+    db: DBSession = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    """Remove your own reaction. Returns 403 if the reaction belongs to another user."""
+    r = db.get(models.Reaction, reaction_id)
+    if not r:
+        raise HTTPException(404, "Reaction not found")
+    if r.user_id != current_user.id:
+        raise HTTPException(403, "Not your reaction")
+    db.delete(r)
+    db.commit()
 
 
 @app.get("/api/achievements", response_model=list[schemas.Achievement])
