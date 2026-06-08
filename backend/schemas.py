@@ -338,6 +338,28 @@ class AchievementCheckResult(BaseModel):
     newly_unlocked: list[Achievement]
 
 
+class ReactionSummary(BaseModel):
+    """Aggregate of one emoji's reactions on a single feed event."""
+    emoji: str
+    count: int
+    reacted: bool                   # True if the viewing user gave this reaction
+    reaction_id: int | None = None  # their row ID (for DELETE), or None if not reacted
+
+
+class ReactionOut(BaseModel):
+    """Newly created reaction row returned from POST /api/feed/react."""
+    id: int
+    feed_key: str
+    user_id: int
+    emoji: str
+    model_config = {"from_attributes": True}
+
+
+class ReactPayload(BaseModel):
+    feed_key: str
+    emoji: str
+
+
 class FeedEvent(BaseModel):
     """One item in the shared instance feed. Derived from existing data — a logged
     session or an unlocked achievement — and tagged with the climber it belongs to."""
@@ -345,6 +367,7 @@ class FeedEvent(BaseModel):
     user_id: int
     username: str
     at: datetime                    # sort key (session start/date or unlock time)
+    feed_key: str                   # stable event identifier for reactions
 
     # session events
     session_id: int | None = None
@@ -362,6 +385,9 @@ class FeedEvent(BaseModel):
     code: str | None = None
     title: str | None = None
     emoji: str | None = None
+
+    # reactions (populated by _build_feed, keyed by viewing user)
+    reactions: list[ReactionSummary] = []
 
 
 class BuddyState(BaseModel):

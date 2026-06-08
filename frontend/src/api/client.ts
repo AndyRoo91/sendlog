@@ -253,11 +253,26 @@ export interface AuthUser {
   share_to_feed: boolean;
 }
 
+export interface ReactionSummary {
+  emoji: string;
+  count: number;
+  reacted: boolean;
+  reaction_id: number | null;
+}
+
+export interface ReactionOut {
+  id: number;
+  feed_key: string;
+  user_id: number;
+  emoji: string;
+}
+
 export interface FeedEvent {
   kind: "session" | "achievement";
   user_id: number;
   username: string;
   at: string;
+  feed_key: string;
   // session events
   session_id?: number | null;
   date?: string | null;
@@ -273,6 +288,8 @@ export interface FeedEvent {
   code?: string | null;
   title?: string | null;
   emoji?: string | null;
+  // reactions / props
+  reactions: ReactionSummary[];
 }
 
 export class AuthError extends Error {
@@ -322,6 +339,13 @@ export const api = {
     }),
 
   getFeed: (limit = 50) => req<FeedEvent[]>(`/feed?limit=${limit}`),
+  addReaction: (feed_key: string, emoji: string) =>
+    req<ReactionOut>("/feed/react", {
+      method: "POST",
+      body: JSON.stringify({ feed_key, emoji }),
+    }),
+  removeReaction: (reaction_id: number) =>
+    req<void>(`/feed/react/${reaction_id}`, { method: "DELETE" }),
 
   listSessions: () => req<SessionSummary[]>("/sessions"),
   listLocations: () => req<string[]>("/locations"),

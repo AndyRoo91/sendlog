@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
 import { formatDistanceToNowStrict } from "date-fns";
 import { api } from "../api/client";
-import type { FeedEvent } from "../api/client";
+import type { FeedEvent, ReactionSummary } from "../api/client";
 import { Ribbon, Toast, PullToRefresh, Crag } from "../ui";
 import { useToast } from "../lib/useToast";
 import { usePullToRefresh } from "../lib/usePullToRefresh";
 import { useAuth } from "../lib/auth";
+import { onKey } from "../lib/a11y";
 
 // A stable colour per climber so each friend reads consistently in the feed.
 const NAME_COLORS = ["var(--red)", "var(--mustard)", "var(--sea)", "var(--cobalt)", "var(--couch)"];
@@ -53,7 +54,95 @@ function UsernameChip({ name, isMe }: { name: string; isMe: boolean }) {
   );
 }
 
-function EventCard({ e, i, isMe }: { e: FeedEvent; i: number; isMe: boolean }) {
+const PROPS = ["🔥", "💪", "🎉", "👊", "✨"];
+
+function ReactionRow({
+  feedKey,
+  initReactions,
+  onError,
+}: {
+  feedKey: string;
+  initReactions: ReactionSummary[];
+  onError: (msg: string) => void;
+}) {
+  const [reactions, setReactions] = useState<ReactionSummary[]>(initReactions);
+
+  async function toggle(emoji: string) {
+    const hit = reactions.find((r) => r.emoji === emoji);
+    if (hit?.reacted) {
+      // optimistic remove
+      const prev = reactions;
+      setReactions((rs) =>
+        rs
+          .map((r) => r.emoji === emoji ? { ...r, count: r.count - 1, reacted: false, reaction_id: null } : r)
+          .filter((r) => r.count > 0)
+      );
+      try {
+        await api.removeReaction(hit.reaction_id!);
+      } catch {
+        setReactions(prev);
+        onError("Couldn't remove props.");
+      }
+    } else {
+      // optimistic add
+      const prev = reactions;
+      setReactions((rs) => {
+        const existing = rs.find((r) => r.emoji === emoji);
+        if (existing) return rs.map((r) => r.emoji === emoji ? { ...r, count: r.count + 1, reacted: true } : r);
+        return [...rs, { emoji, count: 1, reacted: true, reaction_id: null }];
+      });
+      try {
+        const created = await api.addReaction(feedKey, emoji);
+        setReactions((rs) => rs.map((r) => r.emoji === emoji ? { ...r, reaction_id: created.id } : r));
+      } catch {
+        setReactions(prev);
+        onError("Couldn't add props.");
+      }
+    }
+  }
+
+  return (
+    <div className="gap-row" style={{ marginTop: 10, gap: 5, flexWrap: "wrap" }}>
+      {PROPS.map((emoji) => {
+        const r = reactions.find((x) => x.emoji === emoji);
+        const count = r?.count ?? 0;
+        const reacted = r?.reacted ?? false;
+        return (
+          <div
+            key={emoji}
+            role="button"
+            tabIndex={0}
+            aria-pressed={reacted}
+            onClick={() => toggle(emoji)}
+            onKeyDown={onKey(() => toggle(emoji))}
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 4,
+              padding: "3px 8px",
+              border: "var(--b) solid var(--ink)",
+              background: reacted ? "var(--mustard)" : "transparent",
+              boxShadow: reacted ? "2px 2px 0 var(--ink)" : "none",
+              cursor: "pointer",
+              opacity: count === 0 ? 0.4 : 1,
+              transition: "opacity 0.1s, background 0.1s",
+            }}
+          >
+            <span style={{ fontSize: 15, lineHeight: 1 }}>{emoji}</span>
+            {count > 0 && (
+              <span style={{
+                fontFamily: "var(--font-banner)", fontSize: 10, letterSpacing: "0.06em",
+              }}>{count}</span>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function EventCard({ e, i, isMe, onReactionError }: {
+  e: FeedEvent; i: number; isMe: boolean;
+  onReactionError: (msg: string) => void;
+}) {
   const tilt = i % 2 === 0 ? -0.4 : 0.35;
   const isAch = e.kind === "achievement";
   const head = isAch
@@ -88,6 +177,12 @@ function EventCard({ e, i, isMe }: { e: FeedEvent; i: number; isMe: boolean }) {
           )}
         </div>
       )}
+
+      <ReactionRow
+        feedKey={e.feed_key}
+        initReactions={e.reactions}
+        onError={onReactionError}
+      />
     </div>
   );
 }
@@ -137,8 +232,9 @@ export default function FeedPage() {
       <div className="gap-col">
         {events.map((e, i) => (
           <EventCard
-            key={`${e.kind}-${e.session_id ?? e.code}-${e.user_id}-${e.at}`}
+            key={`${e.kind}-${e.session_id ?? e.code}-${e.user_id}-${e.at}-${e.reactions.length}`}
             e={e} i={i} isMe={e.user_id === user?.id}
+            onReactionError={toast}
           />
         ))}
       </div>
