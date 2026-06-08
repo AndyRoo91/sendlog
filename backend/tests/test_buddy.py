@@ -99,6 +99,40 @@ def test_buddy_solid_session_is_primed(client):
     assert b["reason"] == "in_form"
 
 
+def test_buddy_long_session_is_focused(client):
+    # Prior PB of V3; today repeats V3 cleanly but the session ran long → focused.
+    prev = client.post("/api/sessions", json={"date": day(-2)}).json()
+    client.post(f"/api/sessions/{prev['id']}/boulder", json={"grade": "V3", "send_type": "redpoint"})
+    today = client.post("/api/sessions", json={"date": day(0), "duration_minutes": 120}).json()
+    client.post(f"/api/sessions/{today['id']}/boulder", json={"grade": "V3", "send_type": "redpoint"})
+    b = client.get("/api/buddy").json()
+    assert b["state"] == "focused"
+    assert b["reason"] == "long_session"
+
+
+def test_buddy_short_session_not_focused(client):
+    # Same shape but a short session stays 'primed' (in form), not focused.
+    prev = client.post("/api/sessions", json={"date": day(-2)}).json()
+    client.post(f"/api/sessions/{prev['id']}/boulder", json={"grade": "V3", "send_type": "redpoint"})
+    today = client.post("/api/sessions", json={"date": day(0), "duration_minutes": 40}).json()
+    client.post(f"/api/sessions/{today['id']}/boulder", json={"grade": "V3", "send_type": "redpoint"})
+    assert client.get("/api/buddy").json()["state"] == "primed"
+
+
+def test_buddy_achievement_unlock_overrides_session(client):
+    # Earlier session sets a V5 PB and unlocks the first-send achievements.
+    prev = client.post("/api/sessions", json={"date": day(-2)}).json()
+    client.post(f"/api/sessions/{prev['id']}/boulder", json={"grade": "V5", "send_type": "redpoint"})
+    client.post("/api/achievements/check")
+    # Today: an easy repeat that would otherwise read as 'primed' — the fresh
+    # badge wins, so the buddy is stoked for the achievement, not a PB.
+    today = client.post("/api/sessions", json={"date": day(0)}).json()
+    client.post(f"/api/sessions/{today['id']}/boulder", json={"grade": "V3", "send_type": "redpoint"})
+    b = client.get("/api/buddy").json()
+    assert b["state"] == "stoked"
+    assert b["reason"] == "achievement"
+
+
 def test_buddy_build_zero_when_no_sessions(client):
     assert client.get("/api/buddy").json()["build"] == 0
 

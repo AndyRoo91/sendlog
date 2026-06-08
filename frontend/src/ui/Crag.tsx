@@ -28,7 +28,7 @@ const GRIME = {
 } as const;
 
 // ---- types ----
-export type CragState = "primed" | "training" | "detrained" | "stoked" | "shakeoff" | "resting" | "cooked" | "nervous";
+export type CragState = "primed" | "training" | "detrained" | "stoked" | "shakeoff" | "resting" | "cooked" | "nervous" | "focused";
 type EyeKind   = "wide" | "joy" | "stoned" | "sad" | "focus" | "closed" | "dizzy";
 type MouthKind = "grin" | "yell" | "lazy" | "frown" | "snore" | "grit" | "loll";
 type BrowKind  = "up" | "down" | "flat";
@@ -205,6 +205,15 @@ const POSES: Record<CragState, PoseConfig> = {
     armL: -52, armR: 22, legL: -34, legR: -14, tail: -8, headTilt: -3,
     motion: "breathe", extras: ["sweat"],
     bg: GRIME.sea,
+  },
+  focused: {
+    label: "FOCUSED", sub: "long session · dialled right in",
+    skin: GRIME.skinPrimed, skinSh: GRIME.skinPrimedSh,
+    belly: 0.82, ripped: true,
+    eyes: "focus", mouth: "grit", brow: "down", grip: "fist",
+    armL: -72, armR: 66, legL: 14, legR: -12, tail: -16, headTilt: 0,
+    motion: "breathe", extras: ["chalk"],
+    bg: GRIME.cobalt,
   },
 };
 

@@ -42,9 +42,9 @@ Sizing: **S** = small, **M** = medium, **L** = large.
 
 ---
 
-## 🔜 Upcoming
+## ✅ Shipped (F–L)
 
-### Phase F — Multi-user support *(L — prerequisite for PIN auth)*
+### Phase F — Multi-user support ✅ *(shipped #32, #33)*
 
 | Item | Size |
 |------|------|
@@ -59,7 +59,7 @@ Sizing: **S** = small, **M** = medium, **L** = large.
 
 ---
 
-### Phase G — Quick wins *(all S)*
+### Phase G — Quick wins ✅ *(shipped #28)*
 
 | Item | Notes |
 |------|-------|
@@ -70,7 +70,7 @@ Sizing: **S** = small, **M** = medium, **L** = large.
 
 ---
 
-### Phase H — Achievements *(M)*
+### Phase H — Achievements ✅ *(shipped #29)*
 
 | Item | Notes |
 |------|-------|
@@ -82,7 +82,7 @@ Sizing: **S** = small, **M** = medium, **L** = large.
 
 ---
 
-### Phase I — Stats enhancements *(M)*
+### Phase I — Stats enhancements ✅ *(shipped #30)*
 
 | Item | Notes |
 |------|-------|
@@ -94,7 +94,7 @@ Sizing: **S** = small, **M** = medium, **L** = large.
 
 ---
 
-### Phase J — Polish & easter eggs *(S–M)*
+### Phase J — Polish & easter eggs ✅ *(shipped #31)*
 
 | Item | Notes |
 |------|-------|
@@ -106,32 +106,35 @@ Sizing: **S** = small, **M** = medium, **L** = large.
 
 ---
 
-### Phase K — Climbing Buddy *(L + Artwork required)*
+### Phase K — Climbing Buddy ✅ *(shipped #34, #44, #45, #46; "Crag" the gecko)*
 
-A tamagotchi-style companion that lives on the Dashboard and reacts to how you're climbing.
+A tamagotchi-style companion that lives on the Dashboard and reacts to how you're climbing. Rig ported from `design_handoff_climbing_buddy/`; mood + build computed server-side via `GET /api/buddy`.
 
-**States (each needs custom artwork):**
+**States** — each a `CragState` pose driven by the buddy mood engine:
 
-| State | Triggered by |
-|-------|-------------|
-| 😤 Pumped & psyched | Fresh send, new PB |
-| 💪 Buff / gnarly | Streak of good sessions, high send rate |
-| 😴 Couch potato | 7+ days since last session |
-| 😵 Cooked | High falls, low send rate, lots of "working" ticks |
-| 🏋️ Training mode | Fingerboard session logged |
-| 🤌 Focused | Long session (90+ min) |
-| 🎉 Absolutely stoked | Achievement unlocked |
-| 😬 Nervous | First attempt at a new grade |
+| State | Triggered by | Status |
+|-------|-------------|--------|
+| 😤 Primed / psyched | In-form session, no new ground | ✅ |
+| 💪 Buff / gnarly | Build tier from all-time hardest send | ✅ (physique evolution) |
+| 😴 Detrained / couch | 7+ days since last session | ✅ |
+| 😵 Cooked | High falls, low send rate | ✅ |
+| 🏋️ Training mode | Fingerboard/strength logged | ✅ |
+| 🎉 Stoked | New PB | ✅ |
+| 😬 Nervous | Attempted a grade above PB without sending | ✅ |
+| 🤸 Shake it off | Came off, go again | ✅ (used on Summary) |
+| 😪 Resting | 4–6 day rest window | ✅ |
+| 🤌 Focused | Long session (90+ min) | 🔜 in progress |
+| 🎉 Stoked (achievement) | Achievement unlocked | 🔜 in progress |
 
-**Evolution:** starts scrawny, gets progressively more jacked/gnarly as max grade climbs, softens slightly after long breaks.
+**Evolution:** ✅ scrawny → jacked as all-time max grade climbs (build tier 0–3, broader shoulders + graduating six-pack); persists through rest days, bloated poses stay soft.
 
-**Art style:** American traditional / Mambo psychedelic — bold ink outlines, limited palette (ink, mustard, red, cream), exaggerated proportions. SVG layers so pose/expression states can be CSS-swapped without redrawing the full character.
+**Art style:** grungy early-MTV cel — bold ink outlines, limited GRIME palette, turbulence "boil", `prefers-reduced-motion` aware. Parametric SVG puppet rig (pose table), no redraw per state.
 
-**Tech approach:** state computed from existing session data (no new DB columns until persistence needed); SVG layers with CSS keyframe animations for reactions.
+**Tech approach:** state computed from existing session data via `GET /api/buddy` (no new DB columns).
 
 ---
 
-### Phase L — QOL & friction reduction *(S–L)*
+### Phase L — QOL & friction reduction ✅ *(shipped #39–#43)*
 
 The daily-use surface is `TickSheet`; most of these cut friction there or close gaps around it.
 
@@ -149,7 +152,13 @@ The daily-use surface is `TickSheet`; most of these cut friction there or close 
 
 ---
 
-## Deferred / needs multi-user first
+## 🔜 Remaining / next up
 
-- PIN auth — waiting on Phase F
-- Per-user buddy customisation (avatar picker) — waiting on Phase F + K
+Phases A–L are shipped. What's left:
+
+- **🤌 Focused buddy state** *(S)* — pose for long sessions (90+ min). *In progress.*
+- **🎉 Achievement-unlock buddy reaction** *(S)* — buddy goes stoked when an achievement unlocks. *In progress.*
+- **Per-user buddy customisation** *(M–L)* — avatar/name picker. Unblocked now that Phase F (multi-user) + K (buddy) are done.
+- **New phase, TBD** — no Phase M+ scoped yet. Candidates: deeper data-viz, social/sharing, gym-set tracking, training plans, "year in review".
+
+PIN auth shipped in Phase F2 (#33) — no longer deferred.

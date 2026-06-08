@@ -1118,6 +1118,7 @@ def _buddy_state(db: DBSession, uid: int) -> schemas.BuddyState:
         last_day = date.fromisoformat(str(latest.date)[:10])
         days_since = max(0, (date.today() - last_day).days)
     except ValueError:
+        last_day = date.today()
         days_since = 0
 
     # All-time physique tier (0..3) from the hardest send ever logged. Mood reflects
@@ -1158,6 +1159,15 @@ def _buddy_state(db: DBSession, uid: int) -> schemas.BuddyState:
         return result("detrained", "idle_7d")
     if days_since >= 4:
         return result("resting", "rest_days")
+
+    # A freshly-unlocked achievement (on/after the most recent session) trumps the
+    # session's character — nothing says "stoked" like a badge popping.
+    recent_achievement = any(
+        a.unlocked_at is not None and a.unlocked_at.date() >= last_day
+        for a in db.query(models.Achievement).filter(models.Achievement.user_id == uid).all()
+    )
+    if recent_achievement:
+        return result("stoked", "achievement")
 
     boulders = latest.boulder_entries
     leads = latest.lead_route_entries
@@ -1219,6 +1229,14 @@ def _buddy_state(db: DBSession, uid: int) -> schemas.BuddyState:
     avg_falls = sum(e.falls for e in lead_with_falls) / len(lead_with_falls) if lead_with_falls else 0
     if send_rate < 0.34 or avg_falls >= 2:
         return result("cooked", "low_send_rate")
+
+    # A long, solid grind (90+ min) reads as dialled-in focus. Prefer the logged
+    # duration, falling back to the timer span when only start/end are recorded.
+    duration_min = latest.duration_minutes
+    if duration_min is None and latest.started_at and latest.ended_at:
+        duration_min = int((latest.ended_at - latest.started_at).total_seconds() // 60)
+    if duration_min is not None and duration_min >= 90:
+        return result("focused", "long_session")
 
     # Board/strength work alongside climbs → still a training vibe.
     if latest.fingerboard_entries or latest.strength_entries:
