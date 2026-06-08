@@ -163,6 +163,11 @@ function EventCard({ e, i, isMe, onReactionError }: {
 
       <div style={{ marginTop: 9, fontFamily: "var(--font-hand)", fontSize: 18, lineHeight: 1.25 }}>
         <span style={{ marginRight: 6 }}>{head.emoji}</span>{head.text}
+        {e.kind === "session" && e.partner && (
+          <span className="muted" style={{ fontSize: 14, marginLeft: 8, fontStyle: "italic" }}>
+            with {e.partner}
+          </span>
+        )}
       </div>
 
       {e.kind === "session" && (sessionStats(e) || e.is_pb) && (

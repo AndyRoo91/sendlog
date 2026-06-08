@@ -105,6 +105,25 @@ def run_migrations() -> None:
             conn.execute(text("ALTER TABLE users ADD COLUMN share_to_feed BOOLEAN"))
             conn.execute(text("UPDATE users SET share_to_feed = 1 WHERE share_to_feed IS NULL"))
 
+        # Phase O3: partner tagging on sessions.
+        if "sessions" in tables and "partner" not in columns("sessions"):
+            conn.execute(text("ALTER TABLE sessions ADD COLUMN partner VARCHAR(200)"))
+
+        # Phase O3: beta notes on projects/routes.
+        if "route_notes" not in tables:
+            conn.execute(text("""
+                CREATE TABLE route_notes (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    route_id INTEGER NOT NULL REFERENCES routes(id),
+                    user_id INTEGER NOT NULL REFERENCES users(id),
+                    text TEXT NOT NULL,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            """))
+            conn.execute(text(
+                "CREATE INDEX IF NOT EXISTS ix_route_notes_route_id ON route_notes(route_id)"
+            ))
+
         # Phase O2: reactions/"props" on feed events.
         if "reactions" not in tables:
             conn.execute(text("""

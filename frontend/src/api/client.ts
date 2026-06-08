@@ -84,11 +84,21 @@ export interface RouteSummary {
   last_pin_date?: string | null;
 }
 
+export interface RouteNote {
+  id: number;
+  route_id: number;
+  user_id: number;
+  username: string;
+  text: string;
+  created_at: string;
+}
+
 export interface RouteDetail extends RouteSummary {
   pins: RoutePin[];
   ticks: LeadRouteEntry[];
   boulder_ticks: BoulderEntry[];
   photos: EntryPhoto[];
+  notes_log: RouteNote[];
 }
 
 export interface RoutePayload {
@@ -128,6 +138,7 @@ export interface SessionSummary {
   started_at?: string | null;
   ended_at?: string | null;
   mood?: number | null;   // 1..5 self-rating
+  partner?: string | null;  // "climbed with…"
 }
 
 export interface SessionDetail extends SessionSummary {
@@ -284,6 +295,7 @@ export interface FeedEvent {
   hardest_lead?: string | null;
   training_only: boolean;
   is_pb: boolean;
+  partner?: string | null;      // "climbed with…" tag
   // achievement events
   code?: string | null;
   title?: string | null;
@@ -302,6 +314,7 @@ export interface SessionHeader {
   duration_minutes?: number | null;
   notes?: string | null;
   mood?: number | null;
+  partner?: string | null;
 }
 
 export const api = {
@@ -433,6 +446,18 @@ export const api = {
   updatePin: (pinId: number, payload: Partial<PinPayload>) =>
     req<RoutePin>(`/pins/${pinId}`, { method: "PATCH", body: JSON.stringify(payload) }),
   deletePin: (pinId: number) => req<void>(`/pins/${pinId}`, { method: "DELETE" }),
+
+  // --- Route beta notes ---
+  addRouteNote: (routeId: number, text: string) =>
+    req<RouteNote>(`/routes/${routeId}/notes`, {
+      method: "POST",
+      body: JSON.stringify({ text }),
+    }),
+  deleteRouteNote: (noteId: number) =>
+    req<void>(`/route_notes/${noteId}`, { method: "DELETE" }),
+
+  // --- Partners ---
+  listPartners: () => req<string[]>("/partners"),
 
   // --- Export / Import ---
   exportData: async (): Promise<Blob> => {

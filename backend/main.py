@@ -362,6 +362,24 @@ def list_locations(
     return [r.location for r in rows]
 
 
+@app.get("/api/partners", response_model=list[str])
+def list_partners(
+    db: DBSession = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    """Return distinct partner names ordered by frequency (most-used first)."""
+    rows = (
+        db.query(models.Session.partner, func.count(models.Session.id).label("n"))
+        .filter(models.Session.user_id == current_user.id)
+        .filter(models.Session.partner.isnot(None))
+        .filter(models.Session.partner != "")
+        .group_by(models.Session.partner)
+        .order_by(text_clause("n DESC"))
+        .all()
+    )
+    return [r.partner for r in rows]
+
+
 @app.get("/api/route_names", response_model=list[str])
 def list_route_names(
     db: DBSession = Depends(get_db),
@@ -394,6 +412,7 @@ def create_session(
         duration_minutes=payload.duration_minutes,
         notes=payload.notes,
         mood=payload.mood,
+        partner=payload.partner,
     )
     db.add(session)
     db.commit()
@@ -1359,6 +1378,7 @@ def _build_feed(db: DBSession, limit: int, current_user_id: int) -> list[schemas
                 hardest_lead=_hardest_grade(leads, EWBANK_GRADE_ORDER, ewbank_only=True),
                 training_only=(total == 0 and has_training),
                 is_pb=is_pb,
+                partner=s.partner,
             ))
 
     # --- Achievement events ---
@@ -1548,6 +1568,26 @@ def get_route(
     for t in route.boulder_ticks:
         t.photos = []
     attach_route_photos(route, db)
+    # Beta notes — include from all users so partners can read each other's crux notes.
+    note_rows = (
+        db.query(models.RouteNote)
+        .filter(models.RouteNote.route_id == route_id)
+        .order_by(models.RouteNote.created_at)
+        .all()
+    )
+    user_cache: dict[int, str] = {}
+    def _uname(uid: int) -> str:
+        if uid not in user_cache:
+            u = db.get(models.User, uid)
+            user_cache[uid] = u.username if u else "?"
+        return user_cache[uid]
+    route.notes_log = [
+        schemas.RouteNote(
+            id=n.id, route_id=n.route_id, user_id=n.user_id,
+            username=_uname(n.user_id), text=n.text, created_at=n.created_at,
+        )
+        for n in note_rows
+    ]
     return route
 
 
@@ -1584,6 +1624,43 @@ def delete_route(
     if route.topo_filename and route.topo_filename.startswith("route_"):
         images.delete_image(PHOTOS_DIR, route.topo_filename)
     db.delete(route)
+    db.commit()
+
+
+@app.post("/api/routes/{route_id}/notes", response_model=schemas.RouteNote, status_code=201)
+def add_route_note(
+    route_id: int, payload: schemas.RouteNoteCreate,
+    db: DBSession = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    """Add a beta / progress note to a project. Visible to all users (shared project log)."""
+    # Verify the route exists and current_user owns it (or can at least see it).
+    get_route_or_404(route_id, db, current_user)
+    if not payload.text.strip():
+        raise HTTPException(400, "Note text cannot be empty")
+    note = models.RouteNote(route_id=route_id, user_id=current_user.id, text=payload.text.strip())
+    db.add(note)
+    db.commit()
+    db.refresh(note)
+    return schemas.RouteNote(
+        id=note.id, route_id=note.route_id, user_id=note.user_id,
+        username=current_user.username, text=note.text, created_at=note.created_at,
+    )
+
+
+@app.delete("/api/route_notes/{note_id}", status_code=204)
+def delete_route_note(
+    note_id: int,
+    db: DBSession = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    """Delete your own beta note. 403 if it belongs to another user."""
+    note = db.get(models.RouteNote, note_id)
+    if not note:
+        raise HTTPException(404, "Note not found")
+    if note.user_id != current_user.id:
+        raise HTTPException(403, "Not your note")
+    db.delete(note)
     db.commit()
 
 
