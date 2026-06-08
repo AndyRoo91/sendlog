@@ -222,6 +222,12 @@ export interface ProgressData {
   pb_timeline: PBTimelinePoint[];
 }
 
+export interface BuddyState {
+  state: string;       // a CragState the frontend knows how to draw
+  reason: string;      // machine-readable trigger, e.g. "new_pb"
+  days_since: number;  // days since the most recent session (0 = today)
+}
+
 const BASE = "/api";
 
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
@@ -290,6 +296,7 @@ export const api = {
   listLocations: () => req<string[]>("/locations"),
   listRouteNames: () => req<string[]>("/route_names"),
 
+  getBuddy: () => req<BuddyState>("/buddy"),
   listAchievements: () => req<Achievement[]>("/achievements"),
   checkAchievements: () =>
     req<{ newly_unlocked: Achievement[] }>("/achievements/check", { method: "POST" }),

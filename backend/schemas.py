@@ -338,6 +338,13 @@ class AchievementCheckResult(BaseModel):
     newly_unlocked: list[Achievement]
 
 
+class BuddyState(BaseModel):
+    """Climbing-buddy mood for the Dashboard greeting, computed from session data."""
+    state: str          # one of the CragState values the frontend knows how to draw
+    reason: str         # machine-readable trigger, e.g. "new_pb", "high_falls"
+    days_since: int     # days since the most recent session (0 = today)
+
+
 # ---------------------------------------------------------------------------
 # Auth
 # ---------------------------------------------------------------------------
