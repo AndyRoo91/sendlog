@@ -87,6 +87,7 @@ export default function Dashboard() {
     resting:   { head: "rest up.",         body: "recovery is training." },
     cooked:    { head: "cooked, eh?",      body: "arms to jelly — that's a good day's work. rest up." },
     nervous:   { head: "deep breath.",     body: "new grade nerves are normal. trust the feet." },
+    focused:   { head: "dialled in.",      body: "long one today — Crag's locked in right there with you." },
   };
   // Prefer the server-computed buddy mood; fall back to the recency-only
   // heuristic if the call hasn't landed (or failed).
