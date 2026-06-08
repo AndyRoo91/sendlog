@@ -28,9 +28,9 @@ const GRIME = {
 } as const;
 
 // ---- types ----
-export type CragState = "primed" | "training" | "detrained" | "stoked" | "shakeoff" | "resting";
-type EyeKind   = "wide" | "joy" | "stoned" | "sad" | "focus" | "closed";
-type MouthKind = "grin" | "yell" | "lazy" | "frown" | "snore" | "grit";
+export type CragState = "primed" | "training" | "detrained" | "stoked" | "shakeoff" | "resting" | "cooked" | "nervous";
+type EyeKind   = "wide" | "joy" | "stoned" | "sad" | "focus" | "closed" | "dizzy";
+type MouthKind = "grin" | "yell" | "lazy" | "frown" | "snore" | "grit" | "loll";
 type BrowKind  = "up" | "down" | "flat";
 type MotionKind = "headbang" | "slouch" | "jump" | "breathe" | "pump";
 type ExtraKind = "chalk" | "sparks" | "couch" | "snack" | "dumbbell" | "lines" | "zzz" | "sweat";
@@ -187,6 +187,24 @@ const POSES: Record<CragState, PoseConfig> = {
     motion: "pump", extras: ["sweat", "dumbbell", "lines"],
     bg: GRIME.cobalt,
   },
+  cooked: {
+    label: "COOKED", sub: "pumped silly · arms gone to jelly",
+    skin: GRIME.skinFlat, skinSh: GRIME.skinDetrSh,
+    belly: 1.02, ripped: true, slouch: true,
+    eyes: "dizzy", mouth: "loll", brow: "flat",
+    armL: -4, armR: 4, legL: 46, legR: -40, tail: 36, headTilt: 9,
+    motion: "breathe", extras: ["sweat", "lines"],
+    bg: GRIME.couch,
+  },
+  nervous: {
+    label: "NERVOUS", sub: "new grade · heart in the throat",
+    skin: GRIME.skinPrimed, skinSh: GRIME.skinPrimedSh,
+    belly: 0.84, ripped: true,
+    eyes: "wide", mouth: "grit", brow: "up",
+    armL: -52, armR: 22, legL: -34, legR: -14, tail: -8, headTilt: -3,
+    motion: "breathe", extras: ["sweat"],
+    bg: GRIME.sea,
+  },
 };
 
 // ---- toe-pad hand ----
@@ -264,6 +282,19 @@ function Eyes({ kind }: EyesProps) {
         <path d="M -38 0 Q -22 9 -6 0" fill="none" stroke={ink} strokeWidth="4" strokeLinecap="round" />
         <path d="M 6 0 Q 20 8 34 0"    fill="none" stroke={ink} strokeWidth="4" strokeLinecap="round" />
       </g>);
+    case "dizzy": {
+      const swirl = "M 0 0 q 3 0 3 3.5 q 0 5 -5.5 5 q -7.5 0 -7.5 -7.5 q 0 -9.5 9.5 -9.5 q 11.5 0 11.5 11.5";
+      return (<g>
+        <g transform="translate(-22,0)">
+          <circle cx="0" cy="0" r={17} fill={white} stroke={ink} strokeWidth="3" />
+          <path d={swirl} fill="none" stroke={ink} strokeWidth="2.4" strokeLinecap="round" />
+        </g>
+        <g transform="translate(20,0)">
+          <circle cx="0" cy="0" r={14} fill={white} stroke={ink} strokeWidth="3" />
+          <path d={swirl} fill="none" stroke={ink} strokeWidth="2.4" strokeLinecap="round" />
+        </g>
+      </g>);
+    }
     default:
       return (<g><Eyeball x={-22} r={17} px={2} py={-2} pr={6} /><Eyeball x={20} r={14} px={2} py={-1} pr={5} /></g>);
   }
@@ -313,6 +344,15 @@ function Mouth({ kind }: MouthProps) {
         ))}
         <path d="M -24 16 Q 2 24 28 16" fill="none" stroke={GRIME.ink} strokeWidth="2.6" strokeLinecap="round" />
       </g>);
+    case "loll":
+      return (<g>
+        {/* slack open mouth, jaw hanging */}
+        <path d="M -20 -2 Q 0 6 20 -2 Q 17 16 0 18 Q -17 16 -20 -2 Z" fill={GRIME.ink} />
+        {/* tongue lolling out and down past the chin */}
+        <path d="M -7 10 Q -12 32 1 41 Q 15 35 11 13 Q 3 19 -7 10 Z"
+          fill={GRIME.red} stroke={ink} strokeWidth="2.4" strokeLinejoin="round" />
+        <path d="M 2 18 Q 1 30 2 37" fill="none" stroke={ink} strokeWidth="1.5" opacity="0.5" />
+      </g>);
     default:
       return <path d="M -20 4 Q 0 14 22 4" fill="none" stroke={ink} strokeWidth="3.4" strokeLinecap="round" />;
   }
@@ -361,28 +401,31 @@ export default function Crag({ state = "primed", size = 300, showBg = true, uid 
 
         {/* the boiling character */}
         <g filter={`url(#boil-${id})`}>
-          <g transform="translate(130 150) scale(0.88) translate(-130 -150)">
+          <g transform="translate(130 156) scale(0.86) translate(-130 -150)">
           <g className={motionClass} transform="translate(130 150)">
 
-            {/* TAIL */}
-            <g transform={`translate(-26 44) rotate(${p.tail})`}>
+            {/* TAIL — root cap keeps it fused to the torso under rotation */}
+            <g transform={`translate(-20 40) rotate(${p.tail})`}>
+              <circle cx="6" cy="6" r="20" fill={p.skin} stroke={ink} strokeWidth="3.4" />
               <path d="M 0 0 Q 60 6 96 -34 Q 120 -58 132 -40 Q 116 -30 104 -10 Q 78 26 18 28 Z"
                 fill={p.skin} stroke={ink} strokeWidth="3.4" strokeLinejoin="round" />
               <path d="M 18 6 Q 64 8 96 -24" fill="none" stroke={ink} strokeWidth="2" opacity="0.4" />
             </g>
 
-            {/* BACK LEG */}
-            <g transform={`translate(34 60) rotate(${p.legR})`}>
-              <path d="M 0 -6 Q 26 4 30 40 Q 30 56 16 58 Q 6 40 -8 24 Q -8 6 0 -6 Z"
+            {/* BACK LEG — hip cap (cx/cy at pivot so it stays put under rotation) */}
+            <g transform={`translate(30 54) rotate(${p.legR})`}>
+              <circle cx="0" cy="0" r="17" fill={p.skinSh} stroke={ink} strokeWidth="3.2" />
+              <path d="M 0 -10 Q 26 4 30 40 Q 30 56 16 58 Q 6 40 -8 24 Q -10 6 0 -10 Z"
                 fill={p.skinSh} stroke={ink} strokeWidth="3.2" strokeLinejoin="round" />
               <g transform="translate(22 56) rotate(150) scale(0.7)">
                 <Hand skin={p.skinSh} ink={ink} />
               </g>
             </g>
 
-            {/* FRONT LEG */}
-            <g transform={`translate(-30 60) rotate(${p.legL})`}>
-              <path d="M 0 -6 Q -26 4 -30 40 Q -30 56 -16 58 Q -6 40 8 24 Q 8 6 0 -6 Z"
+            {/* FRONT LEG — hip cap */}
+            <g transform={`translate(-28 54) rotate(${p.legL})`}>
+              <circle cx="0" cy="0" r="17" fill={p.skin} stroke={ink} strokeWidth="3.2" />
+              <path d="M 0 -10 Q -26 4 -30 40 Q -30 56 -16 58 Q -6 40 8 24 Q 10 6 0 -10 Z"
                 fill={p.skin} stroke={ink} strokeWidth="3.2" strokeLinejoin="round" />
               <g transform="translate(-22 56) rotate(210) scale(0.7)">
                 <Hand skin={p.skin} ink={ink} />
@@ -452,6 +495,14 @@ export default function Crag({ state = "primed", size = 300, showBg = true, uid 
 
             {/* HEAD */}
             <g className="mv-head" transform={`translate(2 -84) rotate(${p.headTilt})`}>
+              {/* dorsal crest spikes — drawn first so the skull covers their bases
+                  and only the pointed tips read as a frill */}
+              <g>
+                <path d="M -36 -50 L -26 -80 L -12 -54 Z" fill={p.skinSh} stroke={ink} strokeWidth="2.6" strokeLinejoin="round" />
+                <path d="M -14 -54 L 0 -88 L 16 -56 Z"    fill={p.skin}   stroke={ink} strokeWidth="2.8" strokeLinejoin="round" />
+                <path d="M 14 -54 L 30 -84 L 46 -52 Z"    fill={p.skin}   stroke={ink} strokeWidth="2.8" strokeLinejoin="round" />
+                <path d="M 42 -48 L 54 -72 L 64 -44 Z"    fill={p.skinSh} stroke={ink} strokeWidth="2.6" strokeLinejoin="round" />
+              </g>
               {/* unified cranium + muzzle silhouette */}
               <path d="M -58 -12 C -70 -56 -26 -74 16 -70 C 56 -66 84 -46 82 -12
                        C 81 8 72 22 54 28 C 58 40 52 54 30 58 C 16 62 -2 62 -16 56
@@ -471,7 +522,7 @@ export default function Crag({ state = "primed", size = 300, showBg = true, uid 
                 fill="none" stroke={ink} strokeWidth="2.4" opacity="0.6" />
               {/* sweatband (training) */}
               {p.band && (
-                <g>
+                <g transform="translate(0 -48)">
                   <path d="M -58 -6 Q 12 -22 82 -4 L 80 14 Q 12 -4 -56 12 Z"
                     fill={GRIME.red} stroke={ink} strokeWidth="2.8" strokeLinejoin="round" />
                   <rect x="-3" y="-16" width="11" height="13" rx="1.5" fill={GRIME.cream} stroke={ink} strokeWidth="1.8" />
