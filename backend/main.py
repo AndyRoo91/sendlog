@@ -1111,7 +1111,7 @@ def _buddy_state(db: DBSession, uid: int) -> schemas.BuddyState:
         .all()
     )
     if not sessions:
-        return schemas.BuddyState(state="primed", reason="no_sessions", days_since=0)
+        return schemas.BuddyState(state="primed", reason="no_sessions", days_since=0, build=0)
 
     latest = sessions[0]
     try:
@@ -1120,11 +1120,44 @@ def _buddy_state(db: DBSession, uid: int) -> schemas.BuddyState:
     except ValueError:
         days_since = 0
 
+    # All-time physique tier (0..3) from the hardest send ever logged. Mood reflects
+    # the recent session; build reflects lifetime ability and persists through rest.
+    all_boulder_pb = max(
+        (grade_to_int(e.grade, BOULDER_GRADE_ORDER)
+         for s in sessions for e in s.boulder_entries if e.send_type in SEND_TYPES),
+        default=-1,
+    )
+    all_lead_pb = max(
+        (grade_to_int(e.grade, EWBANK_GRADE_ORDER)
+         for s in sessions for e in s.lead_route_entries
+         if e.send_type in SEND_TYPES and e.grade_system == "ewbank"),
+        default=-1,
+    )
+
+    def _boulder_tier(idx: int) -> int:
+        if idx < 3:   return 0   # ≤ V2 — scrawny
+        if idx <= 5:  return 1   # V3–V5 — lean
+        if idx <= 8:  return 2   # V6–V8 — strong
+        return 3                 # V9+   — jacked
+
+    def _lead_tier(idx: int) -> int:
+        if idx < 0:   return 0
+        n = idx + 1              # Ewbank number
+        if n <= 17:   return 0
+        if n <= 21:   return 1
+        if n <= 25:   return 2
+        return 3
+
+    build = max(_boulder_tier(all_boulder_pb), _lead_tier(all_lead_pb))
+
+    def result(state: str, reason: str) -> schemas.BuddyState:
+        return schemas.BuddyState(state=state, reason=reason, days_since=days_since, build=build)
+
     # Recency ladder — long gaps override the most recent session's character.
     if days_since >= 7:
-        return schemas.BuddyState(state="detrained", reason="idle_7d", days_since=days_since)
+        return result("detrained", "idle_7d")
     if days_since >= 4:
-        return schemas.BuddyState(state="resting", reason="rest_days", days_since=days_since)
+        return result("resting", "rest_days")
 
     boulders = latest.boulder_entries
     leads = latest.lead_route_entries
@@ -1133,8 +1166,8 @@ def _buddy_state(db: DBSession, uid: int) -> schemas.BuddyState:
     # No climbs logged — a pure board/strength day reads as training.
     if total == 0:
         if latest.fingerboard_entries or latest.strength_entries:
-            return schemas.BuddyState(state="training", reason="training_only", days_since=days_since)
-        return schemas.BuddyState(state="primed", reason="no_climbs", days_since=days_since)
+            return result("training", "training_only")
+        return result("primed", "no_climbs")
 
     def b_int(g: str) -> int:
         return grade_to_int(g, BOULDER_GRADE_ORDER)
@@ -1164,7 +1197,7 @@ def _buddy_state(db: DBSession, uid: int) -> schemas.BuddyState:
     # New personal best this session → absolutely stoked.
     if (latest_boulder_send >= 0 and latest_boulder_send > prior_boulder_pb) or \
        (latest_lead_send >= 0 and latest_lead_send > prior_lead_pb):
-        return schemas.BuddyState(state="stoked", reason="new_pb", days_since=days_since)
+        return result("stoked", "new_pb")
 
     # Tried a grade harder than anything sent before, but didn't get it → nervous.
     # Requires an established PB so a first-ever session never reads as "nervous".
@@ -1176,7 +1209,7 @@ def _buddy_state(db: DBSession, uid: int) -> schemas.BuddyState:
         for e in leads
     )
     if pushed_boulder or pushed_lead:
-        return schemas.BuddyState(state="nervous", reason="new_grade_attempt", days_since=days_since)
+        return result("nervous", "new_grade_attempt")
 
     # Cooked — low send rate or falling a lot.
     sends = sum(1 for e in boulders if e.send_type in SEND_TYPES)
@@ -1185,14 +1218,14 @@ def _buddy_state(db: DBSession, uid: int) -> schemas.BuddyState:
     lead_with_falls = [e for e in leads if e.falls is not None]
     avg_falls = sum(e.falls for e in lead_with_falls) / len(lead_with_falls) if lead_with_falls else 0
     if send_rate < 0.34 or avg_falls >= 2:
-        return schemas.BuddyState(state="cooked", reason="low_send_rate", days_since=days_since)
+        return result("cooked", "low_send_rate")
 
     # Board/strength work alongside climbs → still a training vibe.
     if latest.fingerboard_entries or latest.strength_entries:
-        return schemas.BuddyState(state="training", reason="training", days_since=days_since)
+        return result("training", "training")
 
     # Solid, in-form day.
-    return schemas.BuddyState(state="primed", reason="in_form", days_since=days_since)
+    return result("primed", "in_form")
 
 
 @app.get("/api/buddy", response_model=schemas.BuddyState)

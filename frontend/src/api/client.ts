@@ -226,6 +226,7 @@ export interface BuddyState {
   state: string;       // a CragState the frontend knows how to draw
   reason: string;      // machine-readable trigger, e.g. "new_pb"
   days_since: number;  // days since the most recent session (0 = today)
+  build: number;       // 0..3 physique tier from all-time hardest send
 }
 
 const BASE = "/api";
