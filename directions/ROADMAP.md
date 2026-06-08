@@ -106,7 +106,7 @@ Sizing: **S** = small, **M** = medium, **L** = large.
 
 ---
 
-### Phase K — Climbing Buddy ✅ *(shipped #34, #44, #45, #46; "Crag" the gecko)*
+### Phase K — Climbing Buddy ✅ *(shipped #34, #44, #45, #46, #47; "Crag" the gecko)*
 
 A tamagotchi-style companion that lives on the Dashboard and reacts to how you're climbing. Rig ported from `design_handoff_climbing_buddy/`; mood + build computed server-side via `GET /api/buddy`.
 
@@ -123,8 +123,8 @@ A tamagotchi-style companion that lives on the Dashboard and reacts to how you'r
 | 😬 Nervous | Attempted a grade above PB without sending | ✅ |
 | 🤸 Shake it off | Came off, go again | ✅ (used on Summary) |
 | 😪 Resting | 4–6 day rest window | ✅ |
-| 🤌 Focused | Long session (90+ min) | 🔜 in progress |
-| 🎉 Stoked (achievement) | Achievement unlocked | 🔜 in progress |
+| 🤌 Focused | Long session (90+ min) | ✅ *(#47)* |
+| 🎉 Stoked (achievement) | Achievement unlocked | ✅ *(#47)* |
 
 **Evolution:** ✅ scrawny → jacked as all-time max grade climbs (build tier 0–3, broader shoulders + graduating six-pack); persists through rest days, bloated poses stay soft.
 
@@ -152,13 +152,141 @@ The daily-use surface is `TickSheet`; most of these cut friction there or close 
 
 ---
 
-## 🔜 Remaining / next up
+## 🔜 Carry-over
 
-Phases A–L are shipped. What's left:
+Small items unblocked by earlier phases but not yet built:
 
-- **🤌 Focused buddy state** *(S)* — pose for long sessions (90+ min). *In progress.*
-- **🎉 Achievement-unlock buddy reaction** *(S)* — buddy goes stoked when an achievement unlocks. *In progress.*
-- **Per-user buddy customisation** *(M–L)* — avatar/name picker. Unblocked now that Phase F (multi-user) + K (buddy) are done.
-- **New phase, TBD** — no Phase M+ scoped yet. Candidates: deeper data-viz, social/sharing, gym-set tracking, training plans, "year in review".
+- **Per-user buddy customisation** *(M)* — avatar/name picker for Crag. Unblocked now that Phase F (multi-user) + K (buddy) are done. Pick a palette/skin variant + a name; store on `users` (or a `user_prefs` row); render in `Crag.tsx` via the existing pose table.
 
 PIN auth shipped in Phase F2 (#33) — no longer deferred.
+
+---
+
+## 🧭 Proposed next phases (M–Q)
+
+Phases A–L are shipped. The five directions below expand the earlier "new phase, TBD"
+note into scoped work. They're **independent** — pick by appetite — but there are natural
+pairings (sharing ↔ year-in-review; gym-sets ↔ the Phase J canvas hold-picker; training
+plans ↔ the buddy rest ladder). Rough priority order: **M → N → O** give the most value for
+the least surface area; **P → Q** are larger bets.
+
+Guardrails carried from prior phases: derive from existing session data where possible
+(the buddy engine added *zero* DB columns), keep new charts in the lazy `recharts` chunk,
+all data scoped to `user_id`, sharing strictly opt-in / per-item.
+
+---
+
+### Phase M — Data-viz depth *(M)*
+
+Phases D & I gave us the chart *library*; this phase makes it **explorable** instead of a
+static wall of graphs. Mostly frontend — recharts + existing `/api/sessions` data — with at
+most one aggregation endpoint.
+
+| Item | Size | Notes |
+|------|------|-------|
+| **Global date-range filter** | S | A range chip (`6w · 6mo · 1y · all`) on the Progress page that drives every chart. Today each chart shows all-time; comparing "this season vs last" is impossible. |
+| **Contribution heatmap** | M | GitHub-style calendar grid, one cell per day, intensity = tick volume (or max grade). The single best at-a-glance "am I consistent" view; reads great in the grungy palette. |
+| **Drill-down on the send pyramids** | S | Tap a pyramid bar → sheet listing those specific sends (route name, date, session link). Charts are currently read-only dead-ends. |
+| **Volume vs intensity scatter** | S | One dot per session: x = tick count, y = hardest grade. Surfaces "junk volume" vs "quality" days. |
+| **Training-load trend (acute:chronic)** | M | Rolling 7-day load ÷ 28-day load — the climbing-native overtraining/injury-risk signal. Ties into the buddy's rest ladder (a spiking ratio could feed a future "ease off" mood). |
+| **Max-grade projection line** | S | Linear/LOESS trend overlay on the existing max-grade-over-time charts → a "where you're trending" dotted extension. |
+
+---
+
+### Phase N — Stats "Year in Review" *(M)*
+
+A Spotify-Wrapped-style annual (and monthly) recap. High delight-per-effort because it
+**reuses Crag's art and the grungy MTV cel style** — story cards, not a dashboard. Pure
+read-model over existing data; pairs naturally with Phase O (sharing the cards).
+
+| Item | Size | Notes |
+|------|------|-------|
+| **Recap aggregation endpoint** | M | `GET /api/recap?year=2026` → totals: sessions, ticks, hardest boulder + lead, biggest single day, top crag, new grades unlocked, achievements earned, longest streak, send-rate, days-on-rock. All derivable from `sessions` + entries. |
+| **Story-card deck** | M | Full-screen swipeable cards (one stat each), animated in the cel style, Crag reacting on the finale card ("what a year"). Reuses the `AfterCommitOverlay`/Summary motion vocabulary. |
+| **Monthly mini-recap** | S | Same engine, last-30-days, surfaced as a dismissible Dashboard card on the 1st. |
+| **"On this day" / anniversary nudge** | S | "1 year ago you sent your first V5." Cheap nostalgia from `logged_at`/`date`. |
+
+---
+
+### Phase O — Social & sharing *(M–L)*
+
+sendlog is multi-user but **islanded** — no way to see what anyone else has been climbing.
+The deployment model makes this easy: a sendlog instance is **you and your friends** — a
+single, trusted group. That lets us skip the heavy social-network machinery (follow graphs,
+per-item opt-in, public slugs, moderation) and just build a **shared clubhouse feed** where
+the trust boundary is *the instance itself*, not each item.
+
+**O1 — Shared activity feed** *(M)* — the flagship.
+
+A 5th bottom tab opening a cross-user feed of everyone on the instance.
+
+| Item | Size | Notes |
+|------|------|-------|
+| **`FEED` tab** | S | 5th tab in `TabBar.tsx`. Order `HOME · SESSIONS · [LOG IT] · FEED · CHARTS` keeps `LOG IT` dead-centre. New `feed` icon + a `/feed` route in `App.tsx`. |
+| **`GET /api/feed` endpoint** | M | The **one deliberate exception** to the "scope every query by `user_id`" rule — reads across all users on the instance. v1 needs **no new tables**: derive events from existing data — new sessions ("Andy climbed at Northside · 6 ticks, up to V5"), notable sends / PBs, achievement unlocks (Phase H `Achievement` rows), projects finally sent (`Route`). Aggregate, sort by time, paginate. |
+| **`FeedPage`** | M | Reuses the existing `FeedEntry` / `SessionStrip` cards, grouped by day like the session feed; gets `PullToRefresh` for free; Crag cameos on the empty state. Shows the climber's username on each event. |
+| **Per-user feed opt-out** | S | A single `share_to_feed` boolean on `users` (default on), toggled in Settings. The *entire* privacy surface — because the trust boundary is the instance, not the item. |
+
+**O2 — Reactions / "props"** *(M)* — the social hook *(wanted; v2 of the feed)*.
+
+Lightweight emoji reactions on a feed item ("props 💪", "🔥", "🤙"). The thing that turns a
+read-only feed into banter. Needs a small **`reactions` table** (`user_id`, `event` ref,
+`emoji`) — the first real write-path on the feed — plus a `POST /api/feed/{event}/react` and
+a reaction row under each card. Defer until O1 is in use.
+
+**O3 — Export & extras** — sharing *outside* the instance + small social metadata.
+
+| Item | Size | Notes |
+|------|------|-------|
+| **Shareable session/recap card image** | M | Render the Summary certificate (or a Phase N recap card) to canvas → PNG → `navigator.share()` / download. For bragging in group chat / Instagram — outside the instance. No backend, no accounts exposed. Pairs with N. |
+| **Partner tagging** | S | Free-text "climbed with …" on a session (datalist of past partners, same pattern as locations). Enriches feed cards ("climbed with Sam"). |
+| **Beta notes on projects** | S | A notes/comment thread on a `Route` (project) for crux beta — naturally social once the feed exists. |
+
+*Dropped from the earlier draft: opt-in public permalinks. The shared feed makes
+per-item public links redundant for a trusted instance. Cross-instance follow graphs and
+leaderboards remain out of scope until there's demand.*
+
+---
+
+### Phase P — Gym-set & board tracking *(L)*
+
+Indoor reality the model doesn't capture: gyms **reset walls on a schedule**, and board
+climbing (MoonBoard/Kilter/spray) is benchmark-based. Today a re-set "red V4" is
+indistinguishable from last month's. This is the first phase that needs **new tables**.
+
+| Item | Size | Notes |
+|------|------|-------|
+| **`Gym` / `Wall` entities** | M | First-class indoor venues (vs the current free-text `location`). A wall has an angle and a set/reset date. Migrate existing location strings opportunistically. |
+| **Set / reset events** | M | Mark a wall "reset on date X" → ticks attribute to the active set; old set archived (not deleted) so history survives. Enables "you've done 80% of the current set." |
+| **Colour/circuit tracking** | M | Log a tick by hold-colour within a set. **Pairs directly with the Phase J canvas hold colour-picker** (#31) — sample a colour, attach it to the circuit. |
+| **Board climbing (MoonBoard/Kilter)** | L | Benchmark problems as a distinct entry kind: board angle, problem id/name, benchmark flag. Its own mini-pyramid since board grades aren't comparable to outdoor V-scale. |
+
+*Largest schema footprint here — sequence it after the lighter read-model phases unless
+indoor tracking is the priority.*
+
+---
+
+### Phase Q — Training plans *(L)*
+
+The whole app is **reactive** (log what happened); this adds a **prescriptive** side (plan
+what's next). Biggest behaviour-change potential, biggest build. Leans on the existing
+fingerboard/strength loggers and the buddy's rest logic.
+
+| Item | Size | Notes |
+|------|------|-------|
+| **Plan templates** | M | Pick a block (e.g. "4-week power-endurance", "max-strength hangs") → generates scheduled sessions. A `Plan` + `PlannedSession` model, planned-vs-actual matched against real sessions. |
+| **Weekly volume targets + progress rings** | S | Set a weekly tick/session goal, ring fills as you log. Cheap, motivating, reuses session aggregates. |
+| **Fingerboard protocol library** | M | Named hang protocols (max hangs, 7/3 repeaters) with prescribed edge/weight/rest → **prefills the existing fingerboard logger** instead of blank fields. |
+| **Periodisation + deload nudges** | M | Tag a plan phase (base/strength/power/peak/rest); when training-load (Phase M acute:chronic) spikes, the buddy nudges a deload. Closes the loop: M measures load, K's mood reacts, Q prescribes the fix. |
+
+---
+
+### Suggested sequencing
+
+1. **M (data-viz depth)** then **N (year-in-review)** — both pure read-models over data we
+   already have, fast to ship, high delight. N reuses Crag's art.
+2. **O (social)** — ship **O1 (shared feed)** first; it's the highest-value social piece
+   and reuses existing feed cards. Add **O2 (reactions)** once the feed's in daily use, and
+   **O3 (export cards)** alongside N.
+3. **P (gym-sets)** / **Q (training plans)** — the big bets; do these when there's a clear
+   pull, since each adds real schema and a new mental model.
