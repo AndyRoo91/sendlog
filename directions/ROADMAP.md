@@ -210,20 +210,41 @@ read-model over existing data; pairs naturally with Phase O (sharing the cards).
 
 ### Phase O — Social & sharing *(M–L)*
 
-sendlog is multi-user but **islanded** — no way to show anyone a session. Start with
-*export*, not a social graph: 90% of the value (bragging rights) with none of the
-moderation/privacy surface. **Strictly opt-in, per-item.** Defer follow-graphs until there's
-demand.
+sendlog is multi-user but **islanded** — no way to see what anyone else has been climbing.
+The deployment model makes this easy: a sendlog instance is **you and your friends** — a
+single, trusted group. That lets us skip the heavy social-network machinery (follow graphs,
+per-item opt-in, public slugs, moderation) and just build a **shared clubhouse feed** where
+the trust boundary is *the instance itself*, not each item.
+
+**O1 — Shared activity feed** *(M)* — the flagship.
+
+A 5th bottom tab opening a cross-user feed of everyone on the instance.
 
 | Item | Size | Notes |
 |------|------|-------|
-| **Shareable session/recap card image** | M | Render the Summary certificate (or a recap card) to canvas → PNG → `navigator.share()` / download. No backend, no accounts exposed. The flagship — pairs with N. |
-| **Partner tagging** | S | Free-text "climbed with …" on a session (datalist of past partners, same pattern as locations). Pure local metadata, no real social graph. |
-| **Opt-in public permalink** | L | Per-session/per-achievement read-only public link (random slug, revocable). Needs a public unauthenticated read route + share-state column. ⚠️ touches sharing/permissions — gate carefully, default private, explicit per-item toggle only. |
-| **Beta notes on projects** | S | A notes/comment thread on a `Route` (project) for crux beta. Single-user-private first; only becomes "social" if/when permalinks ship. |
+| **`FEED` tab** | S | 5th tab in `TabBar.tsx`. Order `HOME · SESSIONS · [LOG IT] · FEED · CHARTS` keeps `LOG IT` dead-centre. New `feed` icon + a `/feed` route in `App.tsx`. |
+| **`GET /api/feed` endpoint** | M | The **one deliberate exception** to the "scope every query by `user_id`" rule — reads across all users on the instance. v1 needs **no new tables**: derive events from existing data — new sessions ("Andy climbed at Northside · 6 ticks, up to V5"), notable sends / PBs, achievement unlocks (Phase H `Achievement` rows), projects finally sent (`Route`). Aggregate, sort by time, paginate. |
+| **`FeedPage`** | M | Reuses the existing `FeedEntry` / `SessionStrip` cards, grouped by day like the session feed; gets `PullToRefresh` for free; Crag cameos on the empty state. Shows the climber's username on each event. |
+| **Per-user feed opt-out** | S | A single `share_to_feed` boolean on `users` (default on), toggled in Settings. The *entire* privacy surface — because the trust boundary is the instance, not the item. |
 
-*Heavier social (follow feed, leaderboards, partner cross-tagging across accounts) is
-explicitly out of scope until the export-first features prove demand.*
+**O2 — Reactions / "props"** *(M)* — the social hook *(wanted; v2 of the feed)*.
+
+Lightweight emoji reactions on a feed item ("props 💪", "🔥", "🤙"). The thing that turns a
+read-only feed into banter. Needs a small **`reactions` table** (`user_id`, `event` ref,
+`emoji`) — the first real write-path on the feed — plus a `POST /api/feed/{event}/react` and
+a reaction row under each card. Defer until O1 is in use.
+
+**O3 — Export & extras** — sharing *outside* the instance + small social metadata.
+
+| Item | Size | Notes |
+|------|------|-------|
+| **Shareable session/recap card image** | M | Render the Summary certificate (or a Phase N recap card) to canvas → PNG → `navigator.share()` / download. For bragging in group chat / Instagram — outside the instance. No backend, no accounts exposed. Pairs with N. |
+| **Partner tagging** | S | Free-text "climbed with …" on a session (datalist of past partners, same pattern as locations). Enriches feed cards ("climbed with Sam"). |
+| **Beta notes on projects** | S | A notes/comment thread on a `Route` (project) for crux beta — naturally social once the feed exists. |
+
+*Dropped from the earlier draft: opt-in public permalinks. The shared feed makes
+per-item public links redundant for a trusted instance. Cross-instance follow graphs and
+leaderboards remain out of scope until there's demand.*
 
 ---
 
@@ -264,6 +285,8 @@ fingerboard/strength loggers and the buddy's rest logic.
 
 1. **M (data-viz depth)** then **N (year-in-review)** — both pure read-models over data we
    already have, fast to ship, high delight. N reuses Crag's art.
-2. **O (sharing)** — export-first card image is small and pairs with N's cards.
+2. **O (social)** — ship **O1 (shared feed)** first; it's the highest-value social piece
+   and reuses existing feed cards. Add **O2 (reactions)** once the feed's in daily use, and
+   **O3 (export cards)** alongside N.
 3. **P (gym-sets)** / **Q (training plans)** — the big bets; do these when there's a clear
    pull, since each adds real schema and a new mental model.
