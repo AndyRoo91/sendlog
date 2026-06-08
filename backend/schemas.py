@@ -112,6 +112,7 @@ class SessionBase(BaseModel):
     duration_minutes: int | None = None
     notes: str | None = None
     mood: int | None = None  # 1..5 self-rating
+    partner: str | None = None  # free-text "climbed with…"
 
 
 class SessionCreate(SessionBase):
@@ -148,6 +149,7 @@ class SessionPatch(BaseModel):
     duration_minutes: int | None = None
     notes: str | None = None
     mood: int | None = None
+    partner: str | None = None
 
 
 class SessionSummary(SessionBase):
@@ -294,6 +296,20 @@ class RouteSummary(RouteBase):
     model_config = {"from_attributes": True}
 
 
+class RouteNote(BaseModel):
+    """A single beta / progress note on a project, newest last."""
+    id: int
+    route_id: int
+    user_id: int
+    username: str   # denormalised for display (not in DB — populated on read)
+    text: str
+    created_at: datetime
+
+
+class RouteNoteCreate(BaseModel):
+    text: str
+
+
 class RouteDetail(RouteBase):
     id: int
     topo_filename: str | None = None
@@ -301,6 +317,7 @@ class RouteDetail(RouteBase):
     ticks: list[LeadRouteEntry] = []
     boulder_ticks: list[LimitBoulderEntry] = []
     photos: list[EntryPhoto] = []
+    notes_log: list[RouteNote] = []   # beta / progress notes thread
     model_config = {"from_attributes": True}
 
 
@@ -380,6 +397,7 @@ class FeedEvent(BaseModel):
     hardest_lead: str | None = None
     training_only: bool = False     # board/strength day, no boulder/lead ticks
     is_pb: bool = False             # this session set a new all-time PB for the user
+    partner: str | None = None      # "climbed with…" tag from the session
 
     # achievement events
     code: str | None = None

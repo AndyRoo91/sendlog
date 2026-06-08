@@ -27,6 +27,7 @@ class Session(Base):
     location: Mapped[str | None] = mapped_column(String(100))
     duration_minutes: Mapped[int | None] = mapped_column(Integer)
     notes: Mapped[str | None] = mapped_column(Text)
+    partner: Mapped[str | None] = mapped_column(String(200))  # free-text "climbed with…"
     started_at: Mapped[datetime | None] = mapped_column(DateTime)
     ended_at: Mapped[datetime | None] = mapped_column(DateTime)
     mood: Mapped[int | None] = mapped_column(Integer)  # 1..5 self-rating set on session close
@@ -190,3 +191,14 @@ class Reaction(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     __table_args__ = (UniqueConstraint("feed_key", "user_id", "emoji", name="uq_reaction"),)
+
+
+class RouteNote(Base):
+    """A single beta note on a project/route — multiple notes form the project log."""
+    __tablename__ = "route_notes"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    route_id: Mapped[int] = mapped_column(ForeignKey("routes.id"), nullable=False, index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+    text: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)

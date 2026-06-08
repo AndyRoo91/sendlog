@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { format } from "date-fns";
+import { format, formatDistanceToNowStrict } from "date-fns";
 import { api } from "../api/client";
-import type { RouteDetail as RouteDetailT, RoutePin, EntryPhoto } from "../api/client";
+import type { RouteDetail as RouteDetailT, RouteNote, RoutePin, EntryPhoto } from "../api/client";
 import { pinKind } from "../lib/pins";
 import { photoUrl } from "../lib/photos";
 import { STYLE_BY_ID, sendTypeToStyle, Lightbox, StickerRating } from "../ui";
+import { useAuth } from "../lib/auth";
 import TopoPinEditor from "../components/TopoPinEditor";
 import PhotoUploader from "../components/PhotoUploader";
 import ColourPickOverlay from "../components/ColourPickOverlay";
@@ -33,10 +34,86 @@ function PinOverlay({ pins }: { pins: RoutePin[] }) {
   );
 }
 
+function BetaNotes({
+  routeId,
+  notes,
+  currentUserId,
+  onChange,
+}: {
+  routeId: number;
+  notes: RouteNote[];
+  currentUserId: number;
+  onChange: (notes: RouteNote[]) => void;
+}) {
+  const [text, setText] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  async function add(e: React.FormEvent) {
+    e.preventDefault();
+    if (!text.trim()) return;
+    setSaving(true);
+    try {
+      const note = await api.addRouteNote(routeId, text.trim());
+      onChange([...notes, note]);
+      setText("");
+    } finally { setSaving(false); }
+  }
+
+  async function remove(id: number) {
+    await api.deleteRouteNote(id);
+    onChange(notes.filter((n) => n.id !== id));
+  }
+
+  const whenNote = (at: string) => {
+    const iso = /[zZ]|[+-]\d\d:\d\d$/.test(at) ? at : at + "Z";
+    return formatDistanceToNowStrict(new Date(iso), { addSuffix: true });
+  };
+
+  return (
+    <div className="card" style={{ marginBottom: 16 }}>
+      <h2 style={{ marginBottom: 12 }}>Beta notes</h2>
+      {notes.length === 0 && (
+        <p className="muted" style={{ fontSize: 13, marginBottom: 12 }}>
+          No beta yet — add crux tips, sequence notes, conditions…
+        </p>
+      )}
+      <div className="gap-col" style={{ marginBottom: 12 }}>
+        {notes.map((n) => (
+          <div key={n.id} style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+            <div style={{ flex: 1 }}>
+              <span style={{
+                fontFamily: "var(--font-banner)", fontSize: 10, letterSpacing: "0.08em",
+                color: "var(--ink-2)", marginRight: 6,
+              }}>{n.username.toUpperCase()}</span>
+              <span className="muted" style={{ fontSize: 11 }}>{whenNote(n.created_at)}</span>
+              <p style={{ fontSize: 14, marginTop: 3 }}>{n.text}</p>
+            </div>
+            {n.user_id === currentUserId && (
+              <button className="btn-secondary btn-sm" style={{ padding: "2px 7px", fontSize: 11 }}
+                onClick={() => remove(n.id)}>✕</button>
+            )}
+          </div>
+        ))}
+      </div>
+      <form onSubmit={add} className="gap-row" style={{ gap: 8 }}>
+        <input
+          value={text} onChange={(e) => setText(e.target.value)}
+          placeholder="Add a beta note…"
+          style={{ flex: 1, fontFamily: "var(--font-hand)", fontSize: 15 }}
+        />
+        <button type="submit" className="btn-primary btn-sm" disabled={saving || !text.trim()}>
+          {saving ? "…" : "Add"}
+        </button>
+      </form>
+    </div>
+  );
+}
+
 export default function RouteDetail() {
   const { id } = useParams<{ id: string }>();
   const routeId = Number(id);
   const navigate = useNavigate();
+  const { user } = useAuth();
   const fileRef = useRef<HTMLInputElement>(null);
   const [route, setRoute] = useState<RouteDetailT | null>(null);
   const [editing, setEditing] = useState(false);
@@ -180,6 +257,13 @@ export default function RouteDetail() {
           </div>
         )
       )}
+
+      <BetaNotes
+        routeId={routeId}
+        notes={route.notes_log ?? []}
+        currentUserId={user?.id ?? -1}
+        onChange={(notes) => setRoute({ ...route, notes_log: notes })}
+      />
 
       {editing && route.topo_filename && (
         <TopoPinEditor

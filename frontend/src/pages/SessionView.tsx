@@ -589,11 +589,14 @@ function SessionHeader({ session, onUpdate }: { session: SessionDetail; onUpdate
   const [location, setLocation] = useState(session.location ?? "");
   const [duration, setDuration] = useState(session.duration_minutes?.toString() ?? "");
   const [notes, setNotes] = useState(session.notes ?? "");
+  const [partner, setPartner] = useState(session.partner ?? "");
   const [saving, setSaving] = useState(false);
   const [locations, setLocations] = useState<string[]>([]);
+  const [partners, setPartners] = useState<string[]>([]);
 
   useEffect(() => {
     api.listLocations().then(setLocations).catch(() => {});
+    api.listPartners().then(setPartners).catch(() => {});
   }, []);
 
   async function save() {
@@ -603,6 +606,7 @@ function SessionHeader({ session, onUpdate }: { session: SessionDetail; onUpdate
         date, location: location || null,
         duration_minutes: duration ? Number(duration) : null,
         notes: notes || null,
+        partner: partner || null,
       });
       onUpdate(updated);
       setEditing(false);
@@ -624,6 +628,14 @@ function SessionHeader({ session, onUpdate }: { session: SessionDetail; onUpdate
           </div>
           <div><label>Duration (min)</label><input type="number" value={duration} onChange={(e) => setDuration(e.target.value)} placeholder="90" /></div>
         </div>
+        <div>
+          <label>Climbed with</label>
+          <input value={partner} onChange={(e) => setPartner(e.target.value)}
+            placeholder="Sam, Alex…" list="sv-partner-suggestions" autoComplete="off" />
+          <datalist id="sv-partner-suggestions">
+            {partners.map((p) => <option key={p} value={p} />)}
+          </datalist>
+        </div>
         <div><label>Notes</label><textarea value={notes} onChange={(e) => setNotes(e.target.value)} /></div>
         <div className="gap-row" style={{ justifyContent: "flex-end" }}>
           <button className="btn-secondary btn-sm" onClick={() => setEditing(false)}>Cancel</button>
@@ -638,9 +650,12 @@ function SessionHeader({ session, onUpdate }: { session: SessionDetail; onUpdate
       <div className="gap-row" style={{ justifyContent: "space-between" }}>
         <div>
           <h1>{format(new Date(session.date), "EEEE, MMMM d yyyy")}</h1>
-          <div className="gap-row" style={{ marginTop: 4 }}>
+          <div className="gap-row" style={{ marginTop: 4, flexWrap: "wrap" }}>
             {session.location && <span className="muted">{session.location}</span>}
             {session.duration_minutes && <span className="muted">{session.duration_minutes} min</span>}
+            {session.partner && (
+              <span className="muted" style={{ fontStyle: "italic" }}>with {session.partner}</span>
+            )}
           </div>
           {session.notes && <p style={{ marginTop: 6, fontSize: 14 }}>{session.notes}</p>}
         </div>
