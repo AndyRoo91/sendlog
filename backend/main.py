@@ -147,6 +147,8 @@ def _user_to_schema(u: models.User) -> schemas.AuthUser:
     return schemas.AuthUser(
         id=u.id, username=u.username, is_admin=u.is_admin,
         has_pin=u.pin_hash is not None,
+        # Older rows predate the column; treat NULL as opted-in.
+        share_to_feed=u.share_to_feed if u.share_to_feed is not None else True,
     )
 
 
@@ -249,6 +251,19 @@ def verify_pin(
         raise HTTPException(status_code=400, detail="No PIN is set")
     if not auth.verify_password(payload.pin, current_user.pin_hash):
         raise HTTPException(status_code=401, detail="Wrong PIN")
+
+
+@app.post("/api/auth/me/feed_sharing", response_model=schemas.AuthUser)
+def set_feed_sharing(
+    payload: schemas.FeedSharingUpdate,
+    db: DBSession = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    """Toggle whether this user's activity appears in the shared instance feed."""
+    current_user.share_to_feed = payload.share
+    db.commit()
+    db.refresh(current_user)
+    return _user_to_schema(current_user)
 
 
 # ---------------------------------------------------------------------------
@@ -1252,6 +1267,120 @@ def get_buddy(
     current_user: models.User = Depends(auth.get_current_user),
 ):
     return _buddy_state(db, current_user.id)
+
+
+# ---------------------------------------------------------------------------
+# Shared activity feed (Phase O1) — the one read that deliberately spans users.
+# Everyone on a sendlog instance is a trusted friend group; a user can opt out
+# via share_to_feed and they vanish from everyone's feed (including their own).
+# ---------------------------------------------------------------------------
+
+def _hardest_grade(entries, order, *, ewbank_only: bool = False) -> str | None:
+    """Grade string of the hardest *sent* entry, or None if nothing was sent."""
+    best_idx, best_grade = -1, None
+    for e in entries:
+        if e.send_type not in REDPOINT_SENDS:
+            continue
+        if ewbank_only and getattr(e, "grade_system", "ewbank") != "ewbank":
+            continue
+        idx = grade_to_int(e.grade, order)
+        if idx > best_idx:
+            best_idx, best_grade = idx, e.grade
+    return best_grade
+
+
+def _session_at(s: models.Session) -> datetime:
+    """A sortable datetime for a session: the timer start, else midnight on its date."""
+    if s.started_at:
+        return s.started_at
+    try:
+        d = date.fromisoformat(str(s.date)[:10])
+    except ValueError:
+        d = date.today()
+    return datetime.combine(d, datetime.min.time())
+
+
+def _build_feed(db: DBSession, limit: int) -> list[schemas.FeedEvent]:
+    users = {
+        u.id: u
+        for u in db.query(models.User).filter(models.User.share_to_feed.isnot(False)).all()
+    }
+    if not users:
+        return []
+
+    events: list[schemas.FeedEvent] = []
+
+    # --- Session events (one per non-empty session), with running-PB detection ---
+    sessions = (
+        db.query(models.Session)
+        .filter(models.Session.user_id.in_(users.keys()))
+        .all()
+    )
+    by_user: dict[int, list[models.Session]] = {}
+    for s in sessions:
+        by_user.setdefault(s.user_id, []).append(s)
+
+    for uid, user_sessions in by_user.items():
+        user_sessions.sort(key=lambda s: (str(s.date)[:10], s.id))  # chronological for PB
+        run_boulder, run_lead = -1, -1
+        for s in user_sessions:
+            boulders, leads = s.boulder_entries, s.lead_route_entries
+            total = len(boulders) + len(leads)
+            has_training = bool(s.fingerboard_entries or s.strength_entries)
+            if total == 0 and not has_training:
+                continue  # empty placeholder session — not feed-worthy
+
+            b_send = max((grade_to_int(e.grade, BOULDER_GRADE_ORDER)
+                          for e in boulders if e.send_type in REDPOINT_SENDS), default=-1)
+            l_send = max((grade_to_int(e.grade, EWBANK_GRADE_ORDER)
+                          for e in leads
+                          if e.send_type in REDPOINT_SENDS and e.grade_system == "ewbank"),
+                         default=-1)
+            is_pb = (b_send >= 0 and b_send > run_boulder) or (l_send >= 0 and l_send > run_lead)
+            run_boulder, run_lead = max(run_boulder, b_send), max(run_lead, l_send)
+
+            events.append(schemas.FeedEvent(
+                kind="session", user_id=uid, username=users[uid].username,
+                at=_session_at(s), session_id=s.id, date=s.date, location=s.location,
+                total_ticks=total,
+                boulder_sends=sum(1 for e in boulders if e.send_type in REDPOINT_SENDS),
+                lead_sends=sum(1 for e in leads if e.send_type in REDPOINT_SENDS),
+                hardest_boulder=_hardest_grade(boulders, BOULDER_GRADE_ORDER),
+                hardest_lead=_hardest_grade(leads, EWBANK_GRADE_ORDER, ewbank_only=True),
+                training_only=(total == 0 and has_training),
+                is_pb=is_pb,
+            ))
+
+    # --- Achievement events ---
+    defs_by_code = {d.code: d for d in achievements.DEFS}
+    achs = (
+        db.query(models.Achievement)
+        .filter(models.Achievement.user_id.in_(users.keys()))
+        .all()
+    )
+    for a in achs:
+        if a.unlocked_at is None:
+            continue
+        d = defs_by_code.get(a.code)
+        events.append(schemas.FeedEvent(
+            kind="achievement", user_id=a.user_id, username=users[a.user_id].username,
+            at=a.unlocked_at, code=a.code,
+            title=d.title if d else a.code,
+            emoji=d.emoji if d else "🏅",
+        ))
+
+    events.sort(key=lambda e: e.at, reverse=True)
+    return events[:limit]
+
+
+@app.get("/api/feed", response_model=list[schemas.FeedEvent])
+def get_feed(
+    limit: int = 50,
+    db: DBSession = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    """Recent activity across all opted-in users on the instance, newest first."""
+    return _build_feed(db, max(1, min(limit, 200)))
 
 
 @app.get("/api/achievements", response_model=list[schemas.Achievement])

@@ -216,16 +216,16 @@ single, trusted group. That lets us skip the heavy social-network machinery (fol
 per-item opt-in, public slugs, moderation) and just build a **shared clubhouse feed** where
 the trust boundary is *the instance itself*, not each item.
 
-**O1 — Shared activity feed** *(M)* — the flagship.
+**O1 — Shared activity feed** ✅ *(shipped)* — the flagship.
 
 A 5th bottom tab opening a cross-user feed of everyone on the instance.
 
-| Item | Size | Notes |
-|------|------|-------|
-| **`FEED` tab** | S | 5th tab in `TabBar.tsx`. Order `HOME · SESSIONS · [LOG IT] · FEED · CHARTS` keeps `LOG IT` dead-centre. New `feed` icon + a `/feed` route in `App.tsx`. |
-| **`GET /api/feed` endpoint** | M | The **one deliberate exception** to the "scope every query by `user_id`" rule — reads across all users on the instance. v1 needs **no new tables**: derive events from existing data — new sessions ("Andy climbed at Northside · 6 ticks, up to V5"), notable sends / PBs, achievement unlocks (Phase H `Achievement` rows), projects finally sent (`Route`). Aggregate, sort by time, paginate. |
-| **`FeedPage`** | M | Reuses the existing `FeedEntry` / `SessionStrip` cards, grouped by day like the session feed; gets `PullToRefresh` for free; Crag cameos on the empty state. Shows the climber's username on each event. |
-| **Per-user feed opt-out** | S | A single `share_to_feed` boolean on `users` (default on), toggled in Settings. The *entire* privacy surface — because the trust boundary is the instance, not the item. |
+| Item | Size | Status |
+|------|------|--------|
+| **`FEED` tab** | S | ✅ 5th tab in `TabBar.tsx`, order `HOME · SESSIONS · [LOG IT] · FEED · CHARTS` keeps `LOG IT` dead-centre; new `feed` icon + `/feed` route. |
+| **`GET /api/feed` endpoint** | M | ✅ The one deliberate exception to per-user scoping — reads across all opted-in users, no new tables. Session events (location, ticks, sends, hardest grade, running-PB flag) + achievement unlocks, sorted newest-first, `limit` param. |
+| **`FeedPage`** | M | ✅ Reuses `card-flat` styling + `PullToRefresh`; per-climber colour chips, relative timestamps, NEW PB highlight, Crag cameo on the empty state. |
+| **Per-user feed opt-out** | S | ✅ `share_to_feed` boolean on `users` (default on), toggled in Settings via `POST /api/auth/me/feed_sharing`; opting out hides you from everyone's feed. |
 
 **O2 — Reactions / "props"** *(M)* — the social hook *(wanted; v2 of the feed)*.
 
