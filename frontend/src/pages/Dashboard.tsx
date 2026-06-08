@@ -84,6 +84,8 @@ export default function Dashboard() {
     stoked:    { head: "let's go!",        body: "you're sending. Crag is stoked." },
     shakeoff:  { head: "go again.",        body: "shake it off and get back on." },
     resting:   { head: "rest up.",         body: "recovery is training." },
+    cooked:    { head: "cooked, eh?",      body: "arms to jelly — that's a good day's work. rest up." },
+    nervous:   { head: "deep breath.",     body: "new grade nerves are normal. trust the feet." },
   };
 
   const daysSince = sessions[0] ? daysBetween(sessions[0].date) : null;
