@@ -111,6 +111,23 @@ def run_migrations() -> None:
         if "users" in tables and "weekly_tick_goal" not in columns("users"):
             conn.execute(text("ALTER TABLE users ADD COLUMN weekly_tick_goal INTEGER"))
 
+        # Phase Q2: saved fingerboard protocols.
+        if "fingerboard_protocols" not in tables:
+            conn.execute(text("""
+                CREATE TABLE fingerboard_protocols (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL REFERENCES users(id),
+                    name VARCHAR(80) NOT NULL,
+                    edge_mm INTEGER,
+                    added_weight_kg FLOAT,
+                    hang_duration_s INTEGER,
+                    num_sets INTEGER,
+                    notes TEXT,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            """))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_fb_protocols_user_id ON fingerboard_protocols(user_id)"))
+
         # Phase O3: partner tagging on sessions.
         if "sessions" in tables and "partner" not in columns("sessions"):
             conn.execute(text("ALTER TABLE sessions ADD COLUMN partner VARCHAR(200)"))

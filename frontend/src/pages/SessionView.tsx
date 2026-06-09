@@ -7,6 +7,7 @@ import type {
 } from "../api/client";
 import { format } from "date-fns";
 import PhotoUploader from "../components/PhotoUploader";
+import ProtocolPicker from "../components/ProtocolPicker";
 import { photoUrl, thumbUrl } from "../lib/photos";
 import { sendTypeToStyle, STYLE_BY_ID } from "../ui";
 
@@ -231,6 +232,7 @@ function InlineFbForm({ form, setForm, saving, onSave, onCancel }: any) {
   const n = (v: string) => v ? Number(v) : null;
   return (
     <div className="card gap-col" style={{ padding: 12, background: "var(--surface2)" }}>
+      <ProtocolPicker form={form} setForm={setForm} />
       <div className="grid-3">
         <div><label>Edge (mm)</label>
           <input ref={ref} type="number" value={form.edge_mm ?? ""} onChange={(e) => setForm({ ...form, edge_mm: n(e.target.value) })} placeholder="20" min="1" /></div>

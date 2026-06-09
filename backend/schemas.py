@@ -37,6 +37,24 @@ class FingerboardEntry(FingerboardEntryBase):
     model_config = {"from_attributes": True}
 
 
+class FingerboardProtocolBase(BaseModel):
+    name: str
+    edge_mm: int | None = None
+    added_weight_kg: float | None = None
+    hang_duration_s: int | None = None
+    num_sets: int | None = None
+    notes: str | None = None
+
+
+class FingerboardProtocolCreate(FingerboardProtocolBase):
+    pass
+
+
+class FingerboardProtocol(FingerboardProtocolBase):
+    id: int
+    model_config = {"from_attributes": True}
+
+
 class EntryPhoto(BaseModel):
     id: int
     entry_type: str
