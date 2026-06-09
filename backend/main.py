@@ -643,6 +643,8 @@ def add_boulder(
     current_user: models.User = Depends(auth.get_current_user),
 ):
     session = get_session_or_404(session_id, db, current_user)
+    if payload.wall_id is not None:
+        get_owned_wall_or_404(payload.wall_id, db, current_user)  # ownership check
     auto_start(session)
     entry = models.LimitBoulderEntry(session_id=session_id, **payload.model_dump())
     db.add(entry)
@@ -659,6 +661,8 @@ def update_boulder(
     current_user: models.User = Depends(auth.get_current_user),
 ):
     entry = get_owned_entry_or_404(models.LimitBoulderEntry, entry_id, db, current_user)
+    if payload.wall_id is not None:
+        get_owned_wall_or_404(payload.wall_id, db, current_user)
     for field, value in payload.model_dump().items():
         setattr(entry, field, value)
     db.commit()
@@ -715,6 +719,8 @@ def add_lead(
     current_user: models.User = Depends(auth.get_current_user),
 ):
     session = get_session_or_404(session_id, db, current_user)
+    if payload.wall_id is not None:
+        get_owned_wall_or_404(payload.wall_id, db, current_user)  # ownership check
     auto_start(session)
     entry = models.LeadRouteEntry(session_id=session_id, **payload.model_dump())
     entry.route_id = resolve_lead_route_link(payload.route_id, payload.route_name, current_user, db)
@@ -732,6 +738,8 @@ def update_lead(
     current_user: models.User = Depends(auth.get_current_user),
 ):
     entry = get_owned_entry_or_404(models.LeadRouteEntry, entry_id, db, current_user)
+    if payload.wall_id is not None:
+        get_owned_wall_or_404(payload.wall_id, db, current_user)
     for field, value in payload.model_dump().items():
         setattr(entry, field, value)
     db.commit()
@@ -1795,17 +1803,66 @@ def get_gym_or_404(gym_id: int, db: DBSession, user: models.User) -> models.Gym:
     return gym
 
 
+def _wall_tick_dates(wall_id: int, db: DBSession) -> list[date]:
+    """Session dates of every tick attributed to a wall (boulder + lead)."""
+    dates: list[date] = []
+    for e in (db.query(models.LimitBoulderEntry)
+              .join(models.Session).filter(models.LimitBoulderEntry.wall_id == wall_id).all()):
+        dates.append(e.session.date)
+    for e in (db.query(models.LeadRouteEntry)
+              .join(models.Session).filter(models.LeadRouteEntry.wall_id == wall_id).all()):
+        dates.append(e.session.date)
+    return dates
+
+
+def _wall_to_schema(wall: models.Wall, db: DBSession) -> schemas.Wall:
+    """Serialise a wall with its set history + the current set's tick count.
+    A tick belongs to whichever set was active on its session date, so each
+    set's window is [set_on, next set_on)."""
+    sets_sorted = sorted(wall.sets, key=lambda s: s.set_on)
+    dates = _wall_tick_dates(wall.id, db) if sets_sorted else []
+    out: list[schemas.WallSet] = []
+    for i, s in enumerate(sets_sorted):
+        end = sets_sorted[i + 1].set_on if i + 1 < len(sets_sorted) else None
+        cnt = sum(1 for d in dates if d >= s.set_on and (end is None or d < end))
+        out.append(schemas.WallSet(
+            id=s.id, wall_id=s.wall_id, label=s.label, set_on=s.set_on,
+            problem_count=s.problem_count, tick_count=cnt,
+        ))
+    return schemas.Wall(
+        id=wall.id, gym_id=wall.gym_id, name=wall.name, angle=wall.angle,
+        sets=out, current_set=(out[-1] if out else None),
+    )
+
+
+def _gym_to_schema(gym: models.Gym, db: DBSession) -> schemas.Gym:
+    return schemas.Gym(
+        id=gym.id, name=gym.name, floorplan_filename=gym.floorplan_filename,
+        walls=[_wall_to_schema(w, db) for w in gym.walls],
+    )
+
+
+def _wallset_to_schema(s: models.WallSet, db: DBSession) -> schemas.WallSet:
+    wall = db.get(models.Wall, s.wall_id)
+    for ws in _wall_to_schema(wall, db).sets:
+        if ws.id == s.id:
+            return ws
+    return schemas.WallSet(id=s.id, wall_id=s.wall_id, label=s.label,
+                           set_on=s.set_on, problem_count=s.problem_count)
+
+
 @app.get("/api/gyms", response_model=list[schemas.Gym])
 def list_gyms(
     db: DBSession = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_user),
 ):
-    return (
+    gyms = (
         db.query(models.Gym)
         .filter(models.Gym.user_id == current_user.id)
         .order_by(models.Gym.name)
         .all()
     )
+    return [_gym_to_schema(g, db) for g in gyms]
 
 
 @app.post("/api/gyms", response_model=schemas.Gym, status_code=201)
@@ -1820,7 +1877,7 @@ def create_gym(
     db.add(gym)
     db.commit()
     db.refresh(gym)
-    return gym
+    return _gym_to_schema(gym, db)
 
 
 @app.patch("/api/gyms/{gym_id}", response_model=schemas.Gym)
@@ -1837,7 +1894,7 @@ def update_gym(
         gym.name = fields["name"].strip()
     db.commit()
     db.refresh(gym)
-    return gym
+    return _gym_to_schema(gym, db)
 
 
 @app.delete("/api/gyms/{gym_id}", status_code=204)
@@ -1868,7 +1925,7 @@ def create_wall(
     db.add(wall)
     db.commit()
     db.refresh(wall)
-    return wall
+    return _wall_to_schema(wall, db)
 
 
 def get_owned_wall_or_404(wall_id: int, db: DBSession, user: models.User) -> models.Wall:
@@ -1895,7 +1952,7 @@ def update_wall(
         wall.angle = fields["angle"]
     db.commit()
     db.refresh(wall)
-    return wall
+    return _wall_to_schema(wall, db)
 
 
 @app.delete("/api/walls/{wall_id}", status_code=204)
@@ -1905,7 +1962,74 @@ def delete_wall(
     current_user: models.User = Depends(auth.get_current_user),
 ):
     wall = get_owned_wall_or_404(wall_id, db, current_user)
-    db.delete(wall)
+    # Detach ticks that referenced this wall (keep the ticks themselves).
+    db.query(models.LimitBoulderEntry).filter(
+        models.LimitBoulderEntry.wall_id == wall_id
+    ).update({"wall_id": None})
+    db.query(models.LeadRouteEntry).filter(
+        models.LeadRouteEntry.wall_id == wall_id
+    ).update({"wall_id": None})
+    db.delete(wall)  # sets cascade via the relationship
+    db.commit()
+
+
+# --- Sets (reset generations) ---
+
+def get_owned_set_or_404(set_id: int, db: DBSession, user: models.User) -> models.WallSet:
+    s = db.get(models.WallSet, set_id)
+    if not s:
+        raise HTTPException(404, "Set not found")
+    get_owned_wall_or_404(s.wall_id, db, user)  # 404 if the wall/gym isn't the user's
+    return s
+
+
+@app.post("/api/walls/{wall_id}/sets", response_model=schemas.WallSet, status_code=201)
+def create_set(
+    wall_id: int, payload: schemas.WallSetCreate,
+    db: DBSession = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    """Record a reset — a new set becomes the wall's current generation."""
+    get_owned_wall_or_404(wall_id, db, current_user)
+    s = models.WallSet(
+        wall_id=wall_id,
+        label=(payload.label.strip() if payload.label and payload.label.strip() else None),
+        set_on=payload.set_on or date.today(),
+        problem_count=payload.problem_count,
+    )
+    db.add(s)
+    db.commit()
+    db.refresh(s)
+    return _wallset_to_schema(s, db)
+
+
+@app.patch("/api/sets/{set_id}", response_model=schemas.WallSet)
+def update_set(
+    set_id: int, payload: schemas.WallSetUpdate,
+    db: DBSession = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    s = get_owned_set_or_404(set_id, db, current_user)
+    fields = payload.model_dump(exclude_unset=True)
+    if "label" in fields:
+        s.label = (fields["label"].strip() if fields["label"] and fields["label"].strip() else None)
+    if "set_on" in fields and fields["set_on"] is not None:
+        s.set_on = fields["set_on"]
+    if "problem_count" in fields:
+        s.problem_count = fields["problem_count"]
+    db.commit()
+    db.refresh(s)
+    return _wallset_to_schema(s, db)
+
+
+@app.delete("/api/sets/{set_id}", status_code=204)
+def delete_set(
+    set_id: int,
+    db: DBSession = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    s = get_owned_set_or_404(set_id, db, current_user)
+    db.delete(s)
     db.commit()
 
 

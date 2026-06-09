@@ -87,6 +87,7 @@ class LimitBoulderEntry(Base):
     notes: Mapped[str | None] = mapped_column(Text)
     logged_at: Mapped[datetime | None] = mapped_column(DateTime, default=datetime.utcnow)
     route_id: Mapped[int | None] = mapped_column(ForeignKey("routes.id"), index=True)
+    wall_id: Mapped[int | None] = mapped_column(ForeignKey("walls.id"), index=True)  # gym wall
 
     session: Mapped["Session"] = relationship(back_populates="boulder_entries")
 
@@ -119,6 +120,7 @@ class LeadRouteEntry(Base):
     logged_at: Mapped[datetime | None] = mapped_column(DateTime, default=datetime.utcnow)
     route_id: Mapped[int | None] = mapped_column(ForeignKey("routes.id"), index=True)
     rating: Mapped[int | None] = mapped_column(Integer)  # 1..5 friend-sticker rating
+    wall_id: Mapped[int | None] = mapped_column(ForeignKey("walls.id"), index=True)  # gym wall
 
     session: Mapped["Session"] = relationship(back_populates="lead_route_entries")
 
@@ -233,3 +235,21 @@ class Wall(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
 
     gym: Mapped["Gym"] = relationship(back_populates="walls")
+    sets: Mapped[list["WallSet"]] = relationship(
+        back_populates="wall", cascade="all, delete-orphan", order_by="WallSet.set_on"
+    )
+
+
+class WallSet(Base):
+    """A 'set' — one generation of problems on a wall, between resets. The set with
+    the latest ``set_on`` is the wall's current set; ticks resolve to a set by date."""
+    __tablename__ = "wall_sets"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    wall_id: Mapped[int] = mapped_column(ForeignKey("walls.id"), nullable=False, index=True)
+    label: Mapped[str | None] = mapped_column(String(120))         # e.g. "Jan reset"
+    set_on: Mapped[date] = mapped_column(Date, nullable=False)     # day it went up
+    problem_count: Mapped[int | None] = mapped_column(Integer)     # total problems, for % done
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+
+    wall: Mapped["Wall"] = relationship(back_populates="sets")

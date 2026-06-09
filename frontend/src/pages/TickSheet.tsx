@@ -3,7 +3,7 @@ import { onKey } from "../lib/a11y";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { format } from "date-fns";
 import { api } from "../api/client";
-import type { SessionDetail, BoulderEntry, LeadRouteEntry, RecentCombo } from "../api/client";
+import type { SessionDetail, BoulderEntry, LeadRouteEntry, RecentCombo, Wall } from "../api/client";
 import {
   SessionStrip, ModeToggle,
   FeedEntry, RecentChip, Ribbon, AfterCommitOverlay, AchievementOverlay, Toast,
@@ -83,6 +83,11 @@ export default function TickSheet() {
   const { message: toastMsg, action: toastAction, toast, dismiss: dismissToast } = useToast();
   const confirmEndTimer = useRef<number | null>(null);
   const tickKey = useRef(0);
+  // Gym walls for the session's venue + the "current wall" each tick attaches to.
+  const [walls, setWalls] = useState<Wall[]>([]);
+  const [currentWall, setCurrentWall] = useState<number | null>(null);
+  const currentWallRef = useRef<number | null>(null);
+  function pickWall(id: number | null) { setCurrentWall(id); currentWallRef.current = id; }
 
   const refreshRecents = useCallback(() => {
     api.getRecentCombos(sessionId).then(setRecents).catch(() => {});
@@ -93,6 +98,15 @@ export default function TickSheet() {
     refreshRecents();
     api.listRouteNames().then(setRouteNames).catch(() => {});
   }, [sessionId, refreshRecents]);
+
+  // Load the session gym's walls so ticks can attach to a wall (gym-set tracking).
+  const gymId = session?.gym_id ?? null;
+  useEffect(() => {
+    if (gymId == null) return;
+    api.listGyms()
+      .then((gs) => setWalls(gs.find((g) => g.id === gymId)?.walls ?? []))
+      .catch(() => {});
+  }, [gymId]);
 
   useEffect(() => { localStorage.setItem("sendlog.mode", mode); }, [mode]);
   useEffect(() => { localStorage.setItem("sendlog.leadSystem", gradeSystem); }, [gradeSystem]);
@@ -188,6 +202,7 @@ export default function TickSheet() {
       // also doubles as the queue clientId so a background sync can find it.
       const tempId = -(Date.now() + tickKey.current);
       const nowISO = new Date().toISOString();
+      const wallId = currentWallRef.current;
       const payload =
         committedMode === "lead"
           ? {
@@ -198,8 +213,9 @@ export default function TickSheet() {
               attempts: 1,
               falls: opts?.falls ?? 0,
               notes: null,
+              wall_id: wallId,
             }
-          : { grade, send_type: STYLE_TO_SEND_TYPE[styleId], attempts: null, notes: null };
+          : { grade, send_type: STYLE_TO_SEND_TYPE[styleId], attempts: null, notes: null, wall_id: wallId };
 
       // Show the tick immediately — even with no signal — so logging never
       // stalls on the network. We reconcile (or roll back) once we know.
@@ -419,6 +435,34 @@ export default function TickSheet() {
       )}
 
       <ModeToggle active={mode} onChange={(m) => { setMode(m); setSelected(null); }} />
+
+      {/* Gym-set tracking: which wall am I on? Ticks attach to its current set. */}
+      {walls.length > 0 && (
+        <div style={{ padding: "8px 16px 0" }}>
+          <label style={{ display: "block", marginBottom: 4 }}>On wall · optional</label>
+          <div className="gap-row" style={{ gap: 6, overflowX: "auto", paddingBottom: 2 }}>
+            {[{ id: null as number | null, name: "—" }, ...walls].map((w) => {
+              const active = currentWall === w.id;
+              return (
+                <div key={w.id ?? "none"} role="button" tabIndex={0}
+                  aria-pressed={active}
+                  onClick={() => pickWall(w.id)} onKeyDown={onKey(() => pickWall(w.id))}
+                  className="chunky"
+                  style={{
+                    padding: "5px 11px", whiteSpace: "nowrap", cursor: "pointer",
+                    fontFamily: "var(--font-banner)", fontSize: 11, letterSpacing: "0.05em",
+                    border: "var(--b) solid var(--ink)",
+                    color: active ? "var(--cream)" : "var(--ink)",
+                    background: active ? "var(--cobalt)" : "transparent",
+                    boxShadow: active ? "2px 2px 0 var(--ink)" : "none",
+                  }}>
+                  {w.name}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Lead-only: route name + grade system chips */}
       {mode === "lead" && (

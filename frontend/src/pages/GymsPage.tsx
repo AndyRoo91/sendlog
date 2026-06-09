@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
+import { format } from "date-fns";
 import { api } from "../api/client";
-import type { Gym, Wall } from "../api/client";
+import type { Gym, Wall, WallSet } from "../api/client";
 import { Ribbon, Toast } from "../ui";
 import { useToast } from "../lib/useToast";
 
@@ -9,6 +10,74 @@ function angleLabel(angle?: number | null): string {
   if (angle === 0) return "vertical";
   if (angle < 0) return `${Math.abs(angle)}° slab`;
   return `${angle}° overhang`;
+}
+
+/** "2026-03-15" → "Mar 15" without UTC drift. */
+function setDate(iso: string): string {
+  return format(new Date(iso + "T00:00:00"), "MMM d");
+}
+
+function progressLabel(s: WallSet): string {
+  return s.problem_count != null ? `${s.tick_count}/${s.problem_count} done` : `${s.tick_count} logged`;
+}
+
+/** Set history + reset control for one wall. */
+function SetSection({ wall, onChanged, onError }: {
+  wall: Wall; onChanged: () => void; onError: (m: string) => void;
+}) {
+  const cur = wall.current_set ?? null;
+  const [showHistory, setShowHistory] = useState(false);
+  const [count, setCount] = useState(cur?.problem_count?.toString() ?? "");
+
+  async function markReset() {
+    try { await api.createSet(wall.id, {}); onChanged(); }
+    catch { onError("Couldn't record the reset."); }
+  }
+  async function saveCount() {
+    if (!cur) return;
+    const v = count === "" ? null : Number(count);
+    if (v === (cur.problem_count ?? null)) return;
+    try { await api.updateSet(cur.id, { problem_count: v }); onChanged(); }
+    catch { onError("Couldn't update the set."); }
+  }
+
+  const past = wall.sets.filter((s) => !cur || s.id !== cur.id);
+
+  return (
+    <div style={{ marginTop: 6, paddingLeft: 10, borderLeft: "2px solid var(--ink-2)" }}>
+      {cur ? (
+        <div className="gap-row" style={{ gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+          <span style={{ fontFamily: "var(--font-banner)", fontSize: 10, letterSpacing: "0.06em", color: "var(--sea)" }}>
+            ★ SET {setDate(cur.set_on)}{cur.label ? ` · ${cur.label}` : ""}
+          </span>
+          <span className="muted" style={{ fontSize: 12 }}>{progressLabel(cur)}</span>
+          <span className="muted" style={{ fontSize: 11 }}>of</span>
+          <input type="number" value={count} onChange={(e) => setCount(e.target.value)} onBlur={saveCount}
+            placeholder="?" title="Total problems in this set"
+            style={{ width: 54, padding: "2px 6px", fontFamily: "var(--font-hand)", fontSize: 14 }} />
+          <button className="btn-secondary btn-sm" style={{ padding: "2px 8px", fontSize: 10 }} onClick={markReset}>↻ RESET</button>
+        </div>
+      ) : (
+        <button className="btn-secondary btn-sm" style={{ padding: "3px 9px", fontSize: 10 }} onClick={markReset}>
+          ↻ MARK A RESET
+        </button>
+      )}
+
+      {past.length > 0 && (
+        <div style={{ marginTop: 4 }}>
+          <span role="button" tabIndex={0} onClick={() => setShowHistory((v) => !v)}
+            className="muted" style={{ fontSize: 11, cursor: "pointer", fontStyle: "italic" }}>
+            {showHistory ? "▾" : "▸"} {past.length} past set{past.length === 1 ? "" : "s"}
+          </span>
+          {showHistory && past.map((s) => (
+            <div key={s.id} className="muted" style={{ fontSize: 11, marginTop: 2 }}>
+              {setDate(s.set_on)}{s.label ? ` · ${s.label}` : ""} — {progressLabel(s)}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function WallRow({ wall, onChanged, onError }: {
@@ -46,17 +115,20 @@ function WallRow({ wall, onChanged, onError }: {
   }
 
   return (
-    <div className="gap-row" style={{ justifyContent: "space-between", alignItems: "center", marginTop: 6 }}>
-      <div>
-        <span style={{ fontFamily: "var(--font-banner)", fontSize: 12, letterSpacing: "0.05em" }}>{wall.name}</span>
-        {wall.angle != null && (
-          <span className="muted" style={{ marginLeft: 8, fontSize: 12 }}>{angleLabel(wall.angle)}</span>
-        )}
+    <div style={{ marginTop: 8 }}>
+      <div className="gap-row" style={{ justifyContent: "space-between", alignItems: "center" }}>
+        <div>
+          <span style={{ fontFamily: "var(--font-banner)", fontSize: 12, letterSpacing: "0.05em" }}>{wall.name}</span>
+          {wall.angle != null && (
+            <span className="muted" style={{ marginLeft: 8, fontSize: 12 }}>{angleLabel(wall.angle)}</span>
+          )}
+        </div>
+        <div className="gap-row" style={{ gap: 6 }}>
+          <button className="btn-secondary btn-sm" style={{ padding: "2px 8px", fontSize: 11 }} onClick={() => setEditing(true)}>Edit</button>
+          <button className="btn-secondary btn-sm" style={{ padding: "2px 8px", fontSize: 11 }} onClick={remove}>✕</button>
+        </div>
       </div>
-      <div className="gap-row" style={{ gap: 6 }}>
-        <button className="btn-secondary btn-sm" style={{ padding: "2px 8px", fontSize: 11 }} onClick={() => setEditing(true)}>Edit</button>
-        <button className="btn-secondary btn-sm" style={{ padding: "2px 8px", fontSize: 11 }} onClick={remove}>✕</button>
-      </div>
+      <SetSection wall={wall} onChanged={onChanged} onError={onError} />
     </div>
   );
 }
