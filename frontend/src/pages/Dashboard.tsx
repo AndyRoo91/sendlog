@@ -6,6 +6,7 @@ import { format } from "date-fns";
 import { ICON, Ribbon, Crag, lobbyCondition } from "../ui";
 import type { CragState } from "../ui";
 import { isDuckOn, setDuck, useDuckMode, useKonami } from "../lib/duckMode";
+import WeeklyGoals from "../components/WeeklyGoals";
 
 interface StatProps {
   label: string;
@@ -149,6 +150,9 @@ export default function Dashboard() {
           </div>
         </Link>
       )}
+
+      <WeeklyGoals />
+
       {nudge && (
         <div className="card-flat" style={{
           padding: "10px 14px", marginBottom: 16, background: nudge.color,

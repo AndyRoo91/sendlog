@@ -15,6 +15,9 @@ class User(Base):
     is_admin: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     # When False, this user's activity is hidden from the shared instance feed.
     share_to_feed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    # Weekly training goals (Phase Q1) — nullable = unset.
+    weekly_session_goal: Mapped[int | None] = mapped_column(Integer)
+    weekly_tick_goal: Mapped[int | None] = mapped_column(Integer)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
 
 
