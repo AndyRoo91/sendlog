@@ -405,10 +405,13 @@ def create_session(
     db: DBSession = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_user),
 ):
+    if payload.gym_id is not None:
+        get_gym_or_404(payload.gym_id, db, current_user)  # ownership check
     session = models.Session(
         user_id=current_user.id,
         date=payload.date,
         location=payload.location,
+        gym_id=payload.gym_id,
         duration_minutes=payload.duration_minutes,
         notes=payload.notes,
         mood=payload.mood,
@@ -439,7 +442,10 @@ def patch_session(
     current_user: models.User = Depends(auth.get_current_user),
 ):
     session = get_session_or_404(session_id, db, current_user)
-    for field, value in payload.model_dump(exclude_unset=True).items():
+    fields = payload.model_dump(exclude_unset=True)
+    if fields.get("gym_id") is not None:
+        get_gym_or_404(fields["gym_id"], db, current_user)  # ownership check
+    for field, value in fields.items():
         setattr(session, field, value)
     db.commit()
     db.refresh(session)
@@ -1771,6 +1777,135 @@ def delete_route_note(
     if note.user_id != current_user.id:
         raise HTTPException(403, "Not your note")
     db.delete(note)
+    db.commit()
+
+
+# ---------------------------------------------------------------------------
+# Gyms + walls (Phase P1)
+# ---------------------------------------------------------------------------
+
+def get_gym_or_404(gym_id: int, db: DBSession, user: models.User) -> models.Gym:
+    gym = (
+        db.query(models.Gym)
+        .filter(models.Gym.id == gym_id, models.Gym.user_id == user.id)
+        .first()
+    )
+    if not gym:
+        raise HTTPException(404, "Gym not found")
+    return gym
+
+
+@app.get("/api/gyms", response_model=list[schemas.Gym])
+def list_gyms(
+    db: DBSession = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    return (
+        db.query(models.Gym)
+        .filter(models.Gym.user_id == current_user.id)
+        .order_by(models.Gym.name)
+        .all()
+    )
+
+
+@app.post("/api/gyms", response_model=schemas.Gym, status_code=201)
+def create_gym(
+    payload: schemas.GymCreate,
+    db: DBSession = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    if not payload.name.strip():
+        raise HTTPException(400, "Gym name cannot be empty")
+    gym = models.Gym(user_id=current_user.id, name=payload.name.strip())
+    db.add(gym)
+    db.commit()
+    db.refresh(gym)
+    return gym
+
+
+@app.patch("/api/gyms/{gym_id}", response_model=schemas.Gym)
+def update_gym(
+    gym_id: int, payload: schemas.GymUpdate,
+    db: DBSession = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    gym = get_gym_or_404(gym_id, db, current_user)
+    fields = payload.model_dump(exclude_unset=True)
+    if "name" in fields:
+        if not (fields["name"] or "").strip():
+            raise HTTPException(400, "Gym name cannot be empty")
+        gym.name = fields["name"].strip()
+    db.commit()
+    db.refresh(gym)
+    return gym
+
+
+@app.delete("/api/gyms/{gym_id}", status_code=204)
+def delete_gym(
+    gym_id: int,
+    db: DBSession = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    gym = get_gym_or_404(gym_id, db, current_user)
+    # Detach sessions that referenced this gym (keep the sessions themselves).
+    db.query(models.Session).filter(
+        models.Session.gym_id == gym_id
+    ).update({"gym_id": None})
+    db.delete(gym)  # walls cascade via the relationship
+    db.commit()
+
+
+@app.post("/api/gyms/{gym_id}/walls", response_model=schemas.Wall, status_code=201)
+def create_wall(
+    gym_id: int, payload: schemas.WallCreate,
+    db: DBSession = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    get_gym_or_404(gym_id, db, current_user)  # ownership check
+    if not payload.name.strip():
+        raise HTTPException(400, "Wall name cannot be empty")
+    wall = models.Wall(gym_id=gym_id, name=payload.name.strip(), angle=payload.angle)
+    db.add(wall)
+    db.commit()
+    db.refresh(wall)
+    return wall
+
+
+def get_owned_wall_or_404(wall_id: int, db: DBSession, user: models.User) -> models.Wall:
+    wall = db.get(models.Wall, wall_id)
+    if not wall:
+        raise HTTPException(404, "Wall not found")
+    get_gym_or_404(wall.gym_id, db, user)  # 404 if the parent gym isn't the user's
+    return wall
+
+
+@app.patch("/api/walls/{wall_id}", response_model=schemas.Wall)
+def update_wall(
+    wall_id: int, payload: schemas.WallUpdate,
+    db: DBSession = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    wall = get_owned_wall_or_404(wall_id, db, current_user)
+    fields = payload.model_dump(exclude_unset=True)
+    if "name" in fields:
+        if not (fields["name"] or "").strip():
+            raise HTTPException(400, "Wall name cannot be empty")
+        wall.name = fields["name"].strip()
+    if "angle" in fields:
+        wall.angle = fields["angle"]
+    db.commit()
+    db.refresh(wall)
+    return wall
+
+
+@app.delete("/api/walls/{wall_id}", status_code=204)
+def delete_wall(
+    wall_id: int,
+    db: DBSession = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    wall = get_owned_wall_or_404(wall_id, db, current_user)
+    db.delete(wall)
     db.commit()
 
 

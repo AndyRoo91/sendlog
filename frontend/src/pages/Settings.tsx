@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { api } from "../api/client";
 import { useAuth } from "../lib/auth";
 import { Ribbon } from "../ui";
@@ -232,6 +233,21 @@ export default function Settings({ onLockNow }: SettingsProps) {
             LOG OUT
           </div>
         </div>
+      </Section>
+
+      <Section title="GYMS">
+        <p className="muted" style={{ fontSize: 13, marginBottom: 12 }}>
+          Define your regular gyms and their walls, then tag sessions to them.
+        </p>
+        <Link to="/gyms" style={{ textDecoration: "none" }}>
+          <div className="chunky" style={{
+            display: "inline-block", padding: "8px 14px", cursor: "pointer",
+            fontFamily: "var(--font-banner)", fontSize: 11, letterSpacing: "0.08em",
+            color: "var(--cream)", background: "var(--cobalt)", boxShadow: "3px 3px 0 var(--ink)",
+          }}>
+            🧗 MANAGE GYMS →
+          </div>
+        </Link>
       </Section>
 
       <Section title="SHARED FEED"><FeedSharingForm /></Section>

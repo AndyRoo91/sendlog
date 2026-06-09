@@ -109,6 +109,7 @@ class LeadRouteEntry(LeadRouteEntryBase):
 class SessionBase(BaseModel):
     date: DateType
     location: str | None = None
+    gym_id: int | None = None  # optional first-class venue
     duration_minutes: int | None = None
     notes: str | None = None
     mood: int | None = None  # 1..5 self-rating
@@ -146,6 +147,7 @@ class SessionDetail(SessionBase):
 class SessionPatch(BaseModel):
     date: DateType | None = None
     location: str | None = None
+    gym_id: int | None = None
     duration_minutes: int | None = None
     notes: str | None = None
     mood: int | None = None
@@ -360,6 +362,49 @@ class RouteDetail(RouteBase):
     boulder_ticks: list[LimitBoulderEntry] = []
     photos: list[EntryPhoto] = []
     notes_log: list[RouteNote] = []   # beta / progress notes thread
+    model_config = {"from_attributes": True}
+
+
+# ---------------------------------------------------------------------------
+# Gyms + walls (Phase P)
+# ---------------------------------------------------------------------------
+
+class WallBase(BaseModel):
+    name: str
+    angle: int | None = None   # degrees from vertical (− slab, 0 vertical, + overhang)
+
+
+class WallCreate(WallBase):
+    pass
+
+
+class WallUpdate(BaseModel):
+    name: str | None = None
+    angle: int | None = None
+
+
+class Wall(WallBase):
+    id: int
+    gym_id: int
+    model_config = {"from_attributes": True}
+
+
+class GymBase(BaseModel):
+    name: str
+
+
+class GymCreate(GymBase):
+    pass
+
+
+class GymUpdate(BaseModel):
+    name: str | None = None
+
+
+class Gym(GymBase):
+    id: int
+    floorplan_filename: str | None = None  # reserved for a later floorplan feature
+    walls: list[Wall] = []
     model_config = {"from_attributes": True}
 
 

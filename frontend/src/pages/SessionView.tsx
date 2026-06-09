@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { api } from "../api/client";
 import type {
   SessionDetail, WarmupEntry, FingerboardEntry, BoulderEntry,
-  LeadRouteEntry, StrengthEntry, EntryPhoto,
+  LeadRouteEntry, StrengthEntry, EntryPhoto, Gym,
 } from "../api/client";
 import { format } from "date-fns";
 import PhotoUploader from "../components/PhotoUploader";
@@ -590,13 +590,16 @@ function SessionHeader({ session, onUpdate }: { session: SessionDetail; onUpdate
   const [duration, setDuration] = useState(session.duration_minutes?.toString() ?? "");
   const [notes, setNotes] = useState(session.notes ?? "");
   const [partner, setPartner] = useState(session.partner ?? "");
+  const [gymId, setGymId] = useState<number | null>(session.gym_id ?? null);
   const [saving, setSaving] = useState(false);
   const [locations, setLocations] = useState<string[]>([]);
   const [partners, setPartners] = useState<string[]>([]);
+  const [gyms, setGyms] = useState<Gym[]>([]);
 
   useEffect(() => {
     api.listLocations().then(setLocations).catch(() => {});
     api.listPartners().then(setPartners).catch(() => {});
+    api.listGyms().then(setGyms).catch(() => {});
   }, []);
 
   async function save() {
@@ -604,6 +607,7 @@ function SessionHeader({ session, onUpdate }: { session: SessionDetail; onUpdate
     try {
       const updated = await api.patchSession(session.id, {
         date, location: location || null,
+        gym_id: gymId,
         duration_minutes: duration ? Number(duration) : null,
         notes: notes || null,
         partner: partner || null,
@@ -628,6 +632,16 @@ function SessionHeader({ session, onUpdate }: { session: SessionDetail; onUpdate
           </div>
           <div><label>Duration (min)</label><input type="number" value={duration} onChange={(e) => setDuration(e.target.value)} placeholder="90" /></div>
         </div>
+        {gyms.length > 0 && (
+          <div>
+            <label>Gym</label>
+            <select value={gymId ?? ""} onChange={(e) => setGymId(e.target.value ? Number(e.target.value) : null)}
+              style={{ fontFamily: "var(--font-hand)", fontSize: 16 }}>
+              <option value="">— none —</option>
+              {gyms.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
+            </select>
+          </div>
+        )}
         <div>
           <label>Climbed with</label>
           <input value={partner} onChange={(e) => setPartner(e.target.value)}
@@ -651,6 +665,11 @@ function SessionHeader({ session, onUpdate }: { session: SessionDetail; onUpdate
         <div>
           <h1>{format(new Date(session.date), "EEEE, MMMM d yyyy")}</h1>
           <div className="gap-row" style={{ marginTop: 4, flexWrap: "wrap" }}>
+            {session.gym_id != null && gyms.find((g) => g.id === session.gym_id) && (
+              <span className="muted" style={{ fontFamily: "var(--font-banner)", fontSize: 12, letterSpacing: "0.05em" }}>
+                🧗 {gyms.find((g) => g.id === session.gym_id)!.name}
+              </span>
+            )}
             {session.location && <span className="muted">{session.location}</span>}
             {session.duration_minutes && <span className="muted">{session.duration_minutes} min</span>}
             {session.partner && (
