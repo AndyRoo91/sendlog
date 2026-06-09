@@ -384,6 +384,22 @@ class WallSetUpdate(BaseModel):
     problem_count: int | None = None
 
 
+class Circuit(BaseModel):
+    """A colour circuit within a set. tick_count is derived from the colour tags;
+    total_count (optional) is the denominator for N/total progress."""
+    color: str
+    total_count: int | None = None
+    label: str | None = None
+    tick_count: int = 0
+    circuit_id: int | None = None   # SetCircuit row id when a total was set
+
+
+class CircuitUpsert(BaseModel):
+    color: str
+    total_count: int | None = None
+    label: str | None = None
+
+
 class WallSet(BaseModel):
     id: int
     wall_id: int
@@ -391,6 +407,7 @@ class WallSet(BaseModel):
     set_on: DateType
     problem_count: int | None = None
     tick_count: int = 0   # distinct ticks logged on this wall since set_on
+    circuits: list[Circuit] = []   # per-colour breakdown within this set
     model_config = {"from_attributes": True}
 
 

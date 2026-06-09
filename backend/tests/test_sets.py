@@ -174,3 +174,96 @@ def test_update_preserves_wall_and_color_when_passed(client):
     fetched = client.get(f"/api/sessions/{s['id']}").json()["boulder_entries"][0]
     assert fetched["wall_id"] == w["id"]
     assert fetched["hold_color"] == "#f2c200"
+
+
+# ---------------------------------------------------------------------------
+# Phase P3b: colour circuits (per-colour progress within a set)
+# ---------------------------------------------------------------------------
+
+def _color_tick(client, session_id, wall_id, color, grade="V4"):
+    return client.post(f"/api/sessions/{session_id}/boulder",
+                       json={"grade": grade, "send_type": "redpoint", "wall_id": wall_id,
+                             "hold_color": color})
+
+
+def _current_set(client):
+    return client.get("/api/gyms").json()[0]["walls"][0]["current_set"]
+
+
+def test_circuits_auto_discovered_from_ticks(client):
+    _, w = make_wall(client)
+    client.post(f"/api/walls/{w['id']}/sets", json={"set_on": iso(10)})
+    s = client.post("/api/sessions", json={"date": iso(3)}).json()
+    _color_tick(client, s["id"], w["id"], "#f2c200")
+    _color_tick(client, s["id"], w["id"], "#f2c200")
+    _color_tick(client, s["id"], w["id"], "#2a6fdb")
+    circuits = {c["color"]: c for c in _current_set(client)["circuits"]}
+    assert circuits["#f2c200"]["tick_count"] == 2
+    assert circuits["#2a6fdb"]["tick_count"] == 1
+    assert circuits["#f2c200"]["total_count"] is None  # no total set yet
+
+
+def test_circuit_total_gives_progress(client):
+    _, w = make_wall(client)
+    cur = client.post(f"/api/walls/{w['id']}/sets", json={"set_on": iso(10)}).json()
+    s = client.post("/api/sessions", json={"date": iso(3)}).json()
+    _color_tick(client, s["id"], w["id"], "#f2c200")
+    r = client.post(f"/api/sets/{cur['id']}/circuits",
+                    json={"color": "#f2c200", "total_count": 12})
+    assert r.status_code == 201
+    assert r.json()["tick_count"] == 1
+    assert r.json()["total_count"] == 12
+    circ = {c["color"]: c for c in _current_set(client)["circuits"]}["#f2c200"]
+    assert circ["total_count"] == 12
+
+
+def test_circuit_upsert_updates_existing(client):
+    _, w = make_wall(client)
+    cur = client.post(f"/api/walls/{w['id']}/sets", json={"set_on": iso(10)}).json()
+    client.post(f"/api/sets/{cur['id']}/circuits", json={"color": "#d23b3b", "total_count": 8})
+    client.post(f"/api/sets/{cur['id']}/circuits", json={"color": "#d23b3b", "total_count": 15})
+    circuits = _current_set(client)["circuits"]
+    reds = [c for c in circuits if c["color"] == "#d23b3b"]
+    assert len(reds) == 1
+    assert reds[0]["total_count"] == 15
+
+
+def test_circuit_total_without_ticks(client):
+    _, w = make_wall(client)
+    cur = client.post(f"/api/walls/{w['id']}/sets", json={"set_on": iso(10)}).json()
+    # Declare a circuit total before climbing any of that colour.
+    client.post(f"/api/sets/{cur['id']}/circuits", json={"color": "#7b3fb5", "total_count": 20})
+    circ = {c["color"]: c for c in _current_set(client)["circuits"]}["#7b3fb5"]
+    assert circ["tick_count"] == 0
+    assert circ["total_count"] == 20
+
+
+def test_delete_circuit_total(client):
+    _, w = make_wall(client)
+    cur = client.post(f"/api/walls/{w['id']}/sets", json={"set_on": iso(10)}).json()
+    c = client.post(f"/api/sets/{cur['id']}/circuits", json={"color": "#7b3fb5", "total_count": 20}).json()
+    assert client.delete(f"/api/circuits/{c['circuit_id']}").status_code == 204
+    # No ticks of that colour → circuit disappears entirely.
+    assert all(x["color"] != "#7b3fb5" for x in _current_set(client)["circuits"])
+
+
+def test_circuits_scoped_to_set_window(client):
+    _, w = make_wall(client)
+    client.post(f"/api/walls/{w['id']}/sets", json={"set_on": iso(60), "label": "old"})
+    client.post(f"/api/walls/{w['id']}/sets", json={"set_on": iso(10), "label": "new"})
+    s_old = client.post("/api/sessions", json={"date": iso(30)}).json()
+    _color_tick(client, s_old["id"], w["id"], "#f2c200")
+    s_new = client.post("/api/sessions", json={"date": iso(3)}).json()
+    _color_tick(client, s_new["id"], w["id"], "#f2c200")
+    sets = {x["label"]: x for x in client.get("/api/gyms").json()[0]["walls"][0]["sets"]}
+    old_yellow = {c["color"]: c for c in sets["old"]["circuits"]}["#f2c200"]
+    new_yellow = {c["color"]: c for c in sets["new"]["circuits"]}["#f2c200"]
+    assert old_yellow["tick_count"] == 1
+    assert new_yellow["tick_count"] == 1
+
+
+def test_cannot_add_circuit_to_others_set(client, second_client):
+    _, w = make_wall(client)
+    cur = client.post(f"/api/walls/{w['id']}/sets", json={"set_on": iso(0)}).json()
+    assert second_client.post(f"/api/sets/{cur['id']}/circuits",
+                              json={"color": "#f2c200", "total_count": 5}).status_code == 404

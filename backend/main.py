@@ -1815,12 +1815,48 @@ def _wall_tick_dates(wall_id: int, db: DBSession) -> list[date]:
     return dates
 
 
+def _wall_boulder_colors(wall_id: int, db: DBSession) -> list[tuple[date, str]]:
+    """(session date, hold colour) for every coloured boulder tick on a wall."""
+    out: list[tuple[date, str]] = []
+    for e in (db.query(models.LimitBoulderEntry)
+              .join(models.Session)
+              .filter(models.LimitBoulderEntry.wall_id == wall_id,
+                      models.LimitBoulderEntry.hold_color.isnot(None)).all()):
+        out.append((e.session.date, e.hold_color))
+    return out
+
+
+def _set_circuits(s: models.WallSet, end: date | None,
+                  colored_ticks: list[tuple[date, str]]) -> list[schemas.Circuit]:
+    """Per-colour breakdown for a set: tick counts (from colour tags in the set
+    window) merged with any stored circuit totals. Colours appear automatically
+    once climbed; a stored total adds the N/total denominator."""
+    counts: dict[str, int] = {}
+    for d, c in colored_ticks:
+        if d >= s.set_on and (end is None or d < end):
+            counts[c] = counts.get(c, 0) + 1
+    explicit = {sc.color: sc for sc in s.circuits}
+    circuits = [
+        schemas.Circuit(
+            color=color,
+            tick_count=counts.get(color, 0),
+            total_count=explicit[color].total_count if color in explicit else None,
+            label=explicit[color].label if color in explicit else None,
+            circuit_id=explicit[color].id if color in explicit else None,
+        )
+        for color in (counts.keys() | explicit.keys())
+    ]
+    circuits.sort(key=lambda c: (-c.tick_count, c.color))
+    return circuits
+
+
 def _wall_to_schema(wall: models.Wall, db: DBSession) -> schemas.Wall:
-    """Serialise a wall with its set history + the current set's tick count.
-    A tick belongs to whichever set was active on its session date, so each
-    set's window is [set_on, next set_on)."""
+    """Serialise a wall with its set history, the current set's tick count, and
+    each set's colour-circuit breakdown. A tick belongs to whichever set was
+    active on its session date, so each set's window is [set_on, next set_on)."""
     sets_sorted = sorted(wall.sets, key=lambda s: s.set_on)
     dates = _wall_tick_dates(wall.id, db) if sets_sorted else []
+    colored = _wall_boulder_colors(wall.id, db) if sets_sorted else []
     out: list[schemas.WallSet] = []
     for i, s in enumerate(sets_sorted):
         end = sets_sorted[i + 1].set_on if i + 1 < len(sets_sorted) else None
@@ -1828,6 +1864,7 @@ def _wall_to_schema(wall: models.Wall, db: DBSession) -> schemas.Wall:
         out.append(schemas.WallSet(
             id=s.id, wall_id=s.wall_id, label=s.label, set_on=s.set_on,
             problem_count=s.problem_count, tick_count=cnt,
+            circuits=_set_circuits(s, end, colored),
         ))
     return schemas.Wall(
         id=wall.id, gym_id=wall.gym_id, name=wall.name, angle=wall.angle,
@@ -2030,6 +2067,64 @@ def delete_set(
 ):
     s = get_owned_set_or_404(set_id, db, current_user)
     db.delete(s)
+    db.commit()
+
+
+# --- Circuits (per-colour progress within a set) ---
+
+def _circuit_for(s: models.WallSet, color: str, db: DBSession) -> schemas.Circuit:
+    wall = db.get(models.Wall, s.wall_id)
+    for ws in _wall_to_schema(wall, db).sets:
+        if ws.id == s.id:
+            for c in ws.circuits:
+                if c.color == color:
+                    return c
+    return schemas.Circuit(color=color)
+
+
+@app.post("/api/sets/{set_id}/circuits", response_model=schemas.Circuit, status_code=201)
+def upsert_circuit(
+    set_id: int, payload: schemas.CircuitUpsert,
+    db: DBSession = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    """Set (or update) a colour circuit's total for ``N/total`` progress. Upsert
+    keyed on (set, colour)."""
+    s = get_owned_set_or_404(set_id, db, current_user)
+    color = payload.color.strip()
+    if not color:
+        raise HTTPException(400, "Colour required")
+    label = payload.label.strip() if payload.label and payload.label.strip() else None
+    existing = (
+        db.query(models.SetCircuit)
+        .filter_by(wall_set_id=set_id, color=color)
+        .first()
+    )
+    if existing:
+        existing.total_count = payload.total_count
+        existing.label = label
+    else:
+        db.add(models.SetCircuit(
+            wall_set_id=set_id, color=color,
+            total_count=payload.total_count, label=label,
+        ))
+    db.commit()
+    return _circuit_for(s, color, db)
+
+
+@app.delete("/api/circuits/{circuit_id}", status_code=204)
+def delete_circuit(
+    circuit_id: int,
+    db: DBSession = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    """Clear a circuit's stored total. The colour still shows (auto-discovered)
+    if it has ticks."""
+    c = db.get(models.SetCircuit, circuit_id)
+    if not c:
+        raise HTTPException(404, "Circuit not found")
+    get_owned_set_or_404(c.wall_set_id, db, current_user)  # ownership check
+    db.delete(c)
     db.commit()
 
 

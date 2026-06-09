@@ -188,3 +188,18 @@ def run_migrations() -> None:
         # Phase P3a: hold/circuit colour on boulder ticks.
         if "boulder_entries" in tables and "hold_color" not in columns("boulder_entries"):
             conn.execute(text("ALTER TABLE boulder_entries ADD COLUMN hold_color VARCHAR(20)"))
+
+        # Phase P3b: per-colour circuit totals within a set.
+        if "set_circuits" not in tables:
+            conn.execute(text("""
+                CREATE TABLE set_circuits (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    wall_set_id INTEGER NOT NULL REFERENCES wall_sets(id),
+                    color VARCHAR(20) NOT NULL,
+                    total_count INTEGER,
+                    label VARCHAR(60),
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(wall_set_id, color)
+                )
+            """))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_set_circuits_wall_set_id ON set_circuits(wall_set_id)"))

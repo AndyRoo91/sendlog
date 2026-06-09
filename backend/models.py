@@ -254,3 +254,23 @@ class WallSet(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
 
     wall: Mapped["Wall"] = relationship(back_populates="sets")
+    circuits: Mapped[list["SetCircuit"]] = relationship(
+        back_populates="wall_set", cascade="all, delete-orphan"
+    )
+
+
+class SetCircuit(Base):
+    """A colour circuit within a set — stores the optional total (denominator)
+    for ``N/total`` progress. Per-colour tick counts are derived from ticks."""
+    __tablename__ = "set_circuits"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    wall_set_id: Mapped[int] = mapped_column(ForeignKey("wall_sets.id"), nullable=False, index=True)
+    color: Mapped[str] = mapped_column(String(20), nullable=False)   # hex
+    total_count: Mapped[int | None] = mapped_column(Integer)         # problems of this colour
+    label: Mapped[str | None] = mapped_column(String(60))            # optional, e.g. "comp circuit"
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+
+    wall_set: Mapped["WallSet"] = relationship(back_populates="circuits")
+
+    __table_args__ = (UniqueConstraint("wall_set_id", "color", name="uq_set_circuit"),)

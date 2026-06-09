@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { format } from "date-fns";
 import { api } from "../api/client";
-import type { Gym, Wall, WallSet } from "../api/client";
+import type { Gym, Wall, WallSet, Circuit } from "../api/client";
 import { Ribbon, Toast } from "../ui";
 import { useToast } from "../lib/useToast";
+import { STANDARD_COLORS } from "../lib/holdColors";
 
 function angleLabel(angle?: number | null): string {
   if (angle == null) return "";
@@ -19,6 +20,93 @@ function setDate(iso: string): string {
 
 function progressLabel(s: WallSet): string {
   return s.problem_count != null ? `${s.tick_count}/${s.problem_count} done` : `${s.tick_count} logged`;
+}
+
+function ColorDot({ hex, size = 13 }: { hex: string; size?: number }) {
+  return (
+    <span aria-hidden="true" style={{
+      display: "inline-block", width: size, height: size, borderRadius: "50%",
+      background: hex, border: "1.5px solid var(--ink)", flex: "0 0 auto",
+    }} />
+  );
+}
+
+/** One colour circuit: tick count, editable total, clear. */
+function CircuitRow({ setId, c, onChanged, onError }: {
+  setId: number; c: Circuit; onChanged: () => void; onError: (m: string) => void;
+}) {
+  const [total, setTotal] = useState(c.total_count?.toString() ?? "");
+
+  async function saveTotal() {
+    const v = total === "" ? null : Number(total);
+    if (v === (c.total_count ?? null)) return;
+    try { await api.upsertCircuit(setId, { color: c.color, total_count: v }); onChanged(); }
+    catch { onError("Couldn't update the circuit."); }
+  }
+  async function clear() {
+    if (c.circuit_id == null) return;
+    try { await api.deleteCircuit(c.circuit_id); onChanged(); }
+    catch { onError("Couldn't clear the circuit."); }
+  }
+
+  return (
+    <div className="gap-row" style={{ gap: 6, alignItems: "center", marginTop: 3 }}>
+      <ColorDot hex={c.color} />
+      <span className="muted" style={{ fontSize: 12, fontFamily: "var(--font-banner)" }}>{c.tick_count}</span>
+      <span className="muted" style={{ fontSize: 11 }}>/</span>
+      <input type="number" value={total} onChange={(e) => setTotal(e.target.value)} onBlur={saveTotal}
+        placeholder="?" title="Total of this colour"
+        style={{ width: 46, padding: "1px 5px", fontFamily: "var(--font-hand)", fontSize: 13 }} />
+      <span className="muted" style={{ fontSize: 11 }}>{c.total_count != null ? "done" : "logged"}</span>
+      {c.circuit_id != null && (
+        <span role="button" tabIndex={0} onClick={clear}
+          className="muted" style={{ fontSize: 11, cursor: "pointer", marginLeft: 2 }}>✕</span>
+      )}
+    </div>
+  );
+}
+
+/** Colour-circuit breakdown for the current set, with an add-colour palette. */
+function CircuitList({ set, onChanged, onError }: {
+  set: WallSet; onChanged: () => void; onError: (m: string) => void;
+}) {
+  const [adding, setAdding] = useState(false);
+  const used = new Set(set.circuits.map((c) => c.color));
+
+  async function addColor(hex: string) {
+    try { await api.upsertCircuit(set.id, { color: hex, total_count: null }); setAdding(false); onChanged(); }
+    catch { onError("Couldn't add the circuit."); }
+  }
+
+  return (
+    <div style={{ marginTop: 6 }}>
+      {set.circuits.length > 0 && (
+        <div style={{ fontFamily: "var(--font-banner)", fontSize: 9, letterSpacing: "0.08em", color: "var(--ink-2)" }}>
+          CIRCUITS
+        </div>
+      )}
+      {set.circuits.map((c) => (
+        <CircuitRow key={c.color} setId={set.id} c={c} onChanged={onChanged} onError={onError} />
+      ))}
+      {adding ? (
+        <div className="gap-row" style={{ gap: 6, marginTop: 5, flexWrap: "wrap", alignItems: "center" }}>
+          {STANDARD_COLORS.filter((sc) => !used.has(sc.hex)).map((sc) => (
+            <span key={sc.hex} role="button" tabIndex={0} title={sc.name}
+              onClick={() => addColor(sc.hex)} style={{ cursor: "pointer" }}>
+              <ColorDot hex={sc.hex} size={18} />
+            </span>
+          ))}
+          <span role="button" tabIndex={0} onClick={() => setAdding(false)}
+            className="muted" style={{ fontSize: 11, cursor: "pointer" }}>cancel</span>
+        </div>
+      ) : (
+        <span role="button" tabIndex={0} onClick={() => setAdding(true)}
+          className="muted" style={{ fontSize: 11, cursor: "pointer", fontStyle: "italic", display: "inline-block", marginTop: 4 }}>
+          + circuit
+        </span>
+      )}
+    </div>
+  );
 }
 
 /** Set history + reset control for one wall. */
@@ -62,6 +150,8 @@ function SetSection({ wall, onChanged, onError }: {
           ↻ MARK A RESET
         </button>
       )}
+
+      {cur && <CircuitList set={cur} onChanged={onChanged} onError={onError} />}
 
       {past.length > 0 && (
         <div style={{ marginTop: 4 }}>
