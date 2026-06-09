@@ -58,6 +58,49 @@ TEMPLATES: list[PlanTemplate] = [
             PlannedItem(5, "Easy mileage", "Relaxed session, movement quality."),
         ],
     ),
+    PlanTemplate(
+        key="lead_redpoint",
+        name="5-Week Lead Redpoint",
+        description="Push your lead grade — bouldering power feeds route projecting, then "
+                    "full redpoint burns. Keep a hard route as your project throughout.",
+        weeks=5,
+        weekly=[
+            PlannedItem(0, "Limit bouldering", "Power for the hard moves — boulder near your max."),
+            PlannedItem(2, "Route projecting", "Work a route 1–2 grades above your onsight level; "
+                                               "rehearse and link the cruxes."),
+            PlannedItem(4, "Redpoint burns", "Full redpoint attempts on your project, long rests "
+                                             "between goes."),
+        ],
+    ),
+    PlanTemplate(
+        key="lead_endurance",
+        name="4-Week Lead Endurance",
+        description="Build a lead engine: an aerobic base from continuous laps, plus "
+                    "power-endurance intervals and route mileage.",
+        weeks=4,
+        weekly=[
+            PlannedItem(0, "ARC laps", "20–30 min of continuous easy climbing — up-down-climb laps "
+                                       "at a mild, sustainable pump. Never come off the wall."),
+            PlannedItem(2, "4×4s", "Power-endurance intervals: four boulders ×four, minimal rest."),
+            PlannedItem(4, "Route laps", "2–3 laps on a route around your onsight grade, full "
+                                         "recovery between."),
+        ],
+    ),
+    PlanTemplate(
+        key="technique",
+        name="3-Week Technique",
+        description="Movement quality over grade. Deliberate, low-intensity practice — footwork, "
+                    "efficiency and breadth of movement.",
+        weeks=3,
+        weekly=[
+            PlannedItem(0, "Silent feet & flagging", "Easy volume with deliberate footwork — place "
+                                                     "feet silently and use flags to stay in balance."),
+            PlannedItem(2, "Perfect repeats", "Climb a moderate route, then repeat it more "
+                                              "efficiently. Downclimb for control."),
+            PlannedItem(4, "Varied movement", "Slabs, overhangs, dynos, drop-knees — chase breadth "
+                                              "of movement, not difficulty."),
+        ],
+    ),
 ]
 
 BY_KEY = {t.key: t for t in TEMPLATES}

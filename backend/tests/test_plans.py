@@ -95,3 +95,14 @@ def test_plans_are_per_user(client, second_client):
     start = monday()
     client.post("/api/plan", json={"template_key": "power_endurance", "start_date": iso(start)})
     assert second_client.get("/api/plan").json() is None
+
+
+def test_new_templates_present(client):
+    keys = {t["key"] for t in client.get("/api/plan_templates").json()}
+    assert {"lead_redpoint", "lead_endurance", "technique"} <= keys
+
+
+def test_lead_redpoint_generates_five_weeks(client):
+    p = client.post("/api/plan", json={"template_key": "lead_redpoint", "start_date": iso(monday())}).json()
+    assert p["weeks"] == 5
+    assert p["total_count"] == 15  # 5 weeks × 3 sessions
