@@ -262,6 +262,38 @@ class WallSet(Base):
     )
 
 
+class Plan(Base):
+    """An active training plan generated from a template (Phase Q3). One per user;
+    creating a new plan replaces the old. Owns its scheduled sessions."""
+    __tablename__ = "plans"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
+    template_key: Mapped[str] = mapped_column(String(40), nullable=False)
+    name: Mapped[str] = mapped_column(String(120), nullable=False)
+    start_date: Mapped[date] = mapped_column(Date, nullable=False)
+    weeks: Mapped[int] = mapped_column(Integer, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+
+    sessions: Mapped[list["PlannedSession"]] = relationship(
+        back_populates="plan", cascade="all, delete-orphan", order_by="PlannedSession.scheduled_date"
+    )
+
+
+class PlannedSession(Base):
+    """One prescribed session in a plan. 'Done' is derived by matching the date
+    against the user's real logged sessions — no manual bookkeeping."""
+    __tablename__ = "planned_sessions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    plan_id: Mapped[int] = mapped_column(ForeignKey("plans.id"), nullable=False, index=True)
+    scheduled_date: Mapped[date] = mapped_column(Date, nullable=False)
+    title: Mapped[str] = mapped_column(String(120), nullable=False)
+    focus: Mapped[str | None] = mapped_column(Text)
+
+    plan: Mapped["Plan"] = relationship(back_populates="sessions")
+
+
 class FingerboardProtocol(Base):
     """A saved hangboard protocol that prefills the fingerboard logger
     (Phase Q2). Mirrors the FingerboardEntry fields, plus a name."""

@@ -37,6 +37,38 @@ class FingerboardEntry(FingerboardEntryBase):
     model_config = {"from_attributes": True}
 
 
+class PlanTemplateOut(BaseModel):
+    key: str
+    name: str
+    description: str
+    weeks: int
+    sessions_per_week: int
+
+
+class PlannedSessionOut(BaseModel):
+    id: int
+    scheduled_date: DateType
+    title: str
+    focus: str | None = None
+    done: bool = False
+
+
+class PlanDetail(BaseModel):
+    id: int
+    template_key: str
+    name: str
+    start_date: DateType
+    weeks: int
+    sessions: list[PlannedSessionOut] = []
+    done_count: int = 0
+    total_count: int = 0
+
+
+class PlanCreate(BaseModel):
+    template_key: str
+    start_date: DateType
+
+
 class FingerboardProtocolBase(BaseModel):
     name: str
     edge_mm: int | None = None
