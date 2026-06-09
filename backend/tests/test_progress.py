@@ -25,6 +25,8 @@ def test_progress_shape_empty(client):
             {"bucket": "5+", "count": 0},
         ],
         "pb_timeline": [],
+        "daily_activity": [],
+        "session_intensity": [],
     }
 
 
@@ -166,6 +168,68 @@ def test_progress_range_filters_pyramid_and_volume(client):
     pyramid_grades = {row["grade"] for row in p["boulder_send_pyramid"]}
     assert pyramid_grades == {"V5"}
     assert len(p["session_volume"]) == 1
+
+
+# ---------------------------------------------------------------------------
+# Phase M2: contribution heatmap + volume/intensity scatter
+# ---------------------------------------------------------------------------
+
+def test_daily_activity_counts_ticks_per_day(client):
+    s = client.post("/api/sessions", json={"date": _iso(3)}).json()
+    client.post(f"/api/sessions/{s['id']}/boulder", json={"grade": "V3", "send_type": "redpoint"})
+    client.post(f"/api/sessions/{s['id']}/boulder", json={"grade": "V4", "send_type": "working"})
+    p = client.get("/api/progress").json()
+    days = {d["date"]: d["ticks"] for d in p["daily_activity"]}
+    assert days[_iso(3)] == 2
+
+
+def test_daily_activity_sums_multiple_sessions_same_day(client):
+    day = _iso(2)
+    for grade in ("V1", "V2", "V3"):
+        s = client.post("/api/sessions", json={"date": day}).json()
+        client.post(f"/api/sessions/{s['id']}/boulder", json={"grade": grade, "send_type": "redpoint"})
+    p = client.get("/api/progress").json()
+    days = {d["date"]: d["ticks"] for d in p["daily_activity"]}
+    assert days[day] == 3  # one tick per session, same calendar day
+
+
+def test_daily_activity_excludes_empty_days(client):
+    client.post("/api/sessions", json={"date": _iso(1)})  # no ticks
+    p = client.get("/api/progress").json()
+    assert p["daily_activity"] == []
+
+
+def test_session_intensity_carries_both_disciplines(client):
+    s = client.post("/api/sessions", json={"date": _iso(1)}).json()
+    client.post(f"/api/sessions/{s['id']}/boulder", json={"grade": "V5", "send_type": "redpoint"})
+    client.post(f"/api/sessions/{s['id']}/boulder", json={"grade": "V3", "send_type": "flash"})
+    client.post(f"/api/sessions/{s['id']}/lead",
+                json={"grade": "22", "grade_system": "ewbank", "send_type": "redpoint"})
+    p = client.get("/api/progress").json()
+    assert len(p["session_intensity"]) == 1
+    row = p["session_intensity"][0]
+    assert row["total_ticks"] == 3
+    assert row["hardest_boulder_label"] == "V5"   # hardest sent boulder
+    assert row["hardest_lead_label"] == "22"
+
+
+def test_session_intensity_null_when_no_sends(client):
+    s = client.post("/api/sessions", json={"date": _iso(1)}).json()
+    # Only a working (non-send) boulder → counts as a tick but no hardest send.
+    client.post(f"/api/sessions/{s['id']}/boulder", json={"grade": "V6", "send_type": "working"})
+    p = client.get("/api/progress").json()
+    row = p["session_intensity"][0]
+    assert row["total_ticks"] == 1
+    assert row["hardest_boulder"] is None
+    assert row["hardest_lead"] is None
+
+
+def test_session_intensity_respects_range(client):
+    _boulder_session(client, 400, "V2")
+    _boulder_session(client, 5, "V5")
+    p = client.get("/api/progress?range=6w").json()
+    assert len(p["session_intensity"]) == 1
+    assert p["session_intensity"][0]["hardest_boulder_label"] == "V5"
 
 
 def test_progress_volume_excludes_empty_sessions(client):

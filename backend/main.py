@@ -956,6 +956,8 @@ def get_progress(
     volume_points: list[schemas.ProgressPoint] = []
     send_rate_points: list[schemas.ProgressPoint] = []
     falls_points: list[schemas.ProgressPoint] = []
+    daily_ticks: dict[date, int] = {}                         # heatmap (per calendar day)
+    intensity_rows: list[schemas.SessionIntensity] = []       # volume-vs-intensity scatter
 
     all_sessions = (
         db.query(models.Session)
@@ -967,6 +969,28 @@ def get_progress(
         total_ticks = len(s.boulder_entries) + len(s.lead_route_entries)
         if total_ticks == 0:
             continue
+
+        # Heatmap: accumulate climbing ticks per calendar day (sessions may share a day).
+        daily_ticks[s.date] = daily_ticks.get(s.date, 0) + total_ticks
+
+        # Scatter: this session's volume vs its hardest send in each discipline.
+        b_idx = max(
+            (grade_to_int(e.grade, BOULDER_GRADE_ORDER)
+             for e in s.boulder_entries if e.send_type in SEND_TYPES),
+            default=None,
+        )
+        sent_leads = [
+            e for e in s.lead_route_entries
+            if e.send_type in SEND_TYPES and e.grade_system == "ewbank" and ewbank_num(e.grade) >= 0
+        ]
+        l_idx = max((ewbank_num(e.grade) for e in sent_leads), default=None)
+        intensity_rows.append(schemas.SessionIntensity(
+            date=s.date, total_ticks=total_ticks,
+            hardest_boulder=b_idx,
+            hardest_lead=l_idx,
+            hardest_boulder_label=(BOULDER_GRADE_ORDER[b_idx] if b_idx is not None else None),
+            hardest_lead_label=(str(l_idx) if l_idx is not None else None),
+        ))
 
         # Volume: total climbing ticks this session
         volume_points.append(schemas.ProgressPoint(
@@ -1096,7 +1120,14 @@ def get_progress(
                 boulder_grade=boulder_pb_label,
             ))
 
+    daily_activity = [
+        schemas.DailyActivity(date=d, ticks=t)
+        for d, t in sorted(daily_ticks.items())
+    ]
+
     return schemas.ProgressData(
+        daily_activity=daily_activity,
+        session_intensity=intensity_rows,
         fingerboard_max_weight=fb_points,
         boulder_max_grade=bl_points,
         strength_max_weight=st_points,

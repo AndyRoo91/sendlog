@@ -214,6 +214,23 @@ class PBTimelinePoint(BaseModel):
     boulder_grade: str | None = None
 
 
+class DailyActivity(BaseModel):
+    """One calendar day's climbing tick volume — feeds the contribution heatmap."""
+    date: DateType
+    ticks: int
+
+
+class SessionIntensity(BaseModel):
+    """One session's volume vs its hardest send — feeds the volume/intensity scatter.
+    Grades live on two scales, so boulder + lead are carried separately."""
+    date: DateType
+    total_ticks: int
+    hardest_boulder: int | None = None       # V-scale ladder index
+    hardest_lead: int | None = None          # Ewbank number
+    hardest_boulder_label: str | None = None
+    hardest_lead_label: str | None = None
+
+
 class ProgressData(BaseModel):
     fingerboard_max_weight: list[ProgressPoint]
     boulder_max_grade: list[ProgressPoint]
@@ -234,6 +251,9 @@ class ProgressData(BaseModel):
     location_breakdown: list[LocationBreakdownRow] = []
     attempts_histogram: list[AttemptsHistogramRow] = []
     pb_timeline: list[PBTimelinePoint] = []
+    # Phase M additions
+    daily_activity: list[DailyActivity] = []
+    session_intensity: list[SessionIntensity] = []
 
 
 # --- Routes (projects) + pins ---

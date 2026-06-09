@@ -1,14 +1,15 @@
 import { useEffect, useState } from "react";
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, Legend,
+  ResponsiveContainer, Legend, ScatterChart, Scatter,
 } from "recharts";
 import { api } from "../api/client";
 import type {
   ProgressData, ProgressPoint, ProgressRange, LeadPyramidRow, BoulderPyramidRow,
   MoodSendRatePoint, LocationBreakdownRow, AttemptsHistogramRow, PBTimelinePoint,
+  DailyActivity, SessionIntensity,
 } from "../api/client";
-import { format } from "date-fns";
+import { format, subDays, startOfWeek, eachDayOfInterval } from "date-fns";
 import { Ribbon } from "../ui";
 import { onKey } from "../lib/a11y";
 
@@ -358,6 +359,142 @@ function PBTimeline({ points }: { points: PBTimelinePoint[] }) {
   );
 }
 
+/** Days back to render in the heatmap for each range (snapped to whole weeks). */
+const HEATMAP_WINDOW: Record<ProgressRange, number> = {
+  "6w": 42, "6mo": 182, "1y": 365, "all": 0, // "all" derives from earliest activity
+};
+
+// Sea ramp, faint → full. Index 0 is an empty (no-tick) day.
+const HEAT_SHADES = ["transparent", "#cfe3dc", "#8fc4b5", "#4d9d88", "#2d8a73"];
+
+function heatLevel(ticks: number): number {
+  if (ticks <= 0) return 0;
+  if (ticks <= 2) return 1;
+  if (ticks <= 5) return 2;
+  if (ticks <= 9) return 3;
+  return 4;
+}
+
+/** GitHub-style contribution calendar — one cell per day, intensity = tick volume. */
+function ContributionHeatmap({ daily, range }: { daily: DailyActivity[]; range: ProgressRange }) {
+  if (daily.length === 0) {
+    return (
+      <div className={CHART_CARD_CLS} style={{ padding: 16 }}>
+        <div style={CHART_TITLE_STYLE}>Activity Heatmap</div>
+        <p className="muted" style={{ fontSize: 13 }}>No climbing days in this range yet.</p>
+      </div>
+    );
+  }
+
+  const byDate = new Map(daily.map((d) => [d.date, d.ticks]));
+  const today = new Date();
+  const earliest = new Date(daily[0].date);
+  const rawStart = range === "all" ? earliest : subDays(today, HEATMAP_WINDOW[range] - 1);
+  const start = startOfWeek(rawStart, { weekStartsOn: 0 }); // align columns to weeks (Sun)
+  const days = eachDayOfInterval({ start, end: today });
+
+  // Group into week columns of 7 (Sun..Sat).
+  const weeks: Date[][] = [];
+  for (let i = 0; i < days.length; i += 7) weeks.push(days.slice(i, i + 7));
+
+  const CELL = 12, GAP = 3;
+  return (
+    <div className={CHART_CARD_CLS} style={{ padding: 16 }}>
+      <div style={CHART_TITLE_STYLE}>Activity Heatmap (ticks per day)</div>
+      <div style={{ overflowX: "auto", paddingBottom: 4 }}>
+        <div style={{ display: "flex", gap: GAP, width: "max-content" }}>
+          {weeks.map((week, wi) => (
+            <div key={wi} style={{ display: "flex", flexDirection: "column", gap: GAP }}>
+              {week.map((day) => {
+                const key = format(day, "yyyy-MM-dd");
+                const ticks = byDate.get(key) ?? 0;
+                const future = day > today;
+                const level = heatLevel(ticks);
+                return (
+                  <div
+                    key={key}
+                    title={future ? "" : `${format(day, "EEE MMM d")} · ${ticks} tick${ticks === 1 ? "" : "s"}`}
+                    style={{
+                      width: CELL, height: CELL,
+                      background: future ? "transparent" : HEAT_SHADES[level],
+                      border: level === 0 ? "1px solid rgba(26,22,18,0.12)" : "1px solid rgba(26,22,18,0.35)",
+                      opacity: future ? 0 : 1,
+                    }}
+                  />
+                );
+              })}
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="gap-row" style={{ gap: 5, marginTop: 10, alignItems: "center", justifyContent: "flex-end" }}>
+        <span className="muted" style={{ fontSize: 10, fontFamily: "var(--font-banner)", letterSpacing: "0.06em" }}>LESS</span>
+        {HEAT_SHADES.map((c, i) => (
+          <div key={i} style={{
+            width: 11, height: 11, background: i === 0 ? "transparent" : c,
+            border: i === 0 ? "1px solid rgba(26,22,18,0.12)" : "1px solid rgba(26,22,18,0.35)",
+          }} />
+        ))}
+        <span className="muted" style={{ fontSize: 10, fontFamily: "var(--font-banner)", letterSpacing: "0.06em" }}>MORE</span>
+      </div>
+    </div>
+  );
+}
+
+/** Volume vs intensity scatter — one dot per session, x = ticks, y = hardest send. */
+function VolumeIntensityScatter({ rows }: { rows: SessionIntensity[] }) {
+  const boulderPts = rows
+    .filter((r) => r.hardest_boulder != null)
+    .map((r) => ({ ticks: r.total_ticks, grade: r.hardest_boulder!, label: r.hardest_boulder_label, date: r.date }));
+  const leadPts = rows
+    .filter((r) => r.hardest_lead != null)
+    .map((r) => ({ ticks: r.total_ticks, grade: r.hardest_lead!, label: r.hardest_lead_label, date: r.date }));
+
+  if (boulderPts.length === 0 && leadPts.length === 0) {
+    return (
+      <div className={CHART_CARD_CLS} style={{ padding: 16 }}>
+        <div style={CHART_TITLE_STYLE}>Volume vs Intensity</div>
+        <p className="muted" style={{ fontSize: 13 }}>Log sessions with sends to see junk-volume vs quality days.</p>
+      </div>
+    );
+  }
+
+  type Pt = { ticks: number; grade: number; label?: string | null; date: string };
+  const scatterCard = (title: string, pts: Pt[], color: string, yFmt: (v: number) => string) => (
+    <div className={CHART_CARD_CLS} style={{ padding: 16 }}>
+      <div style={CHART_TITLE_STYLE}>{title}</div>
+      {pts.length === 0 ? (
+        <p className="muted" style={{ fontSize: 13 }}>No sends in this range.</p>
+      ) : (
+        <ResponsiveContainer width="100%" height={220}>
+          <ScatterChart margin={{ top: 8, right: 16, bottom: 16, left: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke={GRID} />
+            <XAxis type="number" dataKey="ticks" name="Ticks" stroke="#3a2e22" tick={AXIS}
+              allowDecimals={false} label={{ value: "TICKS", position: "insideBottomRight", offset: -6, fontSize: 10, fontFamily: "var(--font-banner)" }} />
+            <YAxis type="number" dataKey="grade" name="Grade" stroke="#3a2e22" tick={AXIS} width={44}
+              allowDecimals={false} domain={["dataMin - 1", "dataMax + 1"]} tickFormatter={yFmt} />
+            <Tooltip contentStyle={TOOLTIP_STYLE} labelStyle={{ color: INK, fontWeight: 700 }}
+              cursor={{ strokeDasharray: "3 3" }}
+              formatter={(v, name, ctx) => {
+                if (name === "Grade") return [ctx.payload.label ?? yFmt(v as number), "Hardest"];
+                return [v, "Ticks"];
+              }}
+              labelFormatter={() => ""} />
+            <Scatter data={pts} fill={color} stroke={INK} strokeWidth={2} />
+          </ScatterChart>
+        </ResponsiveContainer>
+      )}
+    </div>
+  );
+
+  return (
+    <>
+      {scatterCard("Boulder — Volume vs Intensity", boulderPts, SEA, (v) => BOULDER_GRADES[v] ?? `V${v}`)}
+      {scatterCard("Lead — Volume vs Intensity (Ewbank)", leadPts, COBALT, (v) => String(v))}
+    </>
+  );
+}
+
 const RANGES: { key: ProgressRange; label: string }[] = [
   { key: "6w", label: "6W" },
   { key: "6mo", label: "6MO" },
@@ -423,7 +560,9 @@ export default function Progress() {
         <p className="muted">Loading…</p>
       ) : (
       <div className="gap-col" style={{ opacity: loading ? 0.5 : 1, transition: "opacity 0.15s" }}>
+        <ContributionHeatmap daily={data.daily_activity} range={range} />
         <PBTimeline points={data.pb_timeline} />
+        <VolumeIntensityScatter rows={data.session_intensity} />
         <MoodVsSendRate rows={data.mood_vs_send_rate} />
         <LocationBreakdown rows={data.location_breakdown} />
         <AttemptsHistogram rows={data.attempts_histogram} />
