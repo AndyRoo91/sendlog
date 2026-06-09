@@ -25,6 +25,7 @@ class Session(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
     date: Mapped[date] = mapped_column(Date, nullable=False)
     location: Mapped[str | None] = mapped_column(String(100))
+    gym_id: Mapped[int | None] = mapped_column(ForeignKey("gyms.id"), index=True)  # optional venue
     duration_minutes: Mapped[int | None] = mapped_column(Integer)
     notes: Mapped[str | None] = mapped_column(Text)
     partner: Mapped[str | None] = mapped_column(String(200))  # free-text "climbed with…"
@@ -202,3 +203,33 @@ class RouteNote(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
     text: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+class Gym(Base):
+    """A first-class indoor venue (vs the free-text ``Session.location``). Owns walls.
+    ``floorplan_filename`` is reserved for a later top-down floorplan feature."""
+    __tablename__ = "gyms"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
+    name: Mapped[str] = mapped_column(String(120), nullable=False)
+    floorplan_filename: Mapped[str | None] = mapped_column(String(200))  # reserved (Phase P, later)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+
+    walls: Mapped[list["Wall"]] = relationship(
+        back_populates="gym", cascade="all, delete-orphan", order_by="Wall.id"
+    )
+
+
+class Wall(Base):
+    """A climbable surface within a gym. ``angle`` is degrees from vertical:
+    negative = slab, 0 = vertical, positive = overhang."""
+    __tablename__ = "walls"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    gym_id: Mapped[int] = mapped_column(ForeignKey("gyms.id"), nullable=False, index=True)
+    name: Mapped[str] = mapped_column(String(120), nullable=False)
+    angle: Mapped[int | None] = mapped_column(Integer)  # degrees from vertical
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+
+    gym: Mapped["Gym"] = relationship(back_populates="walls")

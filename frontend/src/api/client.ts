@@ -133,12 +133,27 @@ export interface SessionSummary {
   id: number;
   date: string;
   location?: string | null;
+  gym_id?: number | null;
   duration_minutes?: number | null;
   notes?: string | null;
   started_at?: string | null;
   ended_at?: string | null;
   mood?: number | null;   // 1..5 self-rating
   partner?: string | null;  // "climbed with…"
+}
+
+export interface Wall {
+  id: number;
+  gym_id: number;
+  name: string;
+  angle?: number | null;   // degrees from vertical
+}
+
+export interface Gym {
+  id: number;
+  name: string;
+  floorplan_filename?: string | null;
+  walls: Wall[];
 }
 
 export interface SessionDetail extends SessionSummary {
@@ -348,6 +363,7 @@ export class AuthError extends Error {
 export interface SessionHeader {
   date: string;
   location?: string | null;
+  gym_id?: number | null;
   duration_minutes?: number | null;
   notes?: string | null;
   mood?: number | null;
@@ -496,6 +512,19 @@ export const api = {
 
   // --- Partners ---
   listPartners: () => req<string[]>("/partners"),
+
+  // --- Gyms + walls ---
+  listGyms: () => req<Gym[]>("/gyms"),
+  createGym: (name: string) =>
+    req<Gym>("/gyms", { method: "POST", body: JSON.stringify({ name }) }),
+  updateGym: (id: number, name: string) =>
+    req<Gym>(`/gyms/${id}`, { method: "PATCH", body: JSON.stringify({ name }) }),
+  deleteGym: (id: number) => req<void>(`/gyms/${id}`, { method: "DELETE" }),
+  createWall: (gymId: number, name: string, angle: number | null) =>
+    req<Wall>(`/gyms/${gymId}/walls`, { method: "POST", body: JSON.stringify({ name, angle }) }),
+  updateWall: (id: number, payload: { name?: string; angle?: number | null }) =>
+    req<Wall>(`/walls/${id}`, { method: "PATCH", body: JSON.stringify(payload) }),
+  deleteWall: (id: number) => req<void>(`/walls/${id}`, { method: "DELETE" }),
 
   // --- Export / Import ---
   exportData: async (): Promise<Blob> => {

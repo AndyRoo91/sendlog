@@ -139,3 +139,30 @@ def run_migrations() -> None:
             conn.execute(text(
                 "CREATE INDEX IF NOT EXISTS ix_reactions_feed_key ON reactions(feed_key)"
             ))
+
+        # Phase P1: gyms + walls (first-class indoor venues).
+        if "gyms" not in tables:
+            conn.execute(text("""
+                CREATE TABLE gyms (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL REFERENCES users(id),
+                    name VARCHAR(120) NOT NULL,
+                    floorplan_filename VARCHAR(200),
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            """))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_gyms_user_id ON gyms(user_id)"))
+        if "walls" not in tables:
+            conn.execute(text("""
+                CREATE TABLE walls (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    gym_id INTEGER NOT NULL REFERENCES gyms(id),
+                    name VARCHAR(120) NOT NULL,
+                    angle INTEGER,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            """))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_walls_gym_id ON walls(gym_id)"))
+        # Session → gym link.
+        if "sessions" in tables and "gym_id" not in columns("sessions"):
+            conn.execute(text("ALTER TABLE sessions ADD COLUMN gym_id INTEGER REFERENCES gyms(id)"))

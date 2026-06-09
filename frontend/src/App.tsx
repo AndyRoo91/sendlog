@@ -12,6 +12,7 @@ import Design from "./pages/Design";
 import LoginPage from "./pages/LoginPage";
 import Settings from "./pages/Settings";
 import FeedPage from "./pages/FeedPage";
+import GymsPage from "./pages/GymsPage";
 
 // Heavy pages split into their own chunks
 const Progress = lazy(() => import("./pages/Progress"));
@@ -67,6 +68,7 @@ function Shell() {
             <Route path="/progress" element={<Progress />} />
             <Route path="/routes" element={<RoutesList />} />
             <Route path="/routes/:id" element={<RouteDetail />} />
+            <Route path="/gyms" element={<GymsPage />} />
             <Route path="/settings" element={<Settings onLockNow={lockNow} />} />
             <Route path="/design" element={<Design />} />
           </Routes>
