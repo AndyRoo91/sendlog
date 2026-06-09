@@ -27,6 +27,8 @@ def test_progress_shape_empty(client):
         "pb_timeline": [],
         "daily_activity": [],
         "session_intensity": [],
+        "lead_sends": [],
+        "boulder_sends": [],
     }
 
 
@@ -230,6 +232,69 @@ def test_session_intensity_respects_range(client):
     p = client.get("/api/progress?range=6w").json()
     assert len(p["session_intensity"]) == 1
     assert p["session_intensity"][0]["hardest_boulder_label"] == "V5"
+
+
+# ---------------------------------------------------------------------------
+# Phase M3: pyramid drill-down (per-send detail)
+# ---------------------------------------------------------------------------
+
+def test_boulder_sends_detail(client):
+    s = client.post("/api/sessions", json={"date": _iso(1)}).json()
+    client.post(f"/api/sessions/{s['id']}/boulder",
+                json={"grade": "V5", "send_type": "redpoint", "attempts": 4})
+    client.post(f"/api/sessions/{s['id']}/boulder",
+                json={"grade": "V3", "send_type": "working"})  # not a send
+    p = client.get("/api/progress").json()
+    assert len(p["boulder_sends"]) == 1
+    d = p["boulder_sends"][0]
+    assert d["grade"] == "V5"
+    assert d["send_type"] == "redpoint"
+    assert d["attempts"] == 4
+    assert d["session_id"] == s["id"]
+    assert d["date"] == _iso(1)
+
+
+def test_lead_sends_detail_carries_route_name(client):
+    s = client.post("/api/sessions", json={"date": _iso(1)}).json()
+    client.post(f"/api/sessions/{s['id']}/lead",
+                json={"grade": "22", "grade_system": "ewbank", "send_type": "redpoint",
+                      "route_name": "Test Wall"})
+    p = client.get("/api/progress").json()
+    assert len(p["lead_sends"]) == 1
+    d = p["lead_sends"][0]
+    assert d["grade"] == "22"
+    assert d["route_name"] == "Test Wall"
+    assert d["session_id"] == s["id"]
+
+
+def test_sends_detail_newest_first(client):
+    s_old = client.post("/api/sessions", json={"date": _iso(10)}).json()
+    client.post(f"/api/sessions/{s_old['id']}/boulder", json={"grade": "V4", "send_type": "redpoint"})
+    s_new = client.post("/api/sessions", json={"date": _iso(1)}).json()
+    client.post(f"/api/sessions/{s_new['id']}/boulder", json={"grade": "V6", "send_type": "flash"})
+    p = client.get("/api/progress").json()
+    dates = [d["date"] for d in p["boulder_sends"]]
+    assert dates == [_iso(1), _iso(10)]  # newest first
+
+
+def test_sends_detail_respects_range(client):
+    _boulder_session(client, 400, "V2")  # outside 6w
+    _boulder_session(client, 5, "V5")    # inside
+    p = client.get("/api/progress?range=6w").json()
+    grades = [d["grade"] for d in p["boulder_sends"]]
+    assert grades == ["V5"]
+
+
+def test_sends_counts_match_pyramid(client):
+    s = client.post("/api/sessions", json={"date": _iso(1)}).json()
+    for st in ("redpoint", "flash"):
+        client.post(f"/api/sessions/{s['id']}/boulder", json={"grade": "V5", "send_type": st})
+    p = client.get("/api/progress").json()
+    # Pyramid row V5 has flash=1 + send=1 = 2; detail list should have 2 V5 sends.
+    v5_detail = [d for d in p["boulder_sends"] if d["grade"] == "V5"]
+    assert len(v5_detail) == 2
+    row = next(r for r in p["boulder_send_pyramid"] if r["grade"] == "V5")
+    assert row["flash"] + row["send"] == len(v5_detail)
 
 
 def test_progress_volume_excludes_empty_sessions(client):

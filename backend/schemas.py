@@ -214,6 +214,16 @@ class PBTimelinePoint(BaseModel):
     boulder_grade: str | None = None
 
 
+class SendDetail(BaseModel):
+    """One individual send — feeds the pyramid bar drill-down sheet."""
+    grade: str
+    send_type: str
+    date: DateType
+    session_id: int
+    route_name: str | None = None
+    attempts: int | None = None
+
+
 class DailyActivity(BaseModel):
     """One calendar day's climbing tick volume — feeds the contribution heatmap."""
     date: DateType
@@ -254,6 +264,8 @@ class ProgressData(BaseModel):
     # Phase M additions
     daily_activity: list[DailyActivity] = []
     session_intensity: list[SessionIntensity] = []
+    lead_sends: list[SendDetail] = []        # individual sends for pyramid drill-down
+    boulder_sends: list[SendDetail] = []
 
 
 # --- Routes (projects) + pins ---
