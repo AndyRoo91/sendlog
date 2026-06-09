@@ -359,6 +359,33 @@ export interface WeeklyProgress {
   tick_goal?: number | null;
 }
 
+export interface PlanTemplate {
+  key: string;
+  name: string;
+  description: string;
+  weeks: number;
+  sessions_per_week: number;
+}
+
+export interface PlannedSession {
+  id: number;
+  scheduled_date: string;
+  title: string;
+  focus?: string | null;
+  done: boolean;
+}
+
+export interface PlanDetail {
+  id: number;
+  template_key: string;
+  name: string;
+  start_date: string;
+  weeks: number;
+  sessions: PlannedSession[];
+  done_count: number;
+  total_count: number;
+}
+
 export interface ReactionSummary {
   emoji: string;
   count: number;
@@ -454,6 +481,12 @@ export const api = {
   createProtocol: (p: FingerboardProtocol) =>
     req<FingerboardProtocol>("/protocols", { method: "POST", body: JSON.stringify(p) }),
   deleteProtocol: (id: number) => req<void>(`/protocols/${id}`, { method: "DELETE" }),
+
+  listPlanTemplates: () => req<PlanTemplate[]>("/plan_templates"),
+  getPlan: () => req<PlanDetail | null>("/plan"),
+  createPlan: (template_key: string, start_date: string) =>
+    req<PlanDetail>("/plan", { method: "POST", body: JSON.stringify({ template_key, start_date }) }),
+  deletePlan: () => req<void>("/plan", { method: "DELETE" }),
 
   getFeed: (limit = 50) => req<FeedEvent[]>(`/feed?limit=${limit}`),
   addReaction: (feed_key: string, emoji: string) =>

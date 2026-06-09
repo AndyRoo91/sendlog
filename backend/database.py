@@ -111,6 +111,32 @@ def run_migrations() -> None:
         if "users" in tables and "weekly_tick_goal" not in columns("users"):
             conn.execute(text("ALTER TABLE users ADD COLUMN weekly_tick_goal INTEGER"))
 
+        # Phase Q3: training plans + planned sessions.
+        if "plans" not in tables:
+            conn.execute(text("""
+                CREATE TABLE plans (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL REFERENCES users(id),
+                    template_key VARCHAR(40) NOT NULL,
+                    name VARCHAR(120) NOT NULL,
+                    start_date DATE NOT NULL,
+                    weeks INTEGER NOT NULL,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            """))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_plans_user_id ON plans(user_id)"))
+        if "planned_sessions" not in tables:
+            conn.execute(text("""
+                CREATE TABLE planned_sessions (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    plan_id INTEGER NOT NULL REFERENCES plans(id),
+                    scheduled_date DATE NOT NULL,
+                    title VARCHAR(120) NOT NULL,
+                    focus TEXT
+                )
+            """))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_planned_sessions_plan_id ON planned_sessions(plan_id)"))
+
         # Phase Q2: saved fingerboard protocols.
         if "fingerboard_protocols" not in tables:
             conn.execute(text("""

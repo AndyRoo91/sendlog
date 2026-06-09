@@ -16,6 +16,7 @@ import auth
 import database
 import images
 import models
+import plan_templates
 import schemas
 from database import Base, engine, get_db, run_migrations
 
@@ -352,6 +353,104 @@ def delete_protocol(
     if not p or p.user_id != current_user.id:
         raise HTTPException(404, "Protocol not found")
     db.delete(p)
+    db.commit()
+
+
+# ---------------------------------------------------------------------------
+# Training plans (Phase Q3)
+# ---------------------------------------------------------------------------
+
+def _plan_detail(plan: models.Plan, db: DBSession) -> schemas.PlanDetail:
+    """Serialise a plan with each session's 'done' derived from real sessions
+    logged on the scheduled date within the plan window."""
+    end = plan.start_date + timedelta(days=plan.weeks * 7)
+    real_dates = {
+        s.date
+        for s in db.query(models.Session).filter(
+            models.Session.user_id == plan.user_id,
+            models.Session.date >= plan.start_date,
+            models.Session.date < end,
+        ).all()
+        if s.boulder_entries or s.lead_route_entries or s.fingerboard_entries or s.strength_entries
+    }
+    out = [
+        schemas.PlannedSessionOut(
+            id=ps.id, scheduled_date=ps.scheduled_date, title=ps.title,
+            focus=ps.focus, done=ps.scheduled_date in real_dates,
+        )
+        for ps in sorted(plan.sessions, key=lambda x: (x.scheduled_date, x.id))
+    ]
+    return schemas.PlanDetail(
+        id=plan.id, template_key=plan.template_key, name=plan.name,
+        start_date=plan.start_date, weeks=plan.weeks, sessions=out,
+        done_count=sum(1 for s in out if s.done), total_count=len(out),
+    )
+
+
+@app.get("/api/plan_templates", response_model=list[schemas.PlanTemplateOut])
+def list_plan_templates(current_user: models.User = Depends(auth.get_current_user)):
+    return [
+        schemas.PlanTemplateOut(
+            key=t.key, name=t.name, description=t.description,
+            weeks=t.weeks, sessions_per_week=len(t.weekly),
+        )
+        for t in plan_templates.TEMPLATES
+    ]
+
+
+@app.get("/api/plan", response_model=schemas.PlanDetail | None)
+def get_plan(
+    db: DBSession = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    """The user's active plan (newest), or null if none."""
+    plan = (
+        db.query(models.Plan)
+        .filter(models.Plan.user_id == current_user.id)
+        .order_by(models.Plan.id.desc())
+        .first()
+    )
+    return _plan_detail(plan, db) if plan else None
+
+
+@app.post("/api/plan", response_model=schemas.PlanDetail, status_code=201)
+def create_plan(
+    payload: schemas.PlanCreate,
+    db: DBSession = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    """Start a plan from a template. Replaces any existing plan."""
+    tmpl = plan_templates.BY_KEY.get(payload.template_key)
+    if not tmpl:
+        raise HTTPException(400, "Unknown plan template")
+    for old in db.query(models.Plan).filter(models.Plan.user_id == current_user.id).all():
+        db.delete(old)  # one active plan per user; planned sessions cascade
+    plan = models.Plan(
+        user_id=current_user.id, template_key=tmpl.key, name=tmpl.name,
+        start_date=payload.start_date, weeks=tmpl.weeks,
+    )
+    db.add(plan)
+    db.flush()
+    for w in range(tmpl.weeks):
+        for item in tmpl.weekly:
+            db.add(models.PlannedSession(
+                plan_id=plan.id,
+                scheduled_date=payload.start_date + timedelta(days=w * 7 + item.day),
+                title=item.title, focus=item.focus,
+            ))
+    db.commit()
+    db.refresh(plan)
+    return _plan_detail(plan, db)
+
+
+@app.delete("/api/plan", status_code=204)
+def delete_plan(
+    db: DBSession = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    """Abandon the active plan."""
+    for old in db.query(models.Plan).filter(models.Plan.user_id == current_user.id).all():
+        db.delete(old)
     db.commit()
 
 
