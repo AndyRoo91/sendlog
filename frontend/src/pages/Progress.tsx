@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react";
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, Legend, ScatterChart, Scatter,
+  ResponsiveContainer, Legend, ScatterChart, Scatter, ReferenceArea, ReferenceLine,
 } from "recharts";
 import { api } from "../api/client";
 import type {
   ProgressData, ProgressPoint, ProgressRange, LeadPyramidRow, BoulderPyramidRow,
   MoodSendRatePoint, LocationBreakdownRow, AttemptsHistogramRow, PBTimelinePoint,
-  DailyActivity, SessionIntensity,
+  DailyActivity, SessionIntensity, TrainingLoadPoint,
 } from "../api/client";
 import { format, subDays, startOfWeek, eachDayOfInterval } from "date-fns";
 import { Link } from "react-router-dom";
@@ -596,6 +596,45 @@ function DrillDownSheet({
   );
 }
 
+/** Training-load chart: acute:chronic workload ratio with the 0.8–1.3 "sweet spot" band. */
+function TrainingLoadChart({ points }: { points: TrainingLoadPoint[] }) {
+  if (points.length === 0) {
+    return (
+      <div className={CHART_CARD_CLS} style={{ padding: 16 }}>
+        <div style={CHART_TITLE_STYLE}>Training Load (acute:chronic)</div>
+        <p className="muted" style={{ fontSize: 13 }}>
+          Needs ~4 weeks of history. Keep logging — this tracks ramp-up vs overtraining.
+        </p>
+      </div>
+    );
+  }
+  const data = points.map((p) => ({ date: format(new Date(p.date), "MMM d"), ratio: p.ratio, acute: p.acute, chronic: p.chronic }));
+  const maxRatio = Math.max(1.6, ...points.map((p) => p.ratio));
+  return (
+    <div className={CHART_CARD_CLS} style={{ padding: 16 }}>
+      <div style={CHART_TITLE_STYLE}>Training Load (acute:chronic)</div>
+      <ResponsiveContainer width="100%" height={230}>
+        <LineChart data={data} margin={{ top: 4, right: 16, bottom: 4, left: 0 }}>
+          {/* Sweet spot 0.8–1.3; spike line at 1.5. */}
+          <ReferenceArea y1={0.8} y2={1.3} fill={SEA} fillOpacity={0.12} stroke="none" />
+          <ReferenceLine y={1.5} stroke={RED} strokeDasharray="4 4" strokeWidth={2}
+            label={{ value: "SPIKE", position: "insideTopRight", fontSize: 9, fill: RED, fontFamily: "var(--font-banner)" }} />
+          <CartesianGrid strokeDasharray="3 3" stroke={GRID} />
+          <XAxis dataKey="date" stroke="#3a2e22" tick={AXIS} />
+          <YAxis stroke="#3a2e22" tick={AXIS} width={40} domain={[0, Math.ceil(maxRatio * 10) / 10]} />
+          <Tooltip contentStyle={TOOLTIP_STYLE} labelStyle={{ color: INK, fontWeight: 700 }}
+            formatter={(v, _n, ctx) => [`${v} (${ctx.payload.acute} / ${ctx.payload.chronic})`, "ACWR"]} />
+          <Line type="monotone" dataKey="ratio" name="ACWR" stroke={COBALT} strokeWidth={3}
+            dot={{ r: 3, fill: COBALT, stroke: INK, strokeWidth: 2 }} activeDot={{ r: 6, stroke: INK, strokeWidth: 2 }} />
+        </LineChart>
+      </ResponsiveContainer>
+      <p className="muted" style={{ fontSize: 11, marginTop: 6 }}>
+        Shaded band (0.8–1.3) is the sustainable zone; above the dashed line is a load spike.
+      </p>
+    </div>
+  );
+}
+
 const RANGES: { key: ProgressRange; label: string }[] = [
   { key: "6w", label: "6W" },
   { key: "6mo", label: "6MO" },
@@ -665,6 +704,7 @@ export default function Progress() {
       <div className="gap-col" style={{ opacity: loading ? 0.5 : 1, transition: "opacity 0.15s" }}>
         <ContributionHeatmap daily={data.daily_activity} range={range} />
         <PBTimeline points={data.pb_timeline} />
+        <TrainingLoadChart points={data.training_load} />
         <VolumeIntensityScatter rows={data.session_intensity} />
         <MoodVsSendRate rows={data.mood_vs_send_rate} />
         <LocationBreakdown rows={data.location_breakdown} />

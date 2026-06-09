@@ -240,6 +240,13 @@ export interface SessionIntensity {
   hardest_lead_label?: string | null;
 }
 
+export interface TrainingLoadPoint {
+  date: string;
+  acute: number;
+  chronic: number;
+  ratio: number;
+}
+
 export interface ProgressData {
   fingerboard_max_weight: ProgressPoint[];
   boulder_max_grade: ProgressPoint[];
@@ -260,6 +267,7 @@ export interface ProgressData {
   session_intensity: SessionIntensity[];
   lead_sends: SendDetail[];
   boulder_sends: SendDetail[];
+  training_load: TrainingLoadPoint[];
 }
 
 export interface BuddyState {

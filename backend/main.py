@@ -811,6 +811,39 @@ def _range_since(range_key: str) -> date:
     return date.min  # "all" (and any unrecognised value)
 
 
+def _training_load(db: DBSession, uid: int, since: date) -> list[schemas.TrainingLoadPoint]:
+    """Acute:chronic workload ratio (ACWR) per active day.
+
+    Load = climbing ticks that day. acute = avg daily load over the trailing
+    7 days, chronic = over the trailing 28. The series is built from the
+    *unfiltered* history so chronic windows include load from before the
+    range cutoff; only points on/after ``since`` are returned. Points before
+    28 days of history exist are suppressed (ACWR is noise until then).
+    """
+    loads: dict[date, int] = {}
+    for s in db.query(models.Session).filter(models.Session.user_id == uid).all():
+        n = len(s.boulder_entries) + len(s.lead_route_entries)
+        if n:
+            loads[s.date] = loads.get(s.date, 0) + n
+    if not loads:
+        return []
+
+    warmup_until = min(loads) + timedelta(days=28)
+    points: list[schemas.TrainingLoadPoint] = []
+    for d in sorted(loads):
+        if d < since or d < warmup_until:
+            continue
+        acute = sum(loads.get(d - timedelta(days=k), 0) for k in range(7)) / 7
+        chronic = sum(loads.get(d - timedelta(days=k), 0) for k in range(28)) / 28
+        if chronic <= 0:
+            continue
+        points.append(schemas.TrainingLoadPoint(
+            date=d, acute=round(acute, 2), chronic=round(chronic, 2),
+            ratio=round(acute / chronic, 2),
+        ))
+    return points
+
+
 @app.get("/api/progress", response_model=schemas.ProgressData)
 def get_progress(
     range: str = "all",
@@ -1146,6 +1179,7 @@ def get_progress(
         session_intensity=intensity_rows,
         lead_sends=lead_sends,
         boulder_sends=boulder_sends,
+        training_load=_training_load(db, uid, since),
         fingerboard_max_weight=fb_points,
         boulder_max_grade=bl_points,
         strength_max_weight=st_points,
