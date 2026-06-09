@@ -21,6 +21,7 @@ class PlanTemplate:
     description: str
     weeks: int
     weekly: list[PlannedItem]
+    phases: list[str]   # one phase label per week (base/build/power/peak/deload/skill)
 
 
 TEMPLATES: list[PlanTemplate] = [
@@ -35,6 +36,7 @@ TEMPLATES: list[PlanTemplate] = [
             PlannedItem(2, "4×4s / circuits", "Power-endurance: four boulders ×four, minimal rest."),
             PlannedItem(4, "Lead volume", "Mileage on moderate routes, steady pump."),
         ],
+        phases=["build", "build", "build", "peak"],
     ),
     PlanTemplate(
         key="max_strength",
@@ -46,6 +48,7 @@ TEMPLATES: list[PlanTemplate] = [
             PlannedItem(2, "Limit bouldering", "Max-effort problems, long rests."),
             PlannedItem(4, "Max hangs", "Heavy fingerboard: 7–10s near-max, full rest."),
         ],
+        phases=["build", "build", "build", "peak"],
     ),
     PlanTemplate(
         key="base_fitness",
@@ -57,6 +60,7 @@ TEMPLATES: list[PlanTemplate] = [
             PlannedItem(2, "Endurance laps", "Up-down-up laps on easy routes."),
             PlannedItem(5, "Easy mileage", "Relaxed session, movement quality."),
         ],
+        phases=["base", "base", "base"],
     ),
     PlanTemplate(
         key="lead_redpoint",
@@ -71,6 +75,7 @@ TEMPLATES: list[PlanTemplate] = [
             PlannedItem(4, "Redpoint burns", "Full redpoint attempts on your project, long rests "
                                              "between goes."),
         ],
+        phases=["build", "build", "power", "peak", "peak"],
     ),
     PlanTemplate(
         key="lead_endurance",
@@ -85,6 +90,7 @@ TEMPLATES: list[PlanTemplate] = [
             PlannedItem(4, "Route laps", "2–3 laps on a route around your onsight grade, full "
                                          "recovery between."),
         ],
+        phases=["base", "build", "build", "peak"],
     ),
     PlanTemplate(
         key="technique",
@@ -100,7 +106,16 @@ TEMPLATES: list[PlanTemplate] = [
             PlannedItem(4, "Varied movement", "Slabs, overhangs, dynos, drop-knees — chase breadth "
                                               "of movement, not difficulty."),
         ],
+        phases=["skill", "skill", "skill"],
     ),
 ]
 
 BY_KEY = {t.key: t for t in TEMPLATES}
+
+
+def phase_for(template_key: str, week: int) -> str | None:
+    """The phase label for a 1-based plan week, or None if unknown."""
+    t = BY_KEY.get(template_key)
+    if not t or not t.phases:
+        return None
+    return t.phases[min(max(week, 1), len(t.phases)) - 1]

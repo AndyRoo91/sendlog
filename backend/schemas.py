@@ -62,6 +62,8 @@ class PlanDetail(BaseModel):
     sessions: list[PlannedSessionOut] = []
     done_count: int = 0
     total_count: int = 0
+    current_phase: str | None = None     # this week's periodisation phase
+    deload_suggested: bool = False       # ACWR is spiking — ease off
 
 
 class PlanCreate(BaseModel):
@@ -595,6 +597,7 @@ class BuddyState(BaseModel):
     reason: str         # machine-readable trigger, e.g. "new_pb", "high_falls"
     days_since: int     # days since the most recent session (0 = today)
     build: int = 0      # 0..3 physique tier from all-time hardest send (scrawny→jacked)
+    load_ratio: float | None = None  # current ACWR when nudging a deload (load_spike)
 
 
 # ---------------------------------------------------------------------------

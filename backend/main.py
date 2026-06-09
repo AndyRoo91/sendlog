@@ -380,10 +380,15 @@ def _plan_detail(plan: models.Plan, db: DBSession) -> schemas.PlanDetail:
         )
         for ps in sorted(plan.sessions, key=lambda x: (x.scheduled_date, x.id))
     ]
+    week = (date.today() - plan.start_date).days // 7 + 1
+    week = max(1, min(plan.weeks, week))
+    acwr = _current_acwr(db, plan.user_id)
     return schemas.PlanDetail(
         id=plan.id, template_key=plan.template_key, name=plan.name,
         start_date=plan.start_date, weeks=plan.weeks, sessions=out,
         done_count=sum(1 for s in out if s.done), total_count=len(out),
+        current_phase=plan_templates.phase_for(plan.template_key, week),
+        deload_suggested=acwr is not None and acwr >= DELOAD_ACWR,
     )
 
 
@@ -1012,6 +1017,20 @@ def _range_since(range_key: str) -> date:
     return date.min  # "all" (and any unrecognised value)
 
 
+# Acute:chronic ratio at/above which we nudge a deload (Phase Q4). 1.5 is the
+# commonly-cited high-injury-risk threshold; the sweet spot is 0.8–1.3.
+DELOAD_ACWR = 1.5
+
+
+def _current_acwr(db: DBSession, uid: int) -> float | None:
+    """The most recent acute:chronic workload ratio, or None if not enough
+    history. Drives the buddy's deload nudge + the plan's deload banner."""
+    pts = _training_load(db, uid, date.min)
+    if not pts:
+        return None
+    return max(pts, key=lambda p: p.date).ratio
+
+
 def _training_load(db: DBSession, uid: int, since: date) -> list[schemas.TrainingLoadPoint]:
     """Acute:chronic workload ratio (ACWR) per active day.
 
@@ -1554,6 +1573,13 @@ def _buddy_state(db: DBSession, uid: int) -> schemas.BuddyState:
     if (latest_boulder_send >= 0 and latest_boulder_send > prior_boulder_pb) or \
        (latest_lead_send >= 0 and latest_lead_send > prior_lead_pb):
         return result("stoked", "new_pb")
+
+    # Training load spiking (ACWR ≥ 1.5) → nudge a deload. This is where M4's
+    # acute:chronic signal feeds the buddy's mood and the plan's deload banner.
+    acwr = _current_acwr(db, uid)
+    if acwr is not None and acwr >= DELOAD_ACWR:
+        return schemas.BuddyState(state="cooked", reason="load_spike",
+                                  days_since=days_since, build=build, load_ratio=round(acwr, 2))
 
     # Tried a grade harder than anything sent before, but didn't get it → nervous.
     # Requires an established PB so a first-ever session never reads as "nervous".
