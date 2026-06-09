@@ -195,6 +195,55 @@ function FeedSharingForm() {
   );
 }
 
+function WeeklyGoalsForm() {
+  const { user, setUser } = useAuth();
+  const [sessionGoal, setSessionGoal] = useState(user?.weekly_session_goal?.toString() ?? "");
+  const [tickGoal, setTickGoal] = useState(user?.weekly_tick_goal?.toString() ?? "");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [ok, setOk] = useState<string | null>(null);
+
+  async function save(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null); setOk(null); setBusy(true);
+    try {
+      const updated = await api.setGoals({
+        weekly_session_goal: sessionGoal === "" ? null : Number(sessionGoal),
+        weekly_tick_goal: tickGoal === "" ? null : Number(tickGoal),
+      });
+      setUser(updated);
+      setSessionGoal(updated.weekly_session_goal?.toString() ?? "");
+      setTickGoal(updated.weekly_tick_goal?.toString() ?? "");
+      setOk("Goals saved.");
+    } catch (err) { setError(friendlyError(err)); }
+    finally { setBusy(false); }
+  }
+
+  return (
+    <form onSubmit={save}>
+      <p className="muted" style={{ fontSize: 13, marginBottom: 12 }}>
+        A progress ring on your Dashboard fills as you climb each week (Mon–Sun). Leave blank to hide a ring.
+      </p>
+      <div className="grid-2">
+        <div>
+          <label>Sessions / week</label>
+          <input type="number" inputMode="numeric" min={0} value={sessionGoal}
+            onChange={(e) => setSessionGoal(e.target.value)} placeholder="e.g. 3" />
+        </div>
+        <div>
+          <label>Ticks / week</label>
+          <input type="number" inputMode="numeric" min={0} value={tickGoal}
+            onChange={(e) => setTickGoal(e.target.value)} placeholder="e.g. 40" />
+        </div>
+      </div>
+      <button type="submit" className="btn-primary" disabled={busy} style={{ marginTop: 12 }}>
+        {busy ? "Saving…" : "Save goals"}
+      </button>
+      <FormFeedback error={error} ok={ok} />
+    </form>
+  );
+}
+
 interface SettingsProps {
   onLockNow: () => void;
 }
@@ -250,6 +299,7 @@ export default function Settings({ onLockNow }: SettingsProps) {
         </Link>
       </Section>
 
+      <Section title="WEEKLY GOALS"><WeeklyGoalsForm /></Section>
       <Section title="SHARED FEED"><FeedSharingForm /></Section>
       <Section title="CHANGE PASSWORD"><ChangePasswordForm /></Section>
       <Section title={hasPin ? "PIN" : "SET A PIN"}><PinForm /></Section>

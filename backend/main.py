@@ -150,6 +150,8 @@ def _user_to_schema(u: models.User) -> schemas.AuthUser:
         has_pin=u.pin_hash is not None,
         # Older rows predate the column; treat NULL as opted-in.
         share_to_feed=u.share_to_feed if u.share_to_feed is not None else True,
+        weekly_session_goal=u.weekly_session_goal,
+        weekly_tick_goal=u.weekly_tick_goal,
     )
 
 
@@ -265,6 +267,48 @@ def set_feed_sharing(
     db.commit()
     db.refresh(current_user)
     return _user_to_schema(current_user)
+
+
+@app.post("/api/auth/me/goals", response_model=schemas.AuthUser)
+def set_goals(
+    payload: schemas.GoalsUpdate,
+    db: DBSession = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    """Set weekly training goals. 0 or negative clears a goal."""
+    def clean(v: int | None) -> int | None:
+        return v if (v is not None and v > 0) else None
+    current_user.weekly_session_goal = clean(payload.weekly_session_goal)
+    current_user.weekly_tick_goal = clean(payload.weekly_tick_goal)
+    db.commit()
+    db.refresh(current_user)
+    return _user_to_schema(current_user)
+
+
+@app.get("/api/weekly_progress", response_model=schemas.WeeklyProgress)
+def weekly_progress(
+    db: DBSession = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    """This week's session + tick counts vs the user's goals. Week starts Monday."""
+    today = date.today()
+    week_start = today - timedelta(days=today.weekday())  # Monday
+    sessions = (
+        db.query(models.Session)
+        .filter(models.Session.user_id == current_user.id, models.Session.date >= week_start)
+        .all()
+    )
+    # Count sessions that actually have activity (any tick or training entry).
+    session_count = sum(
+        1 for s in sessions
+        if s.boulder_entries or s.lead_route_entries or s.fingerboard_entries or s.strength_entries
+    )
+    tick_count = sum(len(s.boulder_entries) + len(s.lead_route_entries) for s in sessions)
+    return schemas.WeeklyProgress(
+        week_start=week_start, sessions=session_count, ticks=tick_count,
+        session_goal=current_user.weekly_session_goal,
+        tick_goal=current_user.weekly_tick_goal,
+    )
 
 
 # ---------------------------------------------------------------------------

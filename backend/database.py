@@ -105,6 +105,12 @@ def run_migrations() -> None:
             conn.execute(text("ALTER TABLE users ADD COLUMN share_to_feed BOOLEAN"))
             conn.execute(text("UPDATE users SET share_to_feed = 1 WHERE share_to_feed IS NULL"))
 
+        # Phase Q1: weekly training goals.
+        if "users" in tables and "weekly_session_goal" not in columns("users"):
+            conn.execute(text("ALTER TABLE users ADD COLUMN weekly_session_goal INTEGER"))
+        if "users" in tables and "weekly_tick_goal" not in columns("users"):
+            conn.execute(text("ALTER TABLE users ADD COLUMN weekly_tick_goal INTEGER"))
+
         # Phase O3: partner tagging on sessions.
         if "sessions" in tables and "partner" not in columns("sessions"):
             conn.execute(text("ALTER TABLE sessions ADD COLUMN partner VARCHAR(200)"))

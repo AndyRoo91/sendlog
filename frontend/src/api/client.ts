@@ -337,6 +337,16 @@ export interface AuthUser {
   is_admin: boolean;
   has_pin: boolean;
   share_to_feed: boolean;
+  weekly_session_goal?: number | null;
+  weekly_tick_goal?: number | null;
+}
+
+export interface WeeklyProgress {
+  week_start: string;
+  sessions: number;
+  ticks: number;
+  session_goal?: number | null;
+  tick_goal?: number | null;
 }
 
 export interface ReactionSummary {
@@ -426,6 +436,9 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ share }),
     }),
+  setGoals: (payload: { weekly_session_goal?: number | null; weekly_tick_goal?: number | null }) =>
+    req<AuthUser>("/auth/me/goals", { method: "POST", body: JSON.stringify(payload) }),
+  getWeeklyProgress: () => req<WeeklyProgress>("/weekly_progress"),
 
   getFeed: (limit = 50) => req<FeedEvent[]>(`/feed?limit=${limit}`),
   addReaction: (feed_key: string, emoji: string) =>

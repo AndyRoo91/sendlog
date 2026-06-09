@@ -563,11 +563,26 @@ class AuthUser(BaseModel):
     is_admin: bool
     has_pin: bool
     share_to_feed: bool = True
+    weekly_session_goal: int | None = None
+    weekly_tick_goal: int | None = None
     model_config = {"from_attributes": True}
 
 
 class FeedSharingUpdate(BaseModel):
     share: bool
+
+
+class GoalsUpdate(BaseModel):
+    weekly_session_goal: int | None = None
+    weekly_tick_goal: int | None = None
+
+
+class WeeklyProgress(BaseModel):
+    week_start: DateType
+    sessions: int
+    ticks: int
+    session_goal: int | None = None
+    tick_goal: int | None = None
 
 
 class PasswordChange(BaseModel):
