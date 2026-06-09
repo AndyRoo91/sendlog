@@ -10,6 +10,8 @@ import type {
   DailyActivity, SessionIntensity,
 } from "../api/client";
 import { format, subDays, startOfWeek, eachDayOfInterval } from "date-fns";
+import { Link } from "react-router-dom";
+import type { SendDetail } from "../api/client";
 import { Ribbon } from "../ui";
 import { onKey } from "../lib/a11y";
 
@@ -39,14 +41,30 @@ const AXIS = { fontSize: 12, fontFamily: "var(--font-banner)" } as const;
 const GRID = "rgba(26,22,18,0.15)";
 const TOOLTIP_STYLE = { background: "#fbf0d4", border: "2px solid #1a1612", borderRadius: 0, fontFamily: "var(--font-body)" };
 
+/** Least-squares slope+intercept over y-values at x = 0..n-1. */
+function linearFit(ys: number[]): { slope: number; intercept: number } {
+  const n = ys.length;
+  const xs = ys.map((_, i) => i);
+  const sx = xs.reduce((a, b) => a + b, 0);
+  const sy = ys.reduce((a, b) => a + b, 0);
+  const sxy = xs.reduce((a, x, i) => a + x * ys[i], 0);
+  const sxx = xs.reduce((a, x) => a + x * x, 0);
+  const denom = n * sxx - sx * sx;
+  if (denom === 0) return { slope: 0, intercept: sy / n };
+  const slope = (n * sxy - sx * sy) / denom;
+  const intercept = (sy - slope * sx) / n;
+  return { slope, intercept };
+}
+
 function ChartCard({
-  title, data, color, yTickFormatter, tooltipFormatter,
+  title, data, color, yTickFormatter, tooltipFormatter, projection,
 }: {
   title: string;
   data: ProgressPoint[];
   color: string;
   yTickFormatter?: (v: number) => string;
   tooltipFormatter?: (v: number) => string;
+  projection?: boolean;   // overlay a dotted linear-trend line
 }) {
   if (data.length === 0) {
     return (
@@ -56,7 +74,13 @@ function ChartCard({
       </div>
     );
   }
-  const chartData = data.map((p) => ({ date: format(new Date(p.date), "MMM d"), value: p.value }));
+  const showTrend = projection === true && data.length >= 3;
+  const fit = showTrend ? linearFit(data.map((p) => p.value)) : null;
+  const chartData = data.map((p, i) => ({
+    date: format(new Date(p.date), "MMM d"),
+    value: p.value,
+    ...(fit ? { trend: Math.round((fit.intercept + fit.slope * i) * 10) / 10 } : {}),
+  }));
   return (
     <div className={CHART_CARD_CLS} style={{ padding: 16 }}>
       <div style={CHART_TITLE_STYLE}>{title}</div>
@@ -66,7 +90,14 @@ function ChartCard({
           <XAxis dataKey="date" stroke="#3a2e22" tick={AXIS} />
           <YAxis stroke="#3a2e22" tick={AXIS} tickFormatter={yTickFormatter} width={44} />
           <Tooltip contentStyle={TOOLTIP_STYLE} labelStyle={{ color: INK, fontWeight: 700 }}
-            formatter={(v) => tooltipFormatter ? tooltipFormatter(v as number) : v} />
+            formatter={(v, name) => [
+              tooltipFormatter ? tooltipFormatter(v as number) : v,
+              name === "TREND" ? "Trend" : "Actual",
+            ]} />
+          {showTrend && (
+            <Line type="linear" dataKey="trend" name="TREND" stroke={INK} strokeWidth={2}
+              strokeDasharray="5 4" dot={false} activeDot={false} />
+          )}
           <Line type="monotone" dataKey="value" name={title} stroke={color} strokeWidth={3}
             dot={{ r: 4, fill: color, stroke: INK, strokeWidth: 2 }} activeDot={{ r: 6, stroke: INK, strokeWidth: 2 }} />
         </LineChart>
@@ -124,7 +155,7 @@ function LeadProgression({ onsight, flash, redpoint }: { onsight: ProgressPoint[
 }
 
 /** Aggregate send pyramid — flash + redpoint stacked, hardest grade at top. */
-function LeadPyramid({ rows }: { rows: LeadPyramidRow[] }) {
+function LeadPyramid({ rows, onPick }: { rows: LeadPyramidRow[]; onPick: (grade: string) => void }) {
   if (rows.length === 0) {
     return (
       <div className={CHART_CARD_CLS} style={{ padding: 16 }}>
@@ -138,7 +169,8 @@ function LeadPyramid({ rows }: { rows: LeadPyramidRow[] }) {
     <div className={CHART_CARD_CLS} style={{ padding: 16 }}>
       <div style={CHART_TITLE_STYLE}>Lead — Send Pyramid (Ewbank)</div>
       <ResponsiveContainer width="100%" height={height}>
-        <BarChart data={rows} layout="vertical" margin={{ top: 4, right: 16, bottom: 4, left: 0 }} barCategoryGap={6}>
+        <BarChart data={rows} layout="vertical" margin={{ top: 4, right: 16, bottom: 4, left: 0 }} barCategoryGap={6}
+          onClick={(e) => { const g = e?.activeLabel; if (g) onPick(String(g)); }} style={{ cursor: "pointer" }}>
           <CartesianGrid strokeDasharray="3 3" stroke={GRID} horizontal={false} />
           <XAxis type="number" stroke="#3a2e22" tick={AXIS} allowDecimals={false} />
           <YAxis type="category" dataKey="grade" stroke="#3a2e22" tick={AXIS} width={36} />
@@ -149,6 +181,7 @@ function LeadPyramid({ rows }: { rows: LeadPyramidRow[] }) {
           <Bar dataKey="redpoint" name="REDPOINT" stackId="a" fill={SEA} stroke={INK} strokeWidth={2} />
         </BarChart>
       </ResponsiveContainer>
+      <p className="muted" style={{ fontSize: 11, marginTop: 6, fontStyle: "italic" }}>Tap a grade to see those sends.</p>
     </div>
   );
 }
@@ -182,7 +215,7 @@ function VolumeChart({ data }: { data: ProgressPoint[] }) {
 }
 
 /** Boulder send pyramid — flash + send stacked, hardest grade at top. */
-function BoulderPyramid({ rows }: { rows: BoulderPyramidRow[] }) {
+function BoulderPyramid({ rows, onPick }: { rows: BoulderPyramidRow[]; onPick: (grade: string) => void }) {
   if (rows.length === 0) {
     return (
       <div className={CHART_CARD_CLS} style={{ padding: 16 }}>
@@ -196,7 +229,8 @@ function BoulderPyramid({ rows }: { rows: BoulderPyramidRow[] }) {
     <div className={CHART_CARD_CLS} style={{ padding: 16 }}>
       <div style={CHART_TITLE_STYLE}>Boulder — Send Pyramid (V-scale)</div>
       <ResponsiveContainer width="100%" height={height}>
-        <BarChart data={rows} layout="vertical" margin={{ top: 4, right: 16, bottom: 4, left: 0 }} barCategoryGap={6}>
+        <BarChart data={rows} layout="vertical" margin={{ top: 4, right: 16, bottom: 4, left: 0 }} barCategoryGap={6}
+          onClick={(e) => { const g = e?.activeLabel; if (g) onPick(String(g)); }} style={{ cursor: "pointer" }}>
           <CartesianGrid strokeDasharray="3 3" stroke={GRID} horizontal={false} />
           <XAxis type="number" stroke="#3a2e22" tick={AXIS} allowDecimals={false} />
           <YAxis type="category" dataKey="grade" stroke="#3a2e22" tick={AXIS} width={36} />
@@ -206,6 +240,7 @@ function BoulderPyramid({ rows }: { rows: BoulderPyramidRow[] }) {
           <Bar dataKey="send" name="SEND" stackId="a" fill={SEA} stroke={INK} strokeWidth={2} />
         </BarChart>
       </ResponsiveContainer>
+      <p className="muted" style={{ fontSize: 11, marginTop: 6, fontStyle: "italic" }}>Tap a grade to see those sends.</p>
     </div>
   );
 }
@@ -495,6 +530,72 @@ function VolumeIntensityScatter({ rows }: { rows: SessionIntensity[] }) {
   );
 }
 
+const SEND_TYPE_LABEL: Record<string, string> = {
+  onsight: "ONSIGHT", flash: "FLASH", redpoint: "REDPOINT", pinkpoint: "PINKPOINT",
+};
+
+/** Bottom-sheet listing the individual sends behind a tapped pyramid bar. */
+function DrillDownSheet({
+  title, grade, sends, onClose,
+}: {
+  title: string; grade: string; sends: SendDetail[]; onClose: () => void;
+}) {
+  const forGrade = sends.filter((s) => s.grade === grade);
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed", inset: 0, zIndex: 50, background: "rgba(26,22,18,0.5)",
+        display: "flex", alignItems: "flex-end", justifyContent: "center",
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="paper-plain"
+        style={{
+          width: "100%", maxWidth: 480, maxHeight: "75vh", overflowY: "auto",
+          border: "var(--bw) solid var(--ink)", boxShadow: "0 -6px 0 var(--ink)",
+          padding: "18px 16px 28px", borderRadius: "12px 12px 0 0",
+        }}
+      >
+        <div className="gap-row" style={{ justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+          <div style={{ fontFamily: "var(--font-banner)", fontSize: 13, letterSpacing: "0.08em" }}>
+            {title} · {grade} <span className="muted">({forGrade.length})</span>
+          </div>
+          <div role="button" tabIndex={0} onClick={onClose} onKeyDown={onKey(onClose)}
+            style={{
+              fontFamily: "var(--font-banner)", fontSize: 11, padding: "4px 10px", cursor: "pointer",
+              border: "var(--b) solid var(--ink)", background: "var(--red)", color: "var(--cream)",
+            }}>✕ CLOSE</div>
+        </div>
+        <div className="gap-col">
+          {forGrade.map((s, i) => (
+            <Link key={i} to={`/sessions/${s.session_id}`} style={{ textDecoration: "none" }}>
+              <div className="card-flat offset-ink" style={{ padding: "10px 13px", cursor: "pointer" }}>
+                <div className="gap-row" style={{ justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+                  <span style={{
+                    fontFamily: "var(--font-banner)", fontSize: 10, letterSpacing: "0.08em",
+                    color: "var(--cream)", background: "var(--sea)", padding: "2px 7px",
+                    border: "var(--b) solid var(--ink)",
+                  }}>{SEND_TYPE_LABEL[s.send_type] ?? s.send_type.toUpperCase()}</span>
+                  <span className="muted" style={{ fontSize: 12 }}>{format(new Date(s.date), "MMM d yyyy")}</span>
+                </div>
+                {(s.route_name || s.attempts != null) && (
+                  <div className="muted" style={{ fontSize: 13, marginTop: 5 }}>
+                    {s.route_name && <span>{s.route_name}</span>}
+                    {s.route_name && s.attempts != null && <span> · </span>}
+                    {s.attempts != null && <span>{s.attempts} attempt{s.attempts === 1 ? "" : "s"}</span>}
+                  </div>
+                )}
+              </div>
+            </Link>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const RANGES: { key: ProgressRange; label: string }[] = [
   { key: "6w", label: "6W" },
   { key: "6mo", label: "6MO" },
@@ -536,6 +637,8 @@ export default function Progress() {
   const [data, setData] = useState<ProgressData | null>(null);
   const [range, setRange] = useState<ProgressRange>("all");
   const [loading, setLoading] = useState(true);
+  // Pyramid drill-down selection: which discipline + grade to expand.
+  const [drill, setDrill] = useState<{ kind: "lead" | "boulder"; grade: string } | null>(null);
 
   // Set loading in the handler (not the effect) so we never call setState
   // synchronously inside useEffect.
@@ -567,12 +670,13 @@ export default function Progress() {
         <LocationBreakdown rows={data.location_breakdown} />
         <AttemptsHistogram rows={data.attempts_histogram} />
         <LeadProgression onsight={data.lead_onsight_progression} flash={data.lead_flash_progression} redpoint={data.lead_redpoint_progression} />
-        <LeadPyramid rows={data.lead_send_pyramid} />
-        <BoulderPyramid rows={data.boulder_send_pyramid} />
+        <LeadPyramid rows={data.lead_send_pyramid} onPick={(grade) => setDrill({ kind: "lead", grade })} />
+        <BoulderPyramid rows={data.boulder_send_pyramid} onPick={(grade) => setDrill({ kind: "boulder", grade })} />
         <ChartCard
           title="Limit Boulder Max Grade (Sends)"
           data={data.boulder_max_grade}
           color={SEA}
+          projection
           yTickFormatter={(v) => BOULDER_GRADES[v] ?? `V${v}`}
           tooltipFormatter={(v) => BOULDER_GRADES[v] ?? `V${v}`}
         />
@@ -606,6 +710,15 @@ export default function Progress() {
           tooltipFormatter={(v) => `${v} kg`}
         />
       </div>
+      )}
+
+      {drill && data && (
+        <DrillDownSheet
+          title={drill.kind === "lead" ? "Lead sends" : "Boulder sends"}
+          grade={drill.grade}
+          sends={drill.kind === "lead" ? data.lead_sends : data.boulder_sends}
+          onClose={() => setDrill(null)}
+        />
       )}
     </div>
   );

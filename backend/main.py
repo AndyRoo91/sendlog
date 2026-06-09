@@ -904,6 +904,7 @@ def get_progress(
 
     # Aggregate send pyramid (all-time), hardest grade first.
     pyramid: dict[str, dict[str, int]] = {}
+    lead_sends: list[schemas.SendDetail] = []   # individual sends for drill-down
     for e in (
         db.query(models.LeadRouteEntry)
         .join(models.Session, models.LeadRouteEntry.session_id == models.Session.id)
@@ -915,12 +916,21 @@ def get_progress(
         if ewbank_num(e.grade) < 0:
             continue
         row = pyramid.setdefault(e.grade, {"onsight": 0, "flash": 0, "redpoint": 0})
+        counted = True
         if e.send_type in ONSIGHT_SENDS:
             row["onsight"] += 1
         elif e.send_type in FLASH_SENDS:
             row["flash"] += 1
         elif e.send_type in RP_SENDS:
             row["redpoint"] += 1
+        else:
+            counted = False
+        if counted:
+            lead_sends.append(schemas.SendDetail(
+                grade=e.grade, send_type=e.send_type, date=e.session.date,
+                session_id=e.session_id, route_name=e.route_name, attempts=e.attempts,
+            ))
+    lead_sends.sort(key=lambda d: d.date, reverse=True)
     pyramid_rows = [
         schemas.LeadPyramidRow(grade=g, onsight=v["onsight"], flash=v["flash"], redpoint=v["redpoint"])
         for g, v in pyramid.items()
@@ -930,6 +940,7 @@ def get_progress(
 
     # Boulder send pyramid (V-scale, all-time): flash + redpoint/send counts.
     bl_pyramid: dict[str, dict[str, int]] = {}
+    boulder_sends: list[schemas.SendDetail] = []
     for e in (
         db.query(models.LimitBoulderEntry)
         .join(models.Session, models.LimitBoulderEntry.session_id == models.Session.id)
@@ -944,6 +955,11 @@ def get_progress(
             row["flash"] += 1
         else:
             row["send"] += 1
+        boulder_sends.append(schemas.SendDetail(
+            grade=e.grade, send_type=e.send_type, date=e.session.date,
+            session_id=e.session_id, attempts=e.attempts,
+        ))
+    boulder_sends.sort(key=lambda d: d.date, reverse=True)
     bl_pyramid_rows = [
         schemas.BoulderPyramidRow(grade=g, flash=v["flash"], send=v["send"])
         for g, v in bl_pyramid.items()
@@ -1128,6 +1144,8 @@ def get_progress(
     return schemas.ProgressData(
         daily_activity=daily_activity,
         session_intensity=intensity_rows,
+        lead_sends=lead_sends,
+        boulder_sends=boulder_sends,
         fingerboard_max_weight=fb_points,
         boulder_max_grade=bl_points,
         strength_max_weight=st_points,
