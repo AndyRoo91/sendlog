@@ -12,6 +12,7 @@ interface Props {
   onClick?: () => void;
   onDelete?: () => void;
   isPB?: boolean;
+  dot?: string | null;   // hold/circuit colour swatch
 }
 
 const DRAG_TRIGGER = -110;          // px past which release fires delete
@@ -20,7 +21,7 @@ const VERTICAL_CANCEL = 12;          // px of vertical move → bail out (let pa
 const CLICK_SUPPRESS = 6;            // px of horizontal move → suppress the tap
 
 /** Logged-tick chip shown in the session feed strip. Supports swipe-left to delete. */
-export default function FeedEntry({ grade, style, color, text = "var(--cream)", time, tilt = 0, onClick, onDelete, isPB = false }: Props) {
+export default function FeedEntry({ grade, style, color, text = "var(--cream)", time, tilt = 0, onClick, onDelete, isPB = false, dot = null }: Props) {
   const [dx, setDx] = useState(0);
   const [dragging, setDragging] = useState(false);
   const startRef = useRef<{ x: number; y: number } | null>(null);
@@ -122,6 +123,12 @@ export default function FeedEntry({ grade, style, color, text = "var(--cream)", 
           transition: dragging ? "none" : "transform 180ms ease",
         }}
       >
+        {dot && (
+          <span aria-hidden="true" style={{
+            position: "absolute", top: 3, left: 3, width: 9, height: 9, borderRadius: "50%",
+            background: dot, border: "1.5px solid var(--ink)",
+          }} />
+        )}
         <span style={{ fontFamily: "var(--font-display)", fontSize: 22, lineHeight: 1 }}>{grade}</span>
         <span style={{ fontFamily: "var(--font-banner)", fontSize: 9, letterSpacing: "0.08em", marginTop: 3 }}>{style}</span>
         {time && (

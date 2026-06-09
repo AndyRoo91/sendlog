@@ -133,3 +133,44 @@ def test_deleting_wall_detaches_ticks(client):
     fetched = client.get(f"/api/sessions/{s['id']}").json()
     bo = next(b for b in fetched["boulder_entries"] if b["id"] == entry["id"])
     assert bo["wall_id"] is None
+
+
+# ---------------------------------------------------------------------------
+# Phase P3a: hold colour on boulder ticks
+# ---------------------------------------------------------------------------
+
+def test_boulder_tick_carries_hold_color(client):
+    s = client.post("/api/sessions", json={"date": iso(0)}).json()
+    e = client.post(f"/api/sessions/{s['id']}/boulder",
+                    json={"grade": "V4", "send_type": "redpoint", "hold_color": "#e8b800"}).json()
+    assert e["hold_color"] == "#e8b800"
+    fetched = client.get(f"/api/sessions/{s['id']}").json()
+    assert fetched["boulder_entries"][0]["hold_color"] == "#e8b800"
+
+
+def test_boulder_color_optional(client):
+    s = client.post("/api/sessions", json={"date": iso(0)}).json()
+    e = client.post(f"/api/sessions/{s['id']}/boulder",
+                    json={"grade": "V4", "send_type": "redpoint"}).json()
+    assert e["hold_color"] is None
+
+
+def test_boulder_color_editable(client):
+    s = client.post("/api/sessions", json={"date": iso(0)}).json()
+    e = client.post(f"/api/sessions/{s['id']}/boulder",
+                    json={"grade": "V4", "send_type": "redpoint", "hold_color": "#d23b3b"}).json()
+    upd = client.put(f"/api/boulder/{e['id']}",
+                     json={"grade": "V4", "send_type": "redpoint", "hold_color": "#2a6fdb"}).json()
+    assert upd["hold_color"] == "#2a6fdb"
+
+
+def test_update_preserves_wall_and_color_when_passed(client):
+    """DetailSheet resends wall_id + hold_color on edit so they survive an update."""
+    _, w = make_wall(client)
+    s = client.post("/api/sessions", json={"date": iso(0)}).json()
+    e = _tick_boulder(client, s["id"], w["id"]).json()
+    client.put(f"/api/boulder/{e['id']}", json={"grade": "V4", "send_type": "redpoint",
+                                                "hold_color": "#f2c200", "wall_id": w["id"]})
+    fetched = client.get(f"/api/sessions/{s['id']}").json()["boulder_entries"][0]
+    assert fetched["wall_id"] == w["id"]
+    assert fetched["hold_color"] == "#f2c200"
