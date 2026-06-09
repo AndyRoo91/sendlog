@@ -88,6 +88,7 @@ class LimitBoulderEntry(Base):
     logged_at: Mapped[datetime | None] = mapped_column(DateTime, default=datetime.utcnow)
     route_id: Mapped[int | None] = mapped_column(ForeignKey("routes.id"), index=True)
     wall_id: Mapped[int | None] = mapped_column(ForeignKey("walls.id"), index=True)  # gym wall
+    hold_color: Mapped[str | None] = mapped_column(String(20))  # hex hold/circuit colour
 
     session: Mapped["Session"] = relationship(back_populates="boulder_entries")
 

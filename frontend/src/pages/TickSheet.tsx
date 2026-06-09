@@ -17,6 +17,7 @@ import { enqueue, dequeue, queueSize, subscribe, flush, TICK_SYNCED_EVENT } from
 import type { TickSyncedDetail } from "../lib/syncQueue";
 import { BOULDER_GRADES, boulderGradeWindow, leadGradeWindow, gradeOrder } from "../lib/grades";
 import type { GradeSystem } from "../lib/grades";
+import { STANDARD_COLORS } from "../lib/holdColors";
 import DetailSheet from "../components/DetailSheet";
 import type { DetailTarget } from "../components/DetailSheet";
 import GradeChipSlot from "../components/GradeChipSlot";
@@ -88,6 +89,10 @@ export default function TickSheet() {
   const [currentWall, setCurrentWall] = useState<number | null>(null);
   const currentWallRef = useRef<number | null>(null);
   function pickWall(id: number | null) { setCurrentWall(id); currentWallRef.current = id; }
+  // Hold/circuit colour stamped on each boulder tick (sticky until changed).
+  const [currentColor, setCurrentColor] = useState<string | null>(null);
+  const currentColorRef = useRef<string | null>(null);
+  function pickColor(hex: string | null) { setCurrentColor(hex); currentColorRef.current = hex; }
 
   const refreshRecents = useCallback(() => {
     api.getRecentCombos(sessionId).then(setRecents).catch(() => {});
@@ -215,7 +220,8 @@ export default function TickSheet() {
               notes: null,
               wall_id: wallId,
             }
-          : { grade, send_type: STYLE_TO_SEND_TYPE[styleId], attempts: null, notes: null, wall_id: wallId };
+          : { grade, send_type: STYLE_TO_SEND_TYPE[styleId], attempts: null, notes: null,
+              wall_id: wallId, hold_color: currentColorRef.current };
 
       // Show the tick immediately — even with no signal — so logging never
       // stalls on the network. We reconcile (or roll back) once we know.
@@ -464,6 +470,45 @@ export default function TickSheet() {
         </div>
       )}
 
+      {/* Boulder-only: hold/circuit colour. Sticky until changed. */}
+      {mode === "boulder" && (
+        <div style={{ padding: "8px 16px 0" }}>
+          <label style={{ display: "block", marginBottom: 4 }}>Hold colour · optional</label>
+          <div className="gap-row" style={{ gap: 7, overflowX: "auto", paddingBottom: 2, alignItems: "center" }}>
+            {STANDARD_COLORS.map((c) => {
+              const active = currentColor === c.hex;
+              return (
+                <div key={c.hex} role="button" tabIndex={0} aria-pressed={active} title={c.name}
+                  onClick={() => pickColor(active ? null : c.hex)}
+                  onKeyDown={onKey(() => pickColor(active ? null : c.hex))}
+                  style={{
+                    width: 26, height: 26, flex: "0 0 auto", borderRadius: "50%",
+                    background: c.hex, cursor: "pointer",
+                    border: active ? "3px solid var(--ink)" : "2px solid rgba(26,22,18,0.35)",
+                    boxShadow: active ? "0 0 0 2px var(--mustard)" : "none",
+                  }} />
+              );
+            })}
+            {/* Custom colour via the native picker. */}
+            <label title="Custom colour" style={{
+              width: 26, height: 26, flex: "0 0 auto", borderRadius: "50%", cursor: "pointer",
+              border: "2px dashed var(--ink-2)", display: "flex", alignItems: "center", justifyContent: "center",
+              fontFamily: "var(--font-banner)", fontSize: 14, color: "var(--ink-2)",
+            }}>
+              +
+              <input type="color" onChange={(e) => pickColor(e.target.value)}
+                style={{ position: "absolute", width: 1, height: 1, opacity: 0, pointerEvents: "none" }} />
+            </label>
+            {currentColor && !STANDARD_COLORS.some((c) => c.hex === currentColor) && (
+              <span style={{
+                width: 26, height: 26, flex: "0 0 auto", borderRadius: "50%", background: currentColor,
+                border: "3px solid var(--ink)", boxShadow: "0 0 0 2px var(--mustard)",
+              }} />
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Lead-only: route name + grade system chips */}
       {mode === "lead" && (
         <>
@@ -591,6 +636,7 @@ export default function TickSheet() {
                   <FeedEntry grade={e.grade} style={st.label} color={st.color} text={st.text} time={timeAgo(e.logged_at, now)}
                     tilt={cardTilt(i)}
                     isPB={e.id === pbEntryId}
+                    dot={mode === "boulder" ? (e as BoulderEntry).hold_color : undefined}
                     onClick={() => {
                       if (isPending) { toast("Still syncing — give it a sec."); return; }
                       setDetail({ kind: mode, entry: e });

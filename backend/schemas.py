@@ -51,6 +51,7 @@ class LimitBoulderEntryBase(BaseModel):
     attempts: int | None = None
     notes: str | None = None
     wall_id: int | None = None   # gym wall this tick is on
+    hold_color: str | None = None  # hex hold/circuit colour
 
 
 class LimitBoulderEntryCreate(LimitBoulderEntryBase):

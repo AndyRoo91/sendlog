@@ -184,3 +184,7 @@ def run_migrations() -> None:
             conn.execute(text("ALTER TABLE boulder_entries ADD COLUMN wall_id INTEGER REFERENCES walls(id)"))
         if "lead_route_entries" in tables and "wall_id" not in columns("lead_route_entries"):
             conn.execute(text("ALTER TABLE lead_route_entries ADD COLUMN wall_id INTEGER REFERENCES walls(id)"))
+
+        # Phase P3a: hold/circuit colour on boulder ticks.
+        if "boulder_entries" in tables and "hold_color" not in columns("boulder_entries"):
+            conn.execute(text("ALTER TABLE boulder_entries ADD COLUMN hold_color VARCHAR(20)"))

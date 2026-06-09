@@ -88,6 +88,8 @@ export default function DetailSheet({ sessionId, target, onClose, onSavedBoulder
           route_name: routeName || null, grade, grade_system: gradeSystem,
           send_type: STYLE_TO_SEND_TYPE[styleId], attempts, falls, notes: notes || null,
           route_id: linkedId, rating,
+          // Preserve gym attribution — the update endpoint replaces all fields.
+          wall_id: lead?.wall_id ?? null,
         };
         const saved = lead?.id
           ? await api.updateLead(lead.id, payload)
@@ -103,6 +105,9 @@ export default function DetailSheet({ sessionId, target, onClose, onSavedBoulder
         const payload = {
           grade, send_type: STYLE_TO_SEND_TYPE[styleId], attempts, notes: notes || null,
           route_id: linkedId,
+          // Preserve gym attribution + hold colour — update replaces all fields.
+          wall_id: (entry as BoulderEntry | undefined)?.wall_id ?? null,
+          hold_color: (entry as BoulderEntry | undefined)?.hold_color ?? null,
         };
         const saved = entry?.id
           ? await api.updateBoulder(entry.id, payload)

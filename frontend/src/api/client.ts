@@ -34,6 +34,7 @@ export interface BoulderEntry {
   logged_at?: string | null;
   route_id?: number | null;
   wall_id?: number | null;
+  hold_color?: string | null;
 }
 
 export interface StrengthEntry {
