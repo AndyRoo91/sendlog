@@ -217,6 +217,15 @@ export interface PBTimelinePoint {
 
 export type ProgressRange = "6w" | "6mo" | "1y" | "all";
 
+export interface SendDetail {
+  grade: string;
+  send_type: string;
+  date: string;
+  session_id: number;
+  route_name?: string | null;
+  attempts?: number | null;
+}
+
 export interface DailyActivity {
   date: string;
   ticks: number;
@@ -249,6 +258,8 @@ export interface ProgressData {
   pb_timeline: PBTimelinePoint[];
   daily_activity: DailyActivity[];
   session_intensity: SessionIntensity[];
+  lead_sends: SendDetail[];
+  boulder_sends: SendDetail[];
 }
 
 export interface BuddyState {
