@@ -166,3 +166,21 @@ def run_migrations() -> None:
         # Session → gym link.
         if "sessions" in tables and "gym_id" not in columns("sessions"):
             conn.execute(text("ALTER TABLE sessions ADD COLUMN gym_id INTEGER REFERENCES gyms(id)"))
+
+        # Phase P2: wall sets (reset generations) + tick → wall attribution.
+        if "wall_sets" not in tables:
+            conn.execute(text("""
+                CREATE TABLE wall_sets (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    wall_id INTEGER NOT NULL REFERENCES walls(id),
+                    label VARCHAR(120),
+                    set_on DATE NOT NULL,
+                    problem_count INTEGER,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            """))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_wall_sets_wall_id ON wall_sets(wall_id)"))
+        if "boulder_entries" in tables and "wall_id" not in columns("boulder_entries"):
+            conn.execute(text("ALTER TABLE boulder_entries ADD COLUMN wall_id INTEGER REFERENCES walls(id)"))
+        if "lead_route_entries" in tables and "wall_id" not in columns("lead_route_entries"):
+            conn.execute(text("ALTER TABLE lead_route_entries ADD COLUMN wall_id INTEGER REFERENCES walls(id)"))

@@ -33,6 +33,7 @@ export interface BoulderEntry {
   photos?: EntryPhoto[];
   logged_at?: string | null;
   route_id?: number | null;
+  wall_id?: number | null;
 }
 
 export interface StrengthEntry {
@@ -58,6 +59,7 @@ export interface LeadRouteEntry {
   logged_at?: string | null;
   route_id?: number | null;
   rating?: number | null;   // 1..5 friend-sticker rating
+  wall_id?: number | null;
 }
 
 export interface RoutePin {
@@ -142,11 +144,22 @@ export interface SessionSummary {
   partner?: string | null;  // "climbed with…"
 }
 
+export interface WallSet {
+  id: number;
+  wall_id: number;
+  label?: string | null;
+  set_on: string;
+  problem_count?: number | null;
+  tick_count: number;
+}
+
 export interface Wall {
   id: number;
   gym_id: number;
   name: string;
   angle?: number | null;   // degrees from vertical
+  sets: WallSet[];
+  current_set?: WallSet | null;
 }
 
 export interface Gym {
@@ -525,6 +538,11 @@ export const api = {
   updateWall: (id: number, payload: { name?: string; angle?: number | null }) =>
     req<Wall>(`/walls/${id}`, { method: "PATCH", body: JSON.stringify(payload) }),
   deleteWall: (id: number) => req<void>(`/walls/${id}`, { method: "DELETE" }),
+  createSet: (wallId: number, payload: { set_on?: string; label?: string | null; problem_count?: number | null }) =>
+    req<WallSet>(`/walls/${wallId}/sets`, { method: "POST", body: JSON.stringify(payload) }),
+  updateSet: (id: number, payload: { set_on?: string; label?: string | null; problem_count?: number | null }) =>
+    req<WallSet>(`/sets/${id}`, { method: "PATCH", body: JSON.stringify(payload) }),
+  deleteSet: (id: number) => req<void>(`/sets/${id}`, { method: "DELETE" }),
 
   // --- Export / Import ---
   exportData: async (): Promise<Blob> => {

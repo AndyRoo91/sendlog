@@ -50,6 +50,7 @@ class LimitBoulderEntryBase(BaseModel):
     send_type: str = "redpoint"
     attempts: int | None = None
     notes: str | None = None
+    wall_id: int | None = None   # gym wall this tick is on
 
 
 class LimitBoulderEntryCreate(LimitBoulderEntryBase):
@@ -92,6 +93,7 @@ class LeadRouteEntryBase(BaseModel):
     notes: str | None = None
     route_id: int | None = None
     rating: int | None = None   # 1..5 friend-sticker rating
+    wall_id: int | None = None  # gym wall this tick is on
 
 
 class LeadRouteEntryCreate(LeadRouteEntryBase):
@@ -369,6 +371,28 @@ class RouteDetail(RouteBase):
 # Gyms + walls (Phase P)
 # ---------------------------------------------------------------------------
 
+class WallSetCreate(BaseModel):
+    label: str | None = None
+    set_on: DateType | None = None   # defaults to today server-side
+    problem_count: int | None = None
+
+
+class WallSetUpdate(BaseModel):
+    label: str | None = None
+    set_on: DateType | None = None
+    problem_count: int | None = None
+
+
+class WallSet(BaseModel):
+    id: int
+    wall_id: int
+    label: str | None = None
+    set_on: DateType
+    problem_count: int | None = None
+    tick_count: int = 0   # distinct ticks logged on this wall since set_on
+    model_config = {"from_attributes": True}
+
+
 class WallBase(BaseModel):
     name: str
     angle: int | None = None   # degrees from vertical (− slab, 0 vertical, + overhang)
@@ -386,6 +410,8 @@ class WallUpdate(BaseModel):
 class Wall(WallBase):
     id: int
     gym_id: int
+    sets: list[WallSet] = []           # set history, oldest first
+    current_set: WallSet | None = None  # newest by set_on, with tick_count
     model_config = {"from_attributes": True}
 
 
