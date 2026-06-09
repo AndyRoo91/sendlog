@@ -29,6 +29,7 @@ def test_progress_shape_empty(client):
         "session_intensity": [],
         "lead_sends": [],
         "boulder_sends": [],
+        "training_load": [],
     }
 
 
@@ -442,3 +443,60 @@ def test_progress_pb_timeline(client):
     # session 3 boulder PB advanced, lead still 20 (running)
     assert pts[1]["lead_grade"] == "20"
     assert pts[1]["boulder_grade"] == "V5"
+
+
+# ---------------------------------------------------------------------------
+# Phase M4: training-load (acute:chronic) ratio
+# ---------------------------------------------------------------------------
+
+def _session_ticks(client, days_ago: int, n: int):
+    """A session `days_ago` back with n boulder ticks."""
+    s = client.post("/api/sessions", json={"date": _iso(days_ago)}).json()
+    for _ in range(n):
+        client.post(f"/api/sessions/{s['id']}/boulder", json={"grade": "V3", "send_type": "redpoint"})
+    return s
+
+
+def test_training_load_empty_below_warmup(client):
+    # Only a couple of recent days — less than 28 days of history → no ACWR points.
+    _session_ticks(client, 3, 2)
+    _session_ticks(client, 1, 2)
+    p = client.get("/api/progress").json()
+    assert p["training_load"] == []
+
+
+def test_training_load_steady_ratio_near_one(client):
+    # Climb 2 ticks every day for 35 days → steady load → ratio ≈ 1.0 once warmed up.
+    for d in range(34, -1, -1):
+        _session_ticks(client, d, 2)
+    p = client.get("/api/progress").json()
+    pts = p["training_load"]
+    assert len(pts) >= 1
+    # Days >= 28 after the first session qualify; steady load → ratio 1.0.
+    assert all(abs(pt["ratio"] - 1.0) < 0.01 for pt in pts)
+    assert all(pt["acute"] == 2.0 and pt["chronic"] == 2.0 for pt in pts)
+
+
+def test_training_load_spike_raises_ratio(client):
+    # Steady 1 tick/day for 30 days, then a big 10-tick day → acute jumps above chronic.
+    for d in range(30, 0, -1):
+        _session_ticks(client, d, 1)
+    _session_ticks(client, 0, 10)  # today: spike
+    p = client.get("/api/progress").json()
+    pts = p["training_load"]
+    today_pt = next(pt for pt in pts if pt["date"] == _iso(0))
+    assert today_pt["ratio"] > 1.5  # acute load well above chronic baseline
+
+
+def test_training_load_respects_range_but_uses_full_history(client):
+    # 40 days of steady load; range=6w should still return warmed-up points
+    # (chronic window draws on history before the 6w cutoff).
+    for d in range(40, -1, -1):
+        _session_ticks(client, d, 2)
+    p = client.get("/api/progress?range=6w").json()
+    pts = p["training_load"]
+    assert len(pts) >= 1
+    # Every returned point is within the 6w window…
+    assert all(pt["date"] >= _iso(42) for pt in pts)
+    # …yet chronic is a full 2.0 (not undercounted), proving pre-window history is used.
+    assert all(pt["chronic"] == 2.0 for pt in pts)

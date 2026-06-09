@@ -241,6 +241,15 @@ class SessionIntensity(BaseModel):
     hardest_lead_label: str | None = None
 
 
+class TrainingLoadPoint(BaseModel):
+    """Acute:chronic workload ratio for one active day — overtraining/injury signal.
+    acute = avg daily load over the last 7 days, chronic = over the last 28."""
+    date: DateType
+    acute: float
+    chronic: float
+    ratio: float
+
+
 class ProgressData(BaseModel):
     fingerboard_max_weight: list[ProgressPoint]
     boulder_max_grade: list[ProgressPoint]
@@ -266,6 +275,7 @@ class ProgressData(BaseModel):
     session_intensity: list[SessionIntensity] = []
     lead_sends: list[SendDetail] = []        # individual sends for pyramid drill-down
     boulder_sends: list[SendDetail] = []
+    training_load: list[TrainingLoadPoint] = []   # acute:chronic workload ratio
 
 
 # --- Routes (projects) + pins ---
