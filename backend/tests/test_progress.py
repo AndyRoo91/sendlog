@@ -1,3 +1,6 @@
+from datetime import date, timedelta
+
+
 def test_progress_shape_empty(client):
     p = client.get("/api/progress").json()
     assert p == {
@@ -101,6 +104,68 @@ def test_progress_volume_send_rate_falls(client):
 
     assert len(p["falls_trend"]) == 1
     assert p["falls_trend"][0]["value"] == 3.0
+
+
+# ---------------------------------------------------------------------------
+# Phase M1: date-range filter
+# ---------------------------------------------------------------------------
+
+def _iso(days_ago: int) -> str:
+    return (date.today() - timedelta(days=days_ago)).isoformat()
+
+
+def _boulder_session(client, days_ago: int, grade: str):
+    s = client.post("/api/sessions", json={"date": _iso(days_ago)}).json()
+    client.post(f"/api/sessions/{s['id']}/boulder", json={"grade": grade, "send_type": "redpoint"})
+    return s
+
+
+def test_progress_range_all_includes_old(client):
+    _boulder_session(client, 400, "V2")   # >1y ago
+    _boulder_session(client, 5, "V5")      # recent
+    p = client.get("/api/progress?range=all").json()
+    assert len(p["boulder_max_grade"]) == 2
+
+
+def test_progress_range_6w_excludes_old(client):
+    _boulder_session(client, 400, "V2")   # >1y ago
+    _boulder_session(client, 5, "V5")      # within 6 weeks
+    p = client.get("/api/progress?range=6w").json()
+    assert len(p["boulder_max_grade"]) == 1
+    assert p["boulder_max_grade"][0]["label"] == "V5"
+
+
+def test_progress_range_1y_boundary(client):
+    _boulder_session(client, 400, "V2")   # outside 1y
+    _boulder_session(client, 100, "V4")   # inside 1y
+    p = client.get("/api/progress?range=1y").json()
+    labels = [pt["label"] for pt in p["boulder_max_grade"]]
+    assert labels == ["V4"]
+
+
+def test_progress_range_default_is_all(client):
+    _boulder_session(client, 400, "V2")
+    _boulder_session(client, 5, "V5")
+    # No range param → defaults to "all".
+    p = client.get("/api/progress").json()
+    assert len(p["boulder_max_grade"]) == 2
+
+
+def test_progress_range_unknown_value_falls_back_to_all(client):
+    _boulder_session(client, 400, "V2")
+    _boulder_session(client, 5, "V5")
+    p = client.get("/api/progress?range=bogus").json()
+    assert len(p["boulder_max_grade"]) == 2
+
+
+def test_progress_range_filters_pyramid_and_volume(client):
+    _boulder_session(client, 400, "V2")
+    _boulder_session(client, 5, "V5")
+    p = client.get("/api/progress?range=6w").json()
+    # Old V2 excluded from pyramid and volume too.
+    pyramid_grades = {row["grade"] for row in p["boulder_send_pyramid"]}
+    assert pyramid_grades == {"V5"}
+    assert len(p["session_volume"]) == 1
 
 
 def test_progress_volume_excludes_empty_sessions(client):

@@ -215,6 +215,8 @@ export interface PBTimelinePoint {
   boulder_grade?: string | null;
 }
 
+export type ProgressRange = "6w" | "6mo" | "1y" | "all";
+
 export interface ProgressData {
   fingerboard_max_weight: ProgressPoint[];
   boulder_max_grade: ProgressPoint[];
@@ -381,7 +383,8 @@ export const api = {
     req<SessionDetail>(`/sessions/${id}/end`, { method: "POST" }),
   getRecentCombos: (id: number) =>
     req<RecentCombo[]>(`/sessions/${id}/recent_combos`),
-  getProgress: () => req<ProgressData>("/progress"),
+  getProgress: (range: ProgressRange = "all") =>
+    req<ProgressData>(`/progress?range=${range}`),
 
   addWarmup: (sessionId: number, payload: Omit<WarmupEntry, "id" | "session_id">) =>
     req<WarmupEntry>(`/sessions/${sessionId}/warmup`, { method: "POST", body: JSON.stringify(payload) }),
