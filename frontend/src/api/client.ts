@@ -323,6 +323,7 @@ export interface BuddyState {
   reason: string;      // machine-readable trigger, e.g. "new_pb"
   days_since: number;  // days since the most recent session (0 = today)
   build: number;       // 0..3 physique tier from all-time hardest send
+  load_ratio?: number | null;  // current ACWR when nudging a deload
 }
 
 const BASE = "/api";
@@ -384,6 +385,8 @@ export interface PlanDetail {
   sessions: PlannedSession[];
   done_count: number;
   total_count: number;
+  current_phase?: string | null;
+  deload_suggested: boolean;
 }
 
 export interface ReactionSummary {

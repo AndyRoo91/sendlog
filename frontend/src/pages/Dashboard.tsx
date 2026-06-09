@@ -98,6 +98,11 @@ export default function Dashboard() {
       ? (buddy.state as CragState)
       : lobbyCondition(sessions14);
 
+  // A training-load spike (M4 ACWR) overrides the mood copy with a deload nudge.
+  const greeting = buddy?.reason === "load_spike"
+    ? { head: "ease off.", body: `load's spiking (ACWR ${buddy.load_ratio?.toFixed(1) ?? "high"}). take a deload — lighter week, more rest.` }
+    : CRAG_COPY[cragState];
+
   const daysSince = sessions[0] ? daysBetween(sessions[0].date) : null;
   const nudge: { text: string; color: string } | null =
     daysSince === null ? null
@@ -178,13 +183,13 @@ export default function Dashboard() {
               fontFamily: "var(--font-hand)", fontSize: 18, color: "var(--sea)",
               lineHeight: 1.1, marginBottom: 4,
             }}>
-              {CRAG_COPY[cragState].head}
+              {greeting.head}
             </div>
             <div style={{
               fontFamily: "var(--font-body)", fontWeight: 600, fontSize: 13,
               color: "var(--ink-2)", lineHeight: 1.3,
             }}>
-              {CRAG_COPY[cragState].body}
+              {greeting.body}
             </div>
           </div>
         </div>

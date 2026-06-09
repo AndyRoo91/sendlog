@@ -120,9 +120,20 @@ export default function TrainingPlan() {
         <div className="gap-row" style={{ justifyContent: "space-between", alignItems: "baseline", marginTop: 6, flexWrap: "wrap" }}>
           <span style={{ fontFamily: "var(--font-hand)", fontSize: 17 }}>{plan.name}</span>
           <span className="muted" style={{ fontSize: 12, fontFamily: "var(--font-banner)", letterSpacing: "0.05em" }}>
-            WEEK {planWeek(plan)}/{plan.weeks} · {plan.done_count}/{plan.total_count} DONE
+            WEEK {planWeek(plan)}/{plan.weeks}
+            {plan.current_phase ? ` · ${plan.current_phase.toUpperCase()}` : ""} · {plan.done_count}/{plan.total_count} DONE
           </span>
         </div>
+
+        {plan.deload_suggested && (
+          <div style={{
+            marginTop: 10, padding: "7px 11px", background: "var(--red)", color: "var(--cream)",
+            border: "var(--b) solid var(--ink)", boxShadow: "2px 2px 0 var(--ink)",
+            fontFamily: "var(--font-banner)", fontSize: 11, letterSpacing: "0.05em", transform: "rotate(-0.4deg)",
+          }}>
+            ⚠ LOAD SPIKING — EASE INTO A DELOAD WEEK
+          </div>
+        )}
 
         {thisWeek.length > 0 ? (
           <div style={{ marginTop: 6 }}>{thisWeek.map((s) => <SessionRow key={s.id} s={s} />)}</div>
