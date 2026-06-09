@@ -217,6 +217,20 @@ export interface PBTimelinePoint {
 
 export type ProgressRange = "6w" | "6mo" | "1y" | "all";
 
+export interface DailyActivity {
+  date: string;
+  ticks: number;
+}
+
+export interface SessionIntensity {
+  date: string;
+  total_ticks: number;
+  hardest_boulder?: number | null;
+  hardest_lead?: number | null;
+  hardest_boulder_label?: string | null;
+  hardest_lead_label?: string | null;
+}
+
 export interface ProgressData {
   fingerboard_max_weight: ProgressPoint[];
   boulder_max_grade: ProgressPoint[];
@@ -233,6 +247,8 @@ export interface ProgressData {
   location_breakdown: LocationBreakdownRow[];
   attempts_histogram: AttemptsHistogramRow[];
   pb_timeline: PBTimelinePoint[];
+  daily_activity: DailyActivity[];
+  session_intensity: SessionIntensity[];
 }
 
 export interface BuddyState {
