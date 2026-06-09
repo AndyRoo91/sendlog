@@ -2,7 +2,7 @@ import os
 import uuid
 from collections import defaultdict
 from contextlib import asynccontextmanager
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, File, HTTPException, Response, UploadFile
@@ -795,17 +795,36 @@ def delete_strength(
 # Progress
 # ---------------------------------------------------------------------------
 
+RANGE_KEYS = {"6w", "6mo", "1y", "all"}
+
+
+def _range_since(range_key: str) -> date:
+    """Cutoff date for a Progress range chip. ``date.min`` for 'all' so callers
+    can apply one uniform ``Session.date >= since`` filter to every query."""
+    today = date.today()
+    if range_key == "6w":
+        return today - timedelta(weeks=6)
+    if range_key == "6mo":
+        return today - timedelta(days=182)
+    if range_key == "1y":
+        return today - timedelta(days=365)
+    return date.min  # "all" (and any unrecognised value)
+
+
 @app.get("/api/progress", response_model=schemas.ProgressData)
 def get_progress(
+    range: str = "all",
     db: DBSession = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_user),
 ):
     uid = current_user.id
+    since = _range_since(range if range in RANGE_KEYS else "all")
 
     fb_points: list[schemas.ProgressPoint] = []
     for s in (
         db.query(models.Session).join(models.FingerboardEntry)
         .filter(models.Session.user_id == uid)
+        .filter(models.Session.date >= since)
         .order_by(models.Session.date).all()
     ):
         if not s.fingerboard_entries:
@@ -820,6 +839,7 @@ def get_progress(
     for s in (
         db.query(models.Session).join(models.LimitBoulderEntry)
         .filter(models.Session.user_id == uid)
+        .filter(models.Session.date >= since)
         .order_by(models.Session.date).all()
     ):
         sent = [e for e in s.boulder_entries if e.send_type in REDPOINT_SENDS]
@@ -834,6 +854,7 @@ def get_progress(
     for s in (
         db.query(models.Session).join(models.StrengthEntry)
         .filter(models.Session.user_id == uid)
+        .filter(models.Session.date >= since)
         .order_by(models.Session.date).all()
     ):
         if not s.strength_entries:
@@ -864,6 +885,7 @@ def get_progress(
     for s in (
         db.query(models.Session).join(models.LeadRouteEntry)
         .filter(models.Session.user_id == uid)
+        .filter(models.Session.date >= since)
         .order_by(models.Session.date).all()
     ):
         ewbank = [e for e in s.lead_route_entries if e.grade_system == "ewbank"]
@@ -886,6 +908,7 @@ def get_progress(
         db.query(models.LeadRouteEntry)
         .join(models.Session, models.LeadRouteEntry.session_id == models.Session.id)
         .filter(models.Session.user_id == uid)
+        .filter(models.Session.date >= since)
         .filter(models.LeadRouteEntry.grade_system == "ewbank")
         .all()
     ):
@@ -911,6 +934,7 @@ def get_progress(
         db.query(models.LimitBoulderEntry)
         .join(models.Session, models.LimitBoulderEntry.session_id == models.Session.id)
         .filter(models.Session.user_id == uid)
+        .filter(models.Session.date >= since)
         .all()
     ):
         if e.send_type not in ("flash", "redpoint"):
@@ -936,6 +960,7 @@ def get_progress(
     all_sessions = (
         db.query(models.Session)
         .filter(models.Session.user_id == uid)
+        .filter(models.Session.date >= since)
         .order_by(models.Session.date).all()
     )
     for s in all_sessions:
@@ -1015,7 +1040,8 @@ def get_progress(
     for e in (
         db.query(models.LeadRouteEntry)
         .join(models.Session, models.LeadRouteEntry.session_id == models.Session.id)
-        .filter(models.Session.user_id == uid).all()
+        .filter(models.Session.user_id == uid)
+        .filter(models.Session.date >= since).all()
     ):
         if e.send_type not in SEND_TYPES or e.attempts is None:
             continue
@@ -1025,7 +1051,8 @@ def get_progress(
     for e in (
         db.query(models.LimitBoulderEntry)
         .join(models.Session, models.LimitBoulderEntry.session_id == models.Session.id)
-        .filter(models.Session.user_id == uid).all()
+        .filter(models.Session.user_id == uid)
+        .filter(models.Session.date >= since).all()
     ):
         if e.send_type not in SEND_TYPES or e.attempts is None:
             continue

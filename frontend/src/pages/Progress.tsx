@@ -5,11 +5,12 @@ import {
 } from "recharts";
 import { api } from "../api/client";
 import type {
-  ProgressData, ProgressPoint, LeadPyramidRow, BoulderPyramidRow,
+  ProgressData, ProgressPoint, ProgressRange, LeadPyramidRow, BoulderPyramidRow,
   MoodSendRatePoint, LocationBreakdownRow, AttemptsHistogramRow, PBTimelinePoint,
 } from "../api/client";
 import { format } from "date-fns";
 import { Ribbon } from "../ui";
+import { onKey } from "../lib/a11y";
 
 const CHART_CARD_CLS = "card-flat offset-ink";
 const CHART_TITLE_STYLE = {
@@ -357,19 +358,71 @@ function PBTimeline({ points }: { points: PBTimelinePoint[] }) {
   );
 }
 
+const RANGES: { key: ProgressRange; label: string }[] = [
+  { key: "6w", label: "6W" },
+  { key: "6mo", label: "6MO" },
+  { key: "1y", label: "1Y" },
+  { key: "all", label: "ALL" },
+];
+
+function RangeChips({ value, onChange }: { value: ProgressRange; onChange: (r: ProgressRange) => void }) {
+  return (
+    <div className="gap-row" style={{ gap: 6, marginBottom: 18, flexWrap: "wrap" }}>
+      {RANGES.map(({ key, label }) => {
+        const active = key === value;
+        return (
+          <div
+            key={key}
+            role="button"
+            tabIndex={0}
+            aria-pressed={active}
+            onClick={() => onChange(key)}
+            onKeyDown={onKey(() => onChange(key))}
+            style={{
+              padding: "6px 14px", cursor: "pointer",
+              fontFamily: "var(--font-banner)", fontSize: 11, letterSpacing: "0.08em",
+              border: "var(--b) solid var(--ink)",
+              color: active ? "var(--cream)" : "var(--ink)",
+              background: active ? "var(--sea)" : "transparent",
+              boxShadow: active ? "2px 2px 0 var(--ink)" : "none",
+            }}
+          >
+            {label}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function Progress() {
   const [data, setData] = useState<ProgressData | null>(null);
+  const [range, setRange] = useState<ProgressRange>("all");
+  const [loading, setLoading] = useState(true);
 
-  useEffect(() => { api.getProgress().then(setData); }, []);
+  // Set loading in the handler (not the effect) so we never call setState
+  // synchronously inside useEffect.
+  function changeRange(r: ProgressRange) {
+    if (r === range) return;
+    setLoading(true);
+    setRange(r);
+  }
 
-  if (!data) return <div className="page"><p className="muted">Loading…</p></div>;
+  useEffect(() => {
+    api.getProgress(range).then(setData).finally(() => setLoading(false));
+  }, [range]);
 
   return (
     <div className="page">
       <div style={{ marginBottom: 22 }}>
         <Ribbon color="var(--sea)" textColor="var(--cream)">★ PROGRESS ★</Ribbon>
       </div>
-      <div className="gap-col">
+      <RangeChips value={range} onChange={changeRange} />
+
+      {!data ? (
+        <p className="muted">Loading…</p>
+      ) : (
+      <div className="gap-col" style={{ opacity: loading ? 0.5 : 1, transition: "opacity 0.15s" }}>
         <PBTimeline points={data.pb_timeline} />
         <MoodVsSendRate rows={data.mood_vs_send_rate} />
         <LocationBreakdown rows={data.location_breakdown} />
@@ -414,6 +467,7 @@ export default function Progress() {
           tooltipFormatter={(v) => `${v} kg`}
         />
       </div>
+      )}
     </div>
   );
 }
