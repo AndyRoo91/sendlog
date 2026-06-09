@@ -311,6 +311,50 @@ def weekly_progress(
     )
 
 
+@app.get("/api/protocols", response_model=list[schemas.FingerboardProtocol])
+def list_protocols(
+    db: DBSession = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    """The user's saved fingerboard protocols (built-ins live on the frontend)."""
+    return (
+        db.query(models.FingerboardProtocol)
+        .filter(models.FingerboardProtocol.user_id == current_user.id)
+        .order_by(models.FingerboardProtocol.name)
+        .all()
+    )
+
+
+@app.post("/api/protocols", response_model=schemas.FingerboardProtocol, status_code=201)
+def create_protocol(
+    payload: schemas.FingerboardProtocolCreate,
+    db: DBSession = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    if not payload.name.strip():
+        raise HTTPException(400, "Protocol name cannot be empty")
+    data = payload.model_dump()
+    data["name"] = data["name"].strip()
+    p = models.FingerboardProtocol(user_id=current_user.id, **data)
+    db.add(p)
+    db.commit()
+    db.refresh(p)
+    return p
+
+
+@app.delete("/api/protocols/{protocol_id}", status_code=204)
+def delete_protocol(
+    protocol_id: int,
+    db: DBSession = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    p = db.get(models.FingerboardProtocol, protocol_id)
+    if not p or p.user_id != current_user.id:
+        raise HTTPException(404, "Protocol not found")
+    db.delete(p)
+    db.commit()
+
+
 # ---------------------------------------------------------------------------
 # Photos
 # ---------------------------------------------------------------------------

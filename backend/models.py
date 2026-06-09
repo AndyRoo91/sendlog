@@ -262,6 +262,22 @@ class WallSet(Base):
     )
 
 
+class FingerboardProtocol(Base):
+    """A saved hangboard protocol that prefills the fingerboard logger
+    (Phase Q2). Mirrors the FingerboardEntry fields, plus a name."""
+    __tablename__ = "fingerboard_protocols"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
+    name: Mapped[str] = mapped_column(String(80), nullable=False)
+    edge_mm: Mapped[int | None] = mapped_column(Integer)
+    added_weight_kg: Mapped[float | None] = mapped_column(Float)
+    hang_duration_s: Mapped[int | None] = mapped_column(Integer)
+    num_sets: Mapped[int | None] = mapped_column(Integer)
+    notes: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+
+
 class SetCircuit(Base):
     """A colour circuit within a set — stores the optional total (denominator)
     for ``N/total`` progress. Per-colour tick counts are derived from ticks."""

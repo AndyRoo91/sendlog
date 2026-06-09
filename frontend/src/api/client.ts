@@ -23,6 +23,16 @@ export interface FingerboardEntry {
   notes?: string | null;
 }
 
+export interface FingerboardProtocol {
+  id?: number;          // absent for built-in (frontend) protocols
+  name: string;
+  edge_mm?: number | null;
+  added_weight_kg?: number | null;
+  hang_duration_s?: number | null;
+  num_sets?: number | null;
+  notes?: string | null;
+}
+
 export interface BoulderEntry {
   id?: number;
   session_id?: number;
@@ -439,6 +449,11 @@ export const api = {
   setGoals: (payload: { weekly_session_goal?: number | null; weekly_tick_goal?: number | null }) =>
     req<AuthUser>("/auth/me/goals", { method: "POST", body: JSON.stringify(payload) }),
   getWeeklyProgress: () => req<WeeklyProgress>("/weekly_progress"),
+
+  listProtocols: () => req<FingerboardProtocol[]>("/protocols"),
+  createProtocol: (p: FingerboardProtocol) =>
+    req<FingerboardProtocol>("/protocols", { method: "POST", body: JSON.stringify(p) }),
+  deleteProtocol: (id: number) => req<void>(`/protocols/${id}`, { method: "DELETE" }),
 
   getFeed: (limit = 50) => req<FeedEvent[]>(`/feed?limit=${limit}`),
   addReaction: (feed_key: string, emoji: string) =>
