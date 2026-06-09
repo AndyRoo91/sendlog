@@ -145,6 +145,14 @@ export interface SessionSummary {
   partner?: string | null;  // "climbed with…"
 }
 
+export interface Circuit {
+  color: string;
+  total_count?: number | null;
+  label?: string | null;
+  tick_count: number;
+  circuit_id?: number | null;
+}
+
 export interface WallSet {
   id: number;
   wall_id: number;
@@ -152,6 +160,7 @@ export interface WallSet {
   set_on: string;
   problem_count?: number | null;
   tick_count: number;
+  circuits: Circuit[];
 }
 
 export interface Wall {
@@ -544,6 +553,9 @@ export const api = {
   updateSet: (id: number, payload: { set_on?: string; label?: string | null; problem_count?: number | null }) =>
     req<WallSet>(`/sets/${id}`, { method: "PATCH", body: JSON.stringify(payload) }),
   deleteSet: (id: number) => req<void>(`/sets/${id}`, { method: "DELETE" }),
+  upsertCircuit: (setId: number, payload: { color: string; total_count?: number | null; label?: string | null }) =>
+    req<Circuit>(`/sets/${setId}/circuits`, { method: "POST", body: JSON.stringify(payload) }),
+  deleteCircuit: (circuitId: number) => req<void>(`/circuits/${circuitId}`, { method: "DELETE" }),
 
   // --- Export / Import ---
   exportData: async (): Promise<Blob> => {
