@@ -18,6 +18,7 @@ import type { TickSyncedDetail } from "../lib/syncQueue";
 import { BOULDER_GRADES, boulderGradeWindow, leadGradeWindow, gradeOrder } from "../lib/grades";
 import type { GradeSystem } from "../lib/grades";
 import { STANDARD_COLORS } from "../lib/holdColors";
+import { lastWallId, lastColor, rememberWall, rememberColor } from "../lib/lastUsed";
 import DetailSheet from "../components/DetailSheet";
 import type { DetailTarget } from "../components/DetailSheet";
 import GradeChipSlot from "../components/GradeChipSlot";
@@ -88,11 +89,18 @@ export default function TickSheet() {
   const [walls, setWalls] = useState<Wall[]>([]);
   const [currentWall, setCurrentWall] = useState<number | null>(null);
   const currentWallRef = useRef<number | null>(null);
-  function pickWall(id: number | null) { setCurrentWall(id); currentWallRef.current = id; }
   // Hold/circuit colour stamped on each boulder tick (sticky until changed).
   const [currentColor, setCurrentColor] = useState<string | null>(null);
   const currentColorRef = useRef<string | null>(null);
-  function pickColor(hex: string | null) { setCurrentColor(hex); currentColorRef.current = hex; }
+  const gymId = session?.gym_id ?? null;
+  function pickWall(id: number | null) {
+    setCurrentWall(id); currentWallRef.current = id;
+    if (gymId != null) rememberWall(gymId, id);
+  }
+  function pickColor(hex: string | null) {
+    setCurrentColor(hex); currentColorRef.current = hex;
+    if (gymId != null) rememberColor(gymId, hex);
+  }
 
   const refreshRecents = useCallback(() => {
     api.getRecentCombos(sessionId).then(setRecents).catch(() => {});
@@ -104,12 +112,23 @@ export default function TickSheet() {
     api.listRouteNames().then(setRouteNames).catch(() => {});
   }, [sessionId, refreshRecents]);
 
-  // Load the session gym's walls so ticks can attach to a wall (gym-set tracking).
-  const gymId = session?.gym_id ?? null;
+  // Load the session gym's walls so ticks can attach to a wall (gym-set tracking),
+  // and restore the last wall + hold colour used at this gym (sticky context).
   useEffect(() => {
     if (gymId == null) return;
     api.listGyms()
-      .then((gs) => setWalls(gs.find((g) => g.id === gymId)?.walls ?? []))
+      .then((gs) => {
+        const ws = gs.find((g) => g.id === gymId)?.walls ?? [];
+        setWalls(ws);
+        const wall = lastWallId(gymId);
+        if (wall != null && ws.some((w) => w.id === wall)) {
+          setCurrentWall(wall); currentWallRef.current = wall;
+        }
+        const color = lastColor(gymId);
+        if (color != null) {
+          setCurrentColor(color); currentColorRef.current = color;
+        }
+      })
       .catch(() => {});
   }, [gymId]);
 
