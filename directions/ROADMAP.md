@@ -290,3 +290,42 @@ fingerboard/strength loggers and the buddy's rest logic.
    **O3 (export cards)** alongside N.
 3. **P (gym-sets)** / **Q (training plans)** — the big bets; do these when there's a clear
    pull, since each adds real schema and a new mental model.
+
+---
+
+## 🧭 Phase R — Usability polish *(scoped 2026-07, phases A–Q all shipped)*
+
+A friction-driven pass over the finished feature set. Grounded in real gaps, not
+generic UX advice. Tiered by effort; each tier is roughly one PR.
+
+### R1 — Quick wins *(S each; #1–2 are the standouts)*
+
+| # | Item | Friction today |
+|---|------|----------------|
+| 1 | **Gym + partner pickers on the *new session* form** | `SessionForm` only has date/location — the gym dropdown + partner field exist only on the *edit* form, so gym-set tracking needs a create → edit round-trip, and TickSheet's wall chips never appear until the gym is tagged. |
+| 2 | **Remember last gym/wall/colour** | TickSheet already persists mode + grade system in localStorage; extend to last wall + hold colour per gym, and default the new-session gym to the last used. |
+| 3 | **Themed confirm dialogs** | 4 native `confirm()` calls (delete gym/project/session, abandon plan) — jarring vs the app's visual identity. One `ConfirmSheet` component + undo-toast pattern. |
+| 4 | **Feed cards → tap through** | Own session cards in the feed aren't links; tapping should open the session. |
+| 5 | **Heatmap cell → day drill-down** | Cells only have a hover title (useless on touch). Tap → that day's session(s). |
+
+### R2 — Structural *(M each)*
+
+| # | Item | Why |
+|---|------|-----|
+| 6 | **Progress page sections/tabs** | ~16 charts in one scroll. Group as `OVERVIEW · BOULDER · LEAD · TRAINING` chips (reuse the range-chip pattern) or collapsible sections. Biggest IA debt. |
+| 7 | **Full plan view** | Dashboard plan card shows only *this week*; add a tap-through page with all weeks, phases, done ticks. |
+| 8 | **First-run onboarding** | Empty Dashboard for new users; a dismissible 3-step checklist card (add gym → set goal → log first session), derived from data, no new state. |
+| 9 | **Actionable deload nudge** | Q4's banner advises but offers nothing; one tap → swap this week's planned sessions for a deload week. |
+
+### R3 — Deeper polish *(M–L)*
+
+| # | Item | Why |
+|---|------|-----|
+| 10 | **Accessibility pass on new features** | Colour swatches distinguish by colour alone (colour-blind climbers!); add colour names to selection + chips. Aria for rings/heatmap; `--ink-2` contrast check. |
+| 11 | **Global sync/offline status** | Offline queue chip lives only in TickSheet; edits elsewhere fail silently offline. |
+| 12 | **Timezone audit** | Naive-UTC handling patched ad hoc (`whenLabel`, `setDate`); consolidate into `lib/dates.ts` and sweep for date-shift bugs. |
+
+### Still parked (pre-R backlog)
+
+- **Floorplan** slice (P, deferred — fiddly), **P4 board climbing** (gated on board use),
+  **buddy customisation** (name/skin picker for Crag), **Phase N year-in-review**.
