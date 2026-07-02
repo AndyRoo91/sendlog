@@ -1,7 +1,8 @@
 # Screenshots
 
-The main [README](../../README.md) references these images. Drop the captures in here
-with these exact filenames:
+The main [README](../../README.md) has commented-out image embeds waiting on these
+captures. Drop the PNGs in here with these exact filenames, then un-comment the
+embeds in the README:
 
 | File | Screen |
 |---|---|

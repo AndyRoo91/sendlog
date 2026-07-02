@@ -7,9 +7,11 @@ activity feed. Built to self-host on a homelab as a single Docker container with
 It's a PWA, so it installs to your phone's home screen and keeps logging even with no
 signal at the crag.
 
-> Screenshots live in [`docs/screenshots/`](docs/screenshots).
-
+<!-- Screenshots pending — see docs/screenshots/README.md for the planned set.
+     Once the PNGs land, restore:
 ![Dashboard](docs/screenshots/dashboard.png)
+-->
+
 
 ## Features
 
@@ -65,9 +67,13 @@ signal at the crag.
 
 ## Screenshots
 
-| Quick-log | Progress | The feed |
-|---|---|---|
-| ![Logging](docs/screenshots/logging.png) | ![Progress](docs/screenshots/progress.png) | ![Feed](docs/screenshots/feed.png) |
+Coming soon — the planned set is listed in [`docs/screenshots/`](docs/screenshots).
+
+<!-- Once the PNGs land, restore:
+| Quick-log | Progress | The feed | Gyms |
+|---|---|---|---|
+| ![Logging](docs/screenshots/logging.png) | ![Progress](docs/screenshots/progress.png) | ![Feed](docs/screenshots/feed.png) | ![Gyms](docs/screenshots/gyms.png) |
+-->
 
 ## Running locally
 
@@ -96,9 +102,12 @@ Open [http://localhost:5173](http://localhost:5173). The dev server proxies `/ap
 backend on port 8000.
 
 ### Tests
+Backend tests need the dev requirements (`pip install -r requirements-dev.txt` inside the venv —
+it includes everything from `requirements.txt` plus pytest).
+
 ```bash
-cd backend && pytest          # ~240 API tests
-cd frontend && npm run build  # type-check + production build
+(cd backend && pytest)          # ~240 API tests
+(cd frontend && npm run build)  # type-check + production build
 ```
 CI runs the backend test suite on every PR.
 
@@ -120,7 +129,13 @@ Docker host.
 |---|---|---|
 | `DATABASE_URL` | `sqlite:///./climbing.db` | SQLite path |
 | `PHOTOS_DIR` | `./photos` | Directory for uploaded photos |
+| `SECRET_KEY` | *(ephemeral)* | Signs session cookies. **Set this in production** — if unset, a random key is generated on every start and all users are logged out on each restart/redeploy |
+| `ANDY_USERNAME` | `andy` | Username for the seeded first-run admin account |
 | `ANDY_PASSWORD` | `changeme` | Password for the seeded first-run admin account |
+
+Both compose files pass these through from the host / a `.env` file — e.g.
+`SECRET_KEY=$(openssl rand -hex 32) docker compose up -d`, or put them in a `.env`
+next to the compose file.
 
 ## Deploying as a Portainer stack (Synology NAS)
 

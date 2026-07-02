@@ -19,4 +19,9 @@ services:
     environment:
       - DATABASE_URL=sqlite:////app/data/climbing.db
       - PHOTOS_DIR=/app/data/photos
+      # IMPORTANT: set SECRET_KEY (Portainer → stack env vars, or paste a value
+      # here). Without it, every "Pull and redeploy" logs all users out.
+      - SECRET_KEY=${SECRET_KEY:-}                    # e.g. openssl rand -hex 32
+      - ANDY_USERNAME=${ANDY_USERNAME:-andy}          # seeded first-run admin username
+      - ANDY_PASSWORD=${ANDY_PASSWORD:-changeme}      # seeded first-run admin password
     restart: unless-stopped
