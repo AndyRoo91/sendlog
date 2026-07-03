@@ -491,6 +491,7 @@ export const api = {
   createPlan: (template_key: string, start_date: string) =>
     req<PlanDetail>("/plan", { method: "POST", body: JSON.stringify({ template_key, start_date }) }),
   deletePlan: () => req<void>("/plan", { method: "DELETE" }),
+  deloadWeek: () => req<PlanDetail>("/plan/deload", { method: "POST" }),
 
   getFeed: (limit = 50) => req<FeedEvent[]>(`/feed?limit=${limit}`),
   addReaction: (feed_key: string, emoji: string) =>

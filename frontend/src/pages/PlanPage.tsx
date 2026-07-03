@@ -4,6 +4,7 @@ import { format, addDays } from "date-fns";
 import { api } from "../api/client";
 import type { PlanDetail, PlannedSession } from "../api/client";
 import { day, planWeek } from "../lib/plan";
+import { onKey } from "../lib/a11y";
 import { Ribbon } from "../ui";
 
 // Full plan view (Phase R2): the Dashboard card shows only this week — this
@@ -72,6 +73,10 @@ export default function PlanPage() {
     api.getPlan().then(setPlan).catch(() => {}).finally(() => setLoaded(true));
   }, []);
 
+  async function swapDeload() {
+    try { setPlan(await api.deloadWeek()); } catch { /* ignore */ }
+  }
+
   return (
     <div className="page">
       <div className="gap-row" style={{ justifyContent: "space-between", marginBottom: 12 }}>
@@ -105,6 +110,14 @@ export default function PlanPage() {
               fontFamily: "var(--font-banner)", fontSize: 11, letterSpacing: "0.05em", transform: "rotate(-0.4deg)",
             }}>
               ⚠ LOAD SPIKING — EASE INTO A DELOAD WEEK
+              <div role="button" tabIndex={0} onClick={swapDeload} onKeyDown={onKey(swapDeload)}
+                style={{
+                  marginTop: 6, padding: "4px 9px", display: "inline-block", cursor: "pointer",
+                  background: "var(--cream)", color: "var(--ink)", border: "var(--b) solid var(--ink)",
+                  boxShadow: "2px 2px 0 var(--ink)", fontSize: 10, letterSpacing: "0.08em",
+                }}>
+                SWAP THIS WEEK FOR A DELOAD →
+              </div>
             </div>
           )}
 

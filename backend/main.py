@@ -360,6 +360,24 @@ def delete_protocol(
 # Training plans (Phase Q3)
 # ---------------------------------------------------------------------------
 
+# Rotating content for a swapped-in deload week (R2). Dates stay put; only
+# the work changes. Recognised by title prefix so the nudge stops re-firing.
+DELOAD_TITLE_PREFIX = "Deload"
+DELOAD_SESSIONS = [
+    ("Deload — easy volume", "40–60% of a normal session, everything well below your limit"),
+    ("Deload — technique + mobility", "light drills and footwork, no pump — leave feeling fresh"),
+    ("Deload — rest or easy hangs", "full rest day, or 50% fingerboard maintenance at most"),
+]
+
+
+def _current_week_window(plan: models.Plan) -> tuple[date, date]:
+    """[start, end) of the plan's current week, clamped to the plan."""
+    week = (date.today() - plan.start_date).days // 7 + 1
+    week = max(1, min(plan.weeks, week))
+    start = plan.start_date + timedelta(days=(week - 1) * 7)
+    return start, start + timedelta(days=7)
+
+
 def _plan_detail(plan: models.Plan, db: DBSession) -> schemas.PlanDetail:
     """Serialise a plan with each session's 'done' derived from real sessions
     logged on the scheduled date within the plan window."""
@@ -383,13 +401,17 @@ def _plan_detail(plan: models.Plan, db: DBSession) -> schemas.PlanDetail:
     week = (date.today() - plan.start_date).days // 7 + 1
     week = max(1, min(plan.weeks, week))
     acwr = _current_acwr(db, plan.user_id)
+    # Don't keep nudging once this week is already a deload week.
+    wk_start, wk_end = _current_week_window(plan)
+    this_week = [s for s in out if wk_start <= s.scheduled_date < wk_end]
+    week_deloaded = bool(this_week) and all(s.title.startswith(DELOAD_TITLE_PREFIX) for s in this_week)
     return schemas.PlanDetail(
         id=plan.id, template_key=plan.template_key, name=plan.name,
         start_date=plan.start_date, weeks=plan.weeks, sessions=out,
         done_count=sum(1 for s in out if s.done), total_count=len(out),
         current_phase=plan_templates.phase_for(plan.template_key, week),
         phases=[plan_templates.phase_for(plan.template_key, w) for w in range(1, plan.weeks + 1)],
-        deload_suggested=acwr is not None and acwr >= DELOAD_ACWR,
+        deload_suggested=acwr is not None and acwr >= DELOAD_ACWR and not week_deloaded,
     )
 
 
@@ -444,6 +466,36 @@ def create_plan(
                 scheduled_date=payload.start_date + timedelta(days=w * 7 + item.day),
                 title=item.title, focus=item.focus,
             ))
+    db.commit()
+    db.refresh(plan)
+    return _plan_detail(plan, db)
+
+
+@app.post("/api/plan/deload", response_model=schemas.PlanDetail)
+def deload_current_week(
+    db: DBSession = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    """Swap this week's planned sessions for a deload week (R2). Scheduled
+    dates stay put; only titles/focus change, so 'done' derivation is
+    unaffected. Idempotent — re-swapping writes the same content."""
+    plan = (
+        db.query(models.Plan)
+        .filter(models.Plan.user_id == current_user.id)
+        .order_by(models.Plan.id.desc())
+        .first()
+    )
+    if not plan:
+        raise HTTPException(404, "No active plan")
+    wk_start, wk_end = _current_week_window(plan)
+    this_week = sorted(
+        (ps for ps in plan.sessions if wk_start <= ps.scheduled_date < wk_end),
+        key=lambda x: (x.scheduled_date, x.id),
+    )
+    if not this_week:
+        raise HTTPException(409, "No planned sessions this week to swap")
+    for i, ps in enumerate(this_week):
+        ps.title, ps.focus = DELOAD_SESSIONS[i % len(DELOAD_SESSIONS)]
     db.commit()
     db.refresh(plan)
     return _plan_detail(plan, db)

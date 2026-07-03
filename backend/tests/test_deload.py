@@ -71,3 +71,38 @@ def test_no_deload_when_load_steady(client):
     assert b["reason"] != "load_spike"
     p = client.post("/api/plan", json={"template_key": "base_fitness", "start_date": iso(date.today())}).json()
     assert p["deload_suggested"] is False
+
+
+# --- Actionable deload swap (Phase R2) ----------------------------------------
+
+def test_deload_swap_requires_plan(client):
+    assert client.post("/api/plan/deload").status_code == 404
+
+
+def test_deload_swap_replaces_current_week_only(client):
+    start = monday()
+    client.post("/api/plan", json={"template_key": "power_endurance", "start_date": iso(start)})
+    p = client.post("/api/plan/deload").json()
+    week2 = start + timedelta(days=7)
+    for s in p["sessions"]:
+        d = date.fromisoformat(s["scheduled_date"])
+        if d < week2:
+            assert s["title"].startswith("Deload")
+        else:
+            assert not s["title"].startswith("Deload")
+
+
+def test_deload_swap_keeps_dates_and_counts(client):
+    start = monday()
+    before = client.post("/api/plan", json={"template_key": "power_endurance", "start_date": iso(start)}).json()
+    after = client.post("/api/plan/deload").json()
+    assert [s["scheduled_date"] for s in after["sessions"]] == [s["scheduled_date"] for s in before["sessions"]]
+    assert after["total_count"] == before["total_count"]
+
+
+def test_deload_suggested_clears_after_swap(client):
+    _spike(client)
+    client.post("/api/plan", json={"template_key": "power_endurance", "start_date": iso(monday())})
+    assert client.get("/api/plan").json()["deload_suggested"] is True
+    p = client.post("/api/plan/deload").json()
+    assert p["deload_suggested"] is False
