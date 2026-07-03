@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { formatDistanceToNowStrict } from "date-fns";
 import { api } from "../api/client";
 import type { FeedEvent, ReactionSummary } from "../api/client";
@@ -148,19 +149,12 @@ function EventCard({ e, i, isMe, onReactionError }: {
   const head = isAch
     ? { emoji: e.emoji ?? "🏅", text: `unlocked "${e.title}"` }
     : sessionHeadline(e);
+  // Your own session cards tap through to the session summary (Phase R1).
+  const href = isMe && e.kind === "session" && e.session_id != null
+    ? `/sessions/${e.session_id}/summary` : null;
 
-  return (
-    <div className="card-flat offset-ink" style={{
-      padding: "13px 15px", transform: `rotate(${tilt}deg)`,
-      borderColor: e.is_pb ? "var(--red)" : undefined,
-    }}>
-      <div className="gap-row" style={{ justifyContent: "space-between", alignItems: "center", gap: 8 }}>
-        <UsernameChip name={e.username} isMe={isMe} />
-        <span className="muted" style={{ fontSize: 11, fontFamily: "var(--font-banner)", letterSpacing: "0.05em" }}>
-          {whenLabel(e.at)}
-        </span>
-      </div>
-
+  const body = (
+    <>
       <div style={{ marginTop: 9, fontFamily: "var(--font-hand)", fontSize: 18, lineHeight: 1.25 }}>
         <span style={{ marginRight: 6 }}>{head.emoji}</span>{head.text}
         {e.kind === "session" && e.partner && (
@@ -168,6 +162,7 @@ function EventCard({ e, i, isMe, onReactionError }: {
             with {e.partner}
           </span>
         )}
+        {href && <span aria-hidden="true" className="muted" style={{ marginLeft: 8, fontSize: 14 }}>↗</span>}
       </div>
 
       {e.kind === "session" && (sessionStats(e) || e.is_pb) && (
@@ -182,6 +177,26 @@ function EventCard({ e, i, isMe, onReactionError }: {
           )}
         </div>
       )}
+    </>
+  );
+
+  return (
+    <div className="card-flat offset-ink" style={{
+      padding: "13px 15px", transform: `rotate(${tilt}deg)`,
+      borderColor: e.is_pb ? "var(--red)" : undefined,
+    }}>
+      <div className="gap-row" style={{ justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+        <UsernameChip name={e.username} isMe={isMe} />
+        <span className="muted" style={{ fontSize: 11, fontFamily: "var(--font-banner)", letterSpacing: "0.05em" }}>
+          {whenLabel(e.at)}
+        </span>
+      </div>
+
+      {href ? (
+        <Link to={href} style={{ display: "block", color: "inherit", textDecoration: "none" }}>
+          {body}
+        </Link>
+      ) : body}
 
       <ReactionRow
         feedKey={e.feed_key}

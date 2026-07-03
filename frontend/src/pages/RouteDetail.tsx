@@ -5,7 +5,7 @@ import { api } from "../api/client";
 import type { RouteDetail as RouteDetailT, RouteNote, RoutePin, EntryPhoto } from "../api/client";
 import { pinKind } from "../lib/pins";
 import { photoUrl } from "../lib/photos";
-import { STYLE_BY_ID, sendTypeToStyle, Lightbox, StickerRating } from "../ui";
+import { STYLE_BY_ID, sendTypeToStyle, Lightbox, StickerRating, ConfirmSheet } from "../ui";
 import { useAuth } from "../lib/auth";
 import TopoPinEditor from "../components/TopoPinEditor";
 import PhotoUploader from "../components/PhotoUploader";
@@ -120,6 +120,7 @@ export default function RouteDetail() {
   const [uploading, setUploading] = useState(false);
   const [lightbox, setLightbox] = useState<string | null>(null);
   const [picking, setPicking] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   useEffect(() => { api.getRoute(routeId).then(setRoute); }, [routeId]);
 
@@ -130,7 +131,8 @@ export default function RouteDetail() {
   }
 
   async function handleDelete() {
-    if (!route || !confirm("Delete this project and its pins?")) return;
+    if (!route) return;
+    setConfirmingDelete(false);
     await api.deleteRoute(routeId);
     navigate("/routes");
   }
@@ -146,8 +148,13 @@ export default function RouteDetail() {
     <div className="page">
       <div className="gap-row" style={{ justifyContent: "space-between", marginBottom: 12 }}>
         <Link to="/routes" style={{ fontSize: 13 }}>← Projects</Link>
-        <button className="btn-danger btn-sm" onClick={handleDelete}>Delete</button>
+        <button className="btn-danger btn-sm" onClick={() => setConfirmingDelete(true)}>Delete</button>
       </div>
+
+      {confirmingDelete && (
+        <ConfirmSheet title="DELETE PROJECT?" message="The project, its topo pins and beta notes go. Logged ticks stay."
+          onConfirm={handleDelete} onCancel={() => setConfirmingDelete(false)} />
+      )}
 
       <div style={{ marginBottom: 16 }}>
         <h1>{route.name}</h1>

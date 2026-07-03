@@ -3,6 +3,7 @@ import { format, startOfWeek, addDays } from "date-fns";
 import { api } from "../api/client";
 import type { PlanDetail, PlanTemplate, PlannedSession } from "../api/client";
 import { onKey } from "../lib/a11y";
+import { ConfirmSheet } from "../ui";
 
 /** "2026-06-08" → Date at local midnight (no UTC drift). */
 function day(iso: string): Date { return new Date(iso + "T00:00:00"); }
@@ -83,6 +84,7 @@ export default function TrainingPlan() {
   const [templates, setTemplates] = useState<PlanTemplate[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [starting, setStarting] = useState(false);
+  const [confirmingAbandon, setConfirmingAbandon] = useState(false);
 
   useEffect(() => { api.getPlan().then(setPlan).catch(() => {}).finally(() => setLoaded(true)); }, []);
 
@@ -94,7 +96,7 @@ export default function TrainingPlan() {
   }
 
   async function abandon() {
-    if (!confirm("Abandon this plan? Your logged sessions stay.")) return;
+    setConfirmingAbandon(false);
     try { await api.deletePlan(); setPlan(null); setStarting(false); } catch { /* ignore */ }
   }
 
@@ -114,7 +116,7 @@ export default function TrainingPlan() {
       <div className="card-flat offset-ink" style={{ padding: 16, marginBottom: 16 }}>
         <div className="gap-row" style={{ justifyContent: "space-between", alignItems: "baseline" }}>
           <div style={{ fontFamily: "var(--font-banner)", fontSize: 12, letterSpacing: "0.12em" }}>★ TRAINING PLAN</div>
-          <span role="button" tabIndex={0} onClick={abandon} onKeyDown={onKey(abandon)}
+          <span role="button" tabIndex={0} onClick={() => setConfirmingAbandon(true)} onKeyDown={onKey(() => setConfirmingAbandon(true))}
             className="muted" style={{ fontSize: 11, cursor: "pointer", fontStyle: "italic" }}>abandon</span>
         </div>
         <div className="gap-row" style={{ justifyContent: "space-between", alignItems: "baseline", marginTop: 6, flexWrap: "wrap" }}>
@@ -144,6 +146,11 @@ export default function TrainingPlan() {
           </div>
         ) : (
           <p className="muted" style={{ fontSize: 13, marginTop: 8 }}>Plan complete — nice work. Abandon it to start another.</p>
+        )}
+
+        {confirmingAbandon && (
+          <ConfirmSheet title="ABANDON PLAN?" message="Your logged sessions stay — only the schedule goes."
+            confirmLabel="ABANDON" onConfirm={abandon} onCancel={() => setConfirmingAbandon(false)} />
         )}
       </div>
     );

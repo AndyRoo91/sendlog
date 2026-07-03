@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { format } from "date-fns";
 import { api } from "../api/client";
 import type { Gym, Wall, WallSet, Circuit } from "../api/client";
-import { Ribbon, Toast } from "../ui";
+import { ConfirmSheet, Ribbon, Toast } from "../ui";
 import { useToast } from "../lib/useToast";
 import { STANDARD_COLORS } from "../lib/holdColors";
 
@@ -227,6 +227,7 @@ function GymCard({ gym, onChanged, onError }: {
   gym: Gym; onChanged: () => void; onError: (m: string) => void;
 }) {
   const [renaming, setRenaming] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [name, setName] = useState(gym.name);
   const [wallName, setWallName] = useState("");
   const [wallAngle, setWallAngle] = useState("");
@@ -238,7 +239,7 @@ function GymCard({ gym, onChanged, onError }: {
   }
 
   async function removeGym() {
-    if (!confirm(`Delete "${gym.name}" and its walls? Sessions stay, just lose the gym tag.`)) return;
+    setConfirmingDelete(false);
     try { await api.deleteGym(gym.id); onChanged(); }
     catch { onError("Couldn't delete the gym."); }
   }
@@ -268,11 +269,17 @@ function GymCard({ gym, onChanged, onError }: {
             <div style={{ fontFamily: "var(--font-banner)", fontSize: 15, letterSpacing: "0.06em" }}>{gym.name}</div>
             <div className="gap-row" style={{ gap: 6 }}>
               <button className="btn-secondary btn-sm" style={{ padding: "2px 8px", fontSize: 11 }} onClick={() => setRenaming(true)}>Rename</button>
-              <button className="btn-secondary btn-sm" style={{ padding: "2px 8px", fontSize: 11 }} onClick={removeGym}>Delete</button>
+              <button className="btn-secondary btn-sm" style={{ padding: "2px 8px", fontSize: 11 }} onClick={() => setConfirmingDelete(true)}>Delete</button>
             </div>
           </>
         )}
       </div>
+
+      {confirmingDelete && (
+        <ConfirmSheet title={`DELETE "${gym.name.toUpperCase()}"?`}
+          message="The gym and its walls go. Sessions stay — they just lose the gym tag."
+          onConfirm={removeGym} onCancel={() => setConfirmingDelete(false)} />
+      )}
 
       <div style={{ marginTop: 10, borderTop: "2px dashed var(--ink-2)", paddingTop: 8 }}>
         <div style={{ fontFamily: "var(--font-banner)", fontSize: 10, letterSpacing: "0.1em", color: "var(--ink-2)" }}>
