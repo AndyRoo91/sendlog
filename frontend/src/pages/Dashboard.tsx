@@ -8,6 +8,7 @@ import type { CragState } from "../ui";
 import { isDuckOn, setDuck, useDuckMode, useKonami } from "../lib/duckMode";
 import WeeklyGoals from "../components/WeeklyGoals";
 import TrainingPlan from "../components/TrainingPlan";
+import Onboarding from "../components/Onboarding";
 
 interface StatProps {
   label: string;
@@ -157,6 +158,7 @@ export default function Dashboard() {
         </Link>
       )}
 
+      {!loading && <Onboarding sessionCount={sessions.length} />}
       <WeeklyGoals />
       <TrainingPlan />
 
