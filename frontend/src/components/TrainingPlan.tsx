@@ -93,6 +93,10 @@ export default function TrainingPlan() {
     try { await api.deletePlan(); setPlan(null); setStarting(false); } catch { /* ignore */ }
   }
 
+  async function swapDeload() {
+    try { setPlan(await api.deloadWeek()); } catch { /* ignore */ }
+  }
+
   if (!loaded) return null;
 
   // --- Active plan ---
@@ -129,6 +133,14 @@ export default function TrainingPlan() {
             fontFamily: "var(--font-banner)", fontSize: 11, letterSpacing: "0.05em", transform: "rotate(-0.4deg)",
           }}>
             ⚠ LOAD SPIKING — EASE INTO A DELOAD WEEK
+            <div role="button" tabIndex={0} onClick={swapDeload} onKeyDown={onKey(swapDeload)}
+              style={{
+                marginTop: 6, padding: "4px 9px", display: "inline-block", cursor: "pointer",
+                background: "var(--cream)", color: "var(--ink)", border: "var(--b) solid var(--ink)",
+                boxShadow: "2px 2px 0 var(--ink)", fontSize: 10, letterSpacing: "0.08em",
+              }}>
+              SWAP THIS WEEK FOR A DELOAD →
+            </div>
           </div>
         )}
 
