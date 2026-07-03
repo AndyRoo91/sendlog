@@ -4,7 +4,8 @@ import { api } from "../api/client";
 import type { Gym, Wall, WallSet, Circuit } from "../api/client";
 import { ConfirmSheet, Ribbon, Toast } from "../ui";
 import { useToast } from "../lib/useToast";
-import { STANDARD_COLORS } from "../lib/holdColors";
+import { STANDARD_COLORS, colorName } from "../lib/holdColors";
+import { onKey } from "../lib/a11y";
 
 function angleLabel(angle?: number | null): string {
   if (angle == null) return "";
@@ -52,6 +53,10 @@ function CircuitRow({ setId, c, onChanged, onError }: {
   return (
     <div className="gap-row" style={{ gap: 6, alignItems: "center", marginTop: 3 }}>
       <ColorDot hex={c.color} />
+      {/* colour name in text — rows shouldn't differ by dot colour alone */}
+      <span className="muted" style={{ fontSize: 10, fontFamily: "var(--font-banner)", letterSpacing: "0.05em", minWidth: 44 }}>
+        {colorName(c.color).toUpperCase()}
+      </span>
       <span className="muted" style={{ fontSize: 12, fontFamily: "var(--font-banner)" }}>{c.tick_count}</span>
       <span className="muted" style={{ fontSize: 11 }}>/</span>
       <input type="number" value={total} onChange={(e) => setTotal(e.target.value)} onBlur={saveTotal}
@@ -91,8 +96,8 @@ function CircuitList({ set, onChanged, onError }: {
       {adding ? (
         <div className="gap-row" style={{ gap: 6, marginTop: 5, flexWrap: "wrap", alignItems: "center" }}>
           {STANDARD_COLORS.filter((sc) => !used.has(sc.hex)).map((sc) => (
-            <span key={sc.hex} role="button" tabIndex={0} title={sc.name}
-              onClick={() => addColor(sc.hex)} style={{ cursor: "pointer" }}>
+            <span key={sc.hex} role="button" tabIndex={0} title={sc.name} aria-label={`Add ${sc.name} circuit`}
+              onClick={() => addColor(sc.hex)} onKeyDown={onKey(() => addColor(sc.hex))} style={{ cursor: "pointer" }}>
               <ColorDot hex={sc.hex} size={18} />
             </span>
           ))}

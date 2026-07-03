@@ -502,7 +502,7 @@ function ContributionHeatmap({ daily, range }: { daily: DailyActivity[]; range: 
           ))}
         </div>
       )}
-      <div className="gap-row" style={{ gap: 5, marginTop: 10, alignItems: "center", justifyContent: "flex-end" }}>
+      <div className="gap-row" aria-hidden="true" style={{ gap: 5, marginTop: 10, alignItems: "center", justifyContent: "flex-end" }}>
         <span className="muted" style={{ fontSize: 10, fontFamily: "var(--font-banner)", letterSpacing: "0.06em" }}>LESS</span>
         {HEAT_SHADES.map((c, i) => (
           <div key={i} style={{

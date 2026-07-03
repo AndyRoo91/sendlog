@@ -9,8 +9,9 @@ function Ring({ value, goal, label, color }: { value: number; goal: number; labe
   const pct = goal > 0 ? Math.min(1, value / goal) : 0;
   const met = value >= goal && goal > 0;
   return (
-    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 5 }}>
-      <div style={{ position: "relative", width: size, height: size }}>
+    <div role="img" aria-label={`${label.toLowerCase()} this week: ${value} of ${goal}${met ? " — goal met" : ""}`}
+      style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 5 }}>
+      <div aria-hidden="true" style={{ position: "relative", width: size, height: size }}>
         <svg width={size} height={size} style={{ transform: "rotate(-90deg)" }}>
           <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgba(26,22,18,0.15)" strokeWidth={stroke} />
           <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color} strokeWidth={stroke}
