@@ -517,15 +517,16 @@ function ContributionHeatmap({ daily, range }: { daily: DailyActivity[]; range: 
 }
 
 /** Volume vs intensity scatter — one dot per session, x = ticks, y = hardest send. */
-function VolumeIntensityScatter({ rows }: { rows: SessionIntensity[] }) {
-  const boulderPts = rows
-    .filter((r) => r.hardest_boulder != null)
-    .map((r) => ({ ticks: r.total_ticks, grade: r.hardest_boulder!, label: r.hardest_boulder_label, date: r.date }));
-  const leadPts = rows
-    .filter((r) => r.hardest_lead != null)
-    .map((r) => ({ ticks: r.total_ticks, grade: r.hardest_lead!, label: r.hardest_lead_label, date: r.date }));
+function VolumeIntensityScatter({ rows, mode }: { rows: SessionIntensity[]; mode: "boulder" | "lead" }) {
+  const pts = mode === "boulder"
+    ? rows
+        .filter((r) => r.hardest_boulder != null)
+        .map((r) => ({ ticks: r.total_ticks, grade: r.hardest_boulder!, label: r.hardest_boulder_label, date: r.date }))
+    : rows
+        .filter((r) => r.hardest_lead != null)
+        .map((r) => ({ ticks: r.total_ticks, grade: r.hardest_lead!, label: r.hardest_lead_label, date: r.date }));
 
-  if (boulderPts.length === 0 && leadPts.length === 0) {
+  if (pts.length === 0) {
     return (
       <div className={CHART_CARD_CLS} style={{ padding: 16 }}>
         <div style={CHART_TITLE_STYLE}>Volume vs Intensity</div>
@@ -562,12 +563,9 @@ function VolumeIntensityScatter({ rows }: { rows: SessionIntensity[] }) {
     </div>
   );
 
-  return (
-    <>
-      {scatterCard("Boulder — Volume vs Intensity", boulderPts, SEA, (v) => BOULDER_GRADES[v] ?? `V${v}`)}
-      {scatterCard("Lead — Volume vs Intensity (Ewbank)", leadPts, COBALT, (v) => String(v))}
-    </>
-  );
+  return mode === "boulder"
+    ? scatterCard("Boulder — Volume vs Intensity", pts, SEA, (v) => BOULDER_GRADES[v] ?? `V${v}`)
+    : scatterCard("Lead — Volume vs Intensity (Ewbank)", pts, COBALT, (v) => String(v));
 }
 
 const SEND_TYPE_LABEL: Record<string, string> = {
@@ -712,9 +710,59 @@ function RangeChips({ value, onChange }: { value: ProgressRange; onChange: (r: P
   );
 }
 
+// Progress sections (Phase R2): ~16 charts was one long scroll, so the page is
+// grouped into tabs. The last-viewed tab sticks across visits (best-effort).
+type ProgressSection = "overview" | "boulder" | "lead" | "training";
+const SECTIONS: { key: ProgressSection; label: string }[] = [
+  { key: "overview", label: "OVERVIEW" },
+  { key: "boulder", label: "BOULDER" },
+  { key: "lead", label: "LEAD" },
+  { key: "training", label: "TRAINING" },
+];
+const SECTION_KEY = "sendlog.progressSection";
+
+function loadSection(): ProgressSection {
+  try {
+    const raw = localStorage.getItem(SECTION_KEY);
+    if (SECTIONS.some((s) => s.key === raw)) return raw as ProgressSection;
+  } catch { /* best-effort */ }
+  return "overview";
+}
+
+function SectionChips({ value, onChange }: { value: ProgressSection; onChange: (s: ProgressSection) => void }) {
+  return (
+    <div className="gap-row" style={{ gap: 6, marginBottom: 18, flexWrap: "wrap" }}>
+      {SECTIONS.map(({ key, label }) => {
+        const active = key === value;
+        return (
+          <div
+            key={key}
+            role="button"
+            tabIndex={0}
+            aria-pressed={active}
+            onClick={() => onChange(key)}
+            onKeyDown={onKey(() => onChange(key))}
+            style={{
+              padding: "6px 14px", cursor: "pointer",
+              fontFamily: "var(--font-banner)", fontSize: 11, letterSpacing: "0.08em",
+              border: "var(--b) solid var(--ink)",
+              color: "var(--ink)",
+              background: active ? "var(--mustard)" : "transparent",
+              boxShadow: active ? "2px 2px 0 var(--ink)" : "none",
+            }}
+          >
+            {label}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function Progress() {
   const [data, setData] = useState<ProgressData | null>(null);
   const [range, setRange] = useState<ProgressRange>("all");
+  const [section, setSection] = useState<ProgressSection>(loadSection);
   const [loading, setLoading] = useState(true);
   // Pyramid drill-down selection: which discipline + grade to expand.
   const [drill, setDrill] = useState<{ kind: "lead" | "boulder"; grade: string } | null>(null);
@@ -727,6 +775,11 @@ export default function Progress() {
     setRange(r);
   }
 
+  function changeSection(s: ProgressSection) {
+    setSection(s);
+    try { localStorage.setItem(SECTION_KEY, s); } catch { /* best-effort */ }
+  }
+
   useEffect(() => {
     api.getProgress(range).then(setData).finally(() => setLoading(false));
   }, [range]);
@@ -737,58 +790,79 @@ export default function Progress() {
         <Ribbon color="var(--sea)" textColor="var(--cream)">★ PROGRESS ★</Ribbon>
       </div>
       <RangeChips value={range} onChange={changeRange} />
+      <SectionChips value={section} onChange={changeSection} />
 
       {!data ? (
         <p className="muted">Loading…</p>
       ) : (
       <div className="gap-col" style={{ opacity: loading ? 0.5 : 1, transition: "opacity 0.15s" }}>
-        <ContributionHeatmap daily={data.daily_activity} range={range} />
-        <PBTimeline points={data.pb_timeline} />
-        <TrainingLoadChart points={data.training_load} />
-        <VolumeIntensityScatter rows={data.session_intensity} />
-        <MoodVsSendRate rows={data.mood_vs_send_rate} />
-        <LocationBreakdown rows={data.location_breakdown} />
-        <AttemptsHistogram rows={data.attempts_histogram} />
-        <LeadProgression onsight={data.lead_onsight_progression} flash={data.lead_flash_progression} redpoint={data.lead_redpoint_progression} />
-        <LeadPyramid rows={data.lead_send_pyramid} onPick={(grade) => setDrill({ kind: "lead", grade })} />
-        <BoulderPyramid rows={data.boulder_send_pyramid} onPick={(grade) => setDrill({ kind: "boulder", grade })} />
-        <ChartCard
-          title="Limit Boulder Max Grade (Sends)"
-          data={data.boulder_max_grade}
-          color={SEA}
-          projection
-          yTickFormatter={(v) => BOULDER_GRADES[v] ?? `V${v}`}
-          tooltipFormatter={(v) => BOULDER_GRADES[v] ?? `V${v}`}
-        />
-        <VolumeChart data={data.session_volume} />
-        <ChartCard
-          title="Send Rate (% sends per session)"
-          data={data.send_rate}
-          color="#e88aa3"
-          yTickFormatter={(v) => `${v}%`}
-          tooltipFormatter={(v) => `${v}%`}
-        />
-        <ChartCard
-          title="Falls Trend (avg falls/route, lead only)"
-          data={data.falls_trend}
-          color={FLASH}
-          yTickFormatter={(v) => `${v}`}
-          tooltipFormatter={(v) => `${v} falls`}
-        />
-        <ChartCard
-          title="Fingerboard Max Added Weight"
-          data={data.fingerboard_max_weight}
-          color="#2a4a8a"
-          yTickFormatter={(v) => `${v}kg`}
-          tooltipFormatter={(v) => `${v} kg`}
-        />
-        <ChartCard
-          title="Strength Max Added Weight"
-          data={data.strength_max_weight}
-          color={FLASH}
-          yTickFormatter={(v) => `${v}kg`}
-          tooltipFormatter={(v) => `${v} kg`}
-        />
+        {section === "overview" && (
+          <>
+            <ContributionHeatmap daily={data.daily_activity} range={range} />
+            <PBTimeline points={data.pb_timeline} />
+            <VolumeChart data={data.session_volume} />
+            <ChartCard
+              title="Send Rate (% sends per session)"
+              data={data.send_rate}
+              color="#e88aa3"
+              yTickFormatter={(v) => `${v}%`}
+              tooltipFormatter={(v) => `${v}%`}
+            />
+            <MoodVsSendRate rows={data.mood_vs_send_rate} />
+            <LocationBreakdown rows={data.location_breakdown} />
+            <AttemptsHistogram rows={data.attempts_histogram} />
+          </>
+        )}
+
+        {section === "boulder" && (
+          <>
+            <BoulderPyramid rows={data.boulder_send_pyramid} onPick={(grade) => setDrill({ kind: "boulder", grade })} />
+            <ChartCard
+              title="Limit Boulder Max Grade (Sends)"
+              data={data.boulder_max_grade}
+              color={SEA}
+              projection
+              yTickFormatter={(v) => BOULDER_GRADES[v] ?? `V${v}`}
+              tooltipFormatter={(v) => BOULDER_GRADES[v] ?? `V${v}`}
+            />
+            <VolumeIntensityScatter rows={data.session_intensity} mode="boulder" />
+          </>
+        )}
+
+        {section === "lead" && (
+          <>
+            <LeadPyramid rows={data.lead_send_pyramid} onPick={(grade) => setDrill({ kind: "lead", grade })} />
+            <LeadProgression onsight={data.lead_onsight_progression} flash={data.lead_flash_progression} redpoint={data.lead_redpoint_progression} />
+            <ChartCard
+              title="Falls Trend (avg falls/route, lead only)"
+              data={data.falls_trend}
+              color={FLASH}
+              yTickFormatter={(v) => `${v}`}
+              tooltipFormatter={(v) => `${v} falls`}
+            />
+            <VolumeIntensityScatter rows={data.session_intensity} mode="lead" />
+          </>
+        )}
+
+        {section === "training" && (
+          <>
+            <TrainingLoadChart points={data.training_load} />
+            <ChartCard
+              title="Fingerboard Max Added Weight"
+              data={data.fingerboard_max_weight}
+              color="#2a4a8a"
+              yTickFormatter={(v) => `${v}kg`}
+              tooltipFormatter={(v) => `${v} kg`}
+            />
+            <ChartCard
+              title="Strength Max Added Weight"
+              data={data.strength_max_weight}
+              color={FLASH}
+              yTickFormatter={(v) => `${v}kg`}
+              tooltipFormatter={(v) => `${v} kg`}
+            />
+          </>
+        )}
       </div>
       )}
 
