@@ -1,18 +1,11 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { format, startOfWeek, addDays } from "date-fns";
 import { api } from "../api/client";
 import type { PlanDetail, PlanTemplate, PlannedSession } from "../api/client";
 import { onKey } from "../lib/a11y";
+import { day, planWeek } from "../lib/plan";
 import { ConfirmSheet } from "../ui";
-
-/** "2026-06-08" → Date at local midnight (no UTC drift). */
-function day(iso: string): Date { return new Date(iso + "T00:00:00"); }
-
-function planWeek(plan: PlanDetail): number {
-  const start = day(plan.start_date);
-  const elapsed = Math.floor((Date.now() - start.getTime()) / (7 * 86400_000));
-  return Math.min(plan.weeks, Math.max(1, elapsed + 1));
-}
 
 function SessionRow({ s }: { s: PlannedSession }) {
   return (
@@ -120,7 +113,9 @@ export default function TrainingPlan() {
             className="muted" style={{ fontSize: 11, cursor: "pointer", fontStyle: "italic" }}>abandon</span>
         </div>
         <div className="gap-row" style={{ justifyContent: "space-between", alignItems: "baseline", marginTop: 6, flexWrap: "wrap" }}>
-          <span style={{ fontFamily: "var(--font-hand)", fontSize: 17 }}>{plan.name}</span>
+          <Link to="/plan" style={{ fontFamily: "var(--font-hand)", fontSize: 17, color: "inherit" }}>
+            {plan.name} <span aria-hidden="true" className="muted" style={{ fontSize: 13 }}>↗</span>
+          </Link>
           <span className="muted" style={{ fontSize: 12, fontFamily: "var(--font-banner)", letterSpacing: "0.05em" }}>
             WEEK {planWeek(plan)}/{plan.weeks}
             {plan.current_phase ? ` · ${plan.current_phase.toUpperCase()}` : ""} · {plan.done_count}/{plan.total_count} DONE

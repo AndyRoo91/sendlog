@@ -386,6 +386,7 @@ export interface PlanDetail {
   done_count: number;
   total_count: number;
   current_phase?: string | null;
+  phases: (string | null)[];  // phase label per week (index 0 = week 1)
   deload_suggested: boolean;
 }
 

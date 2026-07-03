@@ -388,6 +388,7 @@ def _plan_detail(plan: models.Plan, db: DBSession) -> schemas.PlanDetail:
         start_date=plan.start_date, weeks=plan.weeks, sessions=out,
         done_count=sum(1 for s in out if s.done), total_count=len(out),
         current_phase=plan_templates.phase_for(plan.template_key, week),
+        phases=[plan_templates.phase_for(plan.template_key, w) for w in range(1, plan.weeks + 1)],
         deload_suggested=acwr is not None and acwr >= DELOAD_ACWR,
     )
 

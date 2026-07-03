@@ -106,3 +106,10 @@ def test_lead_redpoint_generates_five_weeks(client):
     p = client.post("/api/plan", json={"template_key": "lead_redpoint", "start_date": iso(monday())}).json()
     assert p["weeks"] == 5
     assert p["total_count"] == 15  # 5 weeks × 3 sessions
+
+
+def test_plan_carries_per_week_phases(client):
+    p = client.post("/api/plan", json={"template_key": "lead_redpoint", "start_date": iso(monday())}).json()
+    assert p["phases"] == ["build", "build", "power", "peak", "peak"]
+    # current_phase is always one of the per-week labels
+    assert p["current_phase"] in p["phases"]
