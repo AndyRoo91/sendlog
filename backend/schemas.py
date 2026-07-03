@@ -63,6 +63,7 @@ class PlanDetail(BaseModel):
     done_count: int = 0
     total_count: int = 0
     current_phase: str | None = None     # this week's periodisation phase
+    phases: list[str | None] = []        # phase label per week (index 0 = week 1)
     deload_suggested: bool = False       # ACWR is spiking — ease off
 
 
