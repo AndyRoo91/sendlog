@@ -10,8 +10,8 @@ import type {
   DailyActivity, SessionIntensity, TrainingLoadPoint,
 } from "../api/client";
 import { format, subDays, startOfWeek, eachDayOfInterval } from "date-fns";
-import { Link } from "react-router-dom";
-import type { SendDetail } from "../api/client";
+import { Link, useNavigate } from "react-router-dom";
+import type { SendDetail, SessionSummary } from "../api/client";
 import { Ribbon } from "../ui";
 import { onKey } from "../lib/a11y";
 
@@ -412,6 +412,22 @@ function heatLevel(ticks: number): number {
 
 /** GitHub-style contribution calendar — one cell per day, intensity = tick volume. */
 function ContributionHeatmap({ daily, range }: { daily: DailyActivity[]; range: ProgressRange }) {
+  const navigate = useNavigate();
+  // Tap a day → that day's session(s). Sessions are fetched once, on first tap
+  // (hover titles are useless on touch, so this is the mobile drill-down path).
+  const [sessions, setSessions] = useState<SessionSummary[] | null>(null);
+  const [picking, setPicking] = useState<{ date: string; options: SessionSummary[] } | null>(null);
+
+  async function openDay(dateKey: string) {
+    let all = sessions;
+    if (all === null) {
+      try { all = await api.listSessions(); setSessions(all); } catch { return; }
+    }
+    const hits = all.filter((s) => s.date === dateKey);
+    if (hits.length === 1) navigate(`/sessions/${hits[0].id}/summary`);
+    else if (hits.length > 1) setPicking({ date: dateKey, options: hits });
+  }
+
   if (daily.length === 0) {
     return (
       <div className={CHART_CARD_CLS} style={{ padding: 16 }}>
@@ -445,15 +461,22 @@ function ContributionHeatmap({ daily, range }: { daily: DailyActivity[]; range: 
                 const ticks = byDate.get(key) ?? 0;
                 const future = day > today;
                 const level = heatLevel(ticks);
+                const active = !future && level > 0;
                 return (
                   <div
                     key={key}
                     title={future ? "" : `${format(day, "EEE MMM d")} · ${ticks} tick${ticks === 1 ? "" : "s"}`}
+                    role={active ? "button" : undefined}
+                    tabIndex={active ? 0 : undefined}
+                    aria-label={active ? `${format(day, "EEE MMM d")} · ${ticks} tick${ticks === 1 ? "" : "s"} — open session` : undefined}
+                    onClick={active ? () => openDay(key) : undefined}
+                    onKeyDown={active ? onKey(() => openDay(key)) : undefined}
                     style={{
                       width: CELL, height: CELL,
                       background: future ? "transparent" : HEAT_SHADES[level],
                       border: level === 0 ? "1px solid rgba(26,22,18,0.12)" : "1px solid rgba(26,22,18,0.35)",
                       opacity: future ? 0 : 1,
+                      cursor: active ? "pointer" : undefined,
                     }}
                   />
                 );
@@ -462,6 +485,23 @@ function ContributionHeatmap({ daily, range }: { daily: DailyActivity[]; range: 
           ))}
         </div>
       </div>
+      {picking && (
+        <div style={{ marginTop: 10, borderTop: "2px dashed var(--ink-2)", paddingTop: 8 }}>
+          <div className="gap-row" style={{ justifyContent: "space-between", alignItems: "center" }}>
+            <span style={{ fontFamily: "var(--font-banner)", fontSize: 10, letterSpacing: "0.1em", color: "var(--ink-2)" }}>
+              {format(new Date(picking.date + "T00:00:00"), "EEE MMM d").toUpperCase()} · {picking.options.length} SESSIONS
+            </span>
+            <span role="button" tabIndex={0} className="muted" onClick={() => setPicking(null)} onKeyDown={onKey(() => setPicking(null))}
+              style={{ fontSize: 12, cursor: "pointer" }}>×</span>
+          </div>
+          {picking.options.map((s) => (
+            <Link key={s.id} to={`/sessions/${s.id}/summary`}
+              style={{ display: "block", marginTop: 6, fontFamily: "var(--font-hand)", fontSize: 15 }}>
+              {s.location || "session"}{s.duration_minutes ? ` · ${s.duration_minutes} min` : ""} ↗
+            </Link>
+          ))}
+        </div>
+      )}
       <div className="gap-row" style={{ gap: 5, marginTop: 10, alignItems: "center", justifyContent: "flex-end" }}>
         <span className="muted" style={{ fontSize: 10, fontFamily: "var(--font-banner)", letterSpacing: "0.06em" }}>LESS</span>
         {HEAT_SHADES.map((c, i) => (

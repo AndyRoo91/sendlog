@@ -9,7 +9,7 @@ import { format } from "date-fns";
 import PhotoUploader from "../components/PhotoUploader";
 import ProtocolPicker from "../components/ProtocolPicker";
 import { photoUrl, thumbUrl } from "../lib/photos";
-import { sendTypeToStyle, STYLE_BY_ID } from "../ui";
+import { sendTypeToStyle, STYLE_BY_ID, ConfirmSheet } from "../ui";
 
 const BOULDER_SEND_TYPES = [
   { value: "flash", label: "Flash" },
@@ -693,13 +693,15 @@ export default function SessionView() {
   const navigate = useNavigate();
   const [session, setSession] = useState<SessionDetail | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   useEffect(() => {
     if (id) api.getSession(Number(id)).then(setSession);
   }, [id]);
 
   async function handleDelete() {
-    if (!session || !confirm("Delete this session and all its entries?")) return;
+    if (!session) return;
+    setConfirmingDelete(false);
     setDeleting(true);
     await api.deleteSession(session.id);
     navigate("/sessions");
@@ -711,10 +713,15 @@ export default function SessionView() {
     <div className="page">
       <div className="gap-row" style={{ justifyContent: "space-between", marginBottom: 16 }}>
         <Link to={`/sessions/${session.id}`} style={{ fontSize: 13 }}>← Quick Log</Link>
-        <button className="btn-danger btn-sm" onClick={handleDelete} disabled={deleting}>
+        <button className="btn-danger btn-sm" onClick={() => setConfirmingDelete(true)} disabled={deleting}>
           Delete session
         </button>
       </div>
+
+      {confirmingDelete && (
+        <ConfirmSheet title="DELETE SESSION?" message="The session and every tick logged in it go. This can't be undone."
+          onConfirm={handleDelete} onCancel={() => setConfirmingDelete(false)} />
+      )}
 
       <SessionHeader session={session} onUpdate={setSession} />
 
