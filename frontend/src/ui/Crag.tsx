@@ -107,6 +107,18 @@ function BuddyDefs({ id, frozen }: BuddyDefsProps) {
         <feDisplacementMap in="SourceGraphic" in2="n" scale={6.5} xChannelSelector="R" yChannelSelector="G" />
       </filter>
 
+      {/* sticker halo — a dilated cream copy of the silhouette drawn behind
+          the figure so the green skin never melts into a green wash panel */}
+      <filter id={`halo-${id}`} x="-15%" y="-15%" width="130%" height="130%">
+        <feMorphology in="SourceAlpha" operator="dilate" radius="4.5" result="fat" />
+        <feFlood floodColor={GRIME.cream} result="tint" />
+        <feComposite in="tint" in2="fat" operator="in" result="halo" />
+        <feMerge>
+          <feMergeNode in="halo" />
+          <feMergeNode in="SourceGraphic" />
+        </feMerge>
+      </filter>
+
       {/* paper grain / dirty TV noise */}
       <filter id={`grain-${id}`}>
         <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves={2} stitchTiles="stitch" result="g" />
@@ -383,7 +395,15 @@ export default function Crag({ state = "primed", size = 300, showBg = true, uid,
   const tier = Math.max(0, Math.min(3, Math.round(build)));
   // -1 = no abs; 0 = baseline pose ripple; 1..3 = progressively jacked.
   const absLevel = p.belly > 1.1 ? -1 : tier >= 1 ? tier : p.ripped ? 0 : -1;
-  const armR = 13 + tier * 1.7;   // beefier shoulders as build climbs
+  // Build must read in a 90px thumbnail, so it changes the silhouette, not
+  // just the line work: fatter shoulder caps, scaled-up limb masses (they
+  // pivot at the joint, so scaling beefs them in place) and a shoulder
+  // flare on the torso for the V-taper. Gone-to-seed poses stay soft.
+  const soft = p.belly > 1.1;
+  const armR = 13 + (soft ? 0 : tier * 2.5);
+  const armScale = soft ? 1 : 1 + tier * 0.11;
+  const legScale = soft ? 1 : 1 + tier * 0.06;
+  const shoulderW = soft ? 1 : 1 + tier * 0.08;
 
   return (
     <div style={{ width: size, height: size, position: "relative", flexShrink: 0 }}>
@@ -416,7 +436,16 @@ export default function Crag({ state = "primed", size = 300, showBg = true, uid,
           </g>
         )}
 
-        {/* the boiling character */}
+        {/* ground shadow — anchors the figure to the panel floor (the couch
+            already does that job for detrained, so skip it there) */}
+        {!p.extras.includes("couch") && (
+          <ellipse cx="130" cy="257" rx="66" ry="9" fill={ink} opacity="0.16"
+            filter={`url(#boilbg-${id})`} />
+        )}
+
+        {/* the boiling character — halo'd against wash panels so the green
+            silhouette never sinks into a green background */}
+        <g filter={showBg ? `url(#halo-${id})` : undefined}>
         <g filter={`url(#boil-${id})`}>
           <g transform="translate(130 156) scale(0.86) translate(-130 -150)">
           <g className={motionClass} transform="translate(130 150)">
@@ -430,7 +459,7 @@ export default function Crag({ state = "primed", size = 300, showBg = true, uid,
             </g>
 
             {/* BACK LEG — hip cap (cx/cy at pivot so it stays put under rotation) */}
-            <g transform={`translate(30 54) rotate(${p.legR})`}>
+            <g transform={`translate(30 54) rotate(${p.legR}) scale(${legScale})`}>
               <circle cx="0" cy="0" r="17" fill={p.skinSh} stroke={ink} strokeWidth="3.2" />
               <path d="M 0 -10 Q 26 4 30 40 Q 30 56 16 58 Q 6 40 -8 24 Q -10 6 0 -10 Z"
                 fill={p.skinSh} stroke={ink} strokeWidth="3.2" strokeLinejoin="round" />
@@ -440,7 +469,7 @@ export default function Crag({ state = "primed", size = 300, showBg = true, uid,
             </g>
 
             {/* FRONT LEG — hip cap */}
-            <g transform={`translate(-28 54) rotate(${p.legL})`}>
+            <g transform={`translate(-28 54) rotate(${p.legL}) scale(${legScale})`}>
               <circle cx="0" cy="0" r="17" fill={p.skin} stroke={ink} strokeWidth="3.2" />
               <path d="M 0 -10 Q -26 4 -30 40 Q -30 56 -16 58 Q -6 40 8 24 Q 10 6 0 -10 Z"
                 fill={p.skin} stroke={ink} strokeWidth="3.2" strokeLinejoin="round" />
@@ -452,10 +481,10 @@ export default function Crag({ state = "primed", size = 300, showBg = true, uid,
             {/* BODY / torso + belly */}
             <g>
               <path
-                d={`M 0 -52 Q ${40 * p.belly} -44 ${44 * p.belly} 8
+                d={`M 0 -52 Q ${40 * p.belly * shoulderW} -44 ${44 * p.belly} 8
                     Q ${46 * p.belly} ${44 + (p.belly - 1) * 30} 0 ${58 + (p.belly - 1) * 26}
                     Q ${-44 * p.belly} ${44 + (p.belly - 1) * 30} ${-44 * p.belly} 8
-                    Q ${-40 * p.belly} -44 0 -52 Z`}
+                    Q ${-40 * p.belly * shoulderW} -44 0 -52 Z`}
                 fill={p.skin} stroke={ink} strokeWidth="3.6" strokeLinejoin="round"
               />
               {/* belly plate */}
@@ -500,7 +529,7 @@ export default function Crag({ state = "primed", size = 300, showBg = true, uid,
             </g>
 
             {/* BACK ARM */}
-            <g transform={`translate(30 -28) rotate(${p.armR})`}>
+            <g transform={`translate(30 -28) rotate(${p.armR}) scale(${armScale})`}>
               <circle cx="0" cy="0" r={armR} fill={p.skinSh} stroke={ink} strokeWidth="2.6" />
               <path d="M 0 0 Q 30 6 44 30 Q 50 42 40 48 Q 26 36 6 22 Q -2 10 0 0 Z"
                 fill={p.skinSh} stroke={ink} strokeWidth="3" strokeLinejoin="round" />
@@ -512,7 +541,7 @@ export default function Crag({ state = "primed", size = 300, showBg = true, uid,
             </g>
 
             {/* FRONT ARM */}
-            <g transform={`translate(-30 -28) rotate(${p.armL})`}>
+            <g transform={`translate(-30 -28) rotate(${p.armL}) scale(${armScale})`}>
               <circle cx="0" cy="0" r={armR} fill={p.skin} stroke={ink} strokeWidth="2.6" />
               <path d="M 0 0 Q -30 6 -44 30 Q -50 42 -40 48 Q -26 36 -6 22 Q 2 10 0 0 Z"
                 fill={p.skin} stroke={ink} strokeWidth="3" strokeLinejoin="round" />
@@ -571,6 +600,7 @@ export default function Crag({ state = "primed", size = 300, showBg = true, uid,
 
           </g>
           </g>
+        </g>
         </g>
 
         {/* per-state extras — front layer */}
