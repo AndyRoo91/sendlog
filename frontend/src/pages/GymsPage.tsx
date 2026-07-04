@@ -286,7 +286,8 @@ function GymCard({ gym, onChanged, onError }: {
           onConfirm={removeGym} onCancel={() => setConfirmingDelete(false)} />
       )}
 
-      <div style={{ marginTop: 10, borderTop: "2px dashed var(--ink-2)", paddingTop: 8 }}>
+      <div style={{ marginTop: 10 }}>
+        <div className="rough-rule" style={{ marginBottom: 8 }} />
         <div style={{ fontFamily: "var(--font-banner)", fontSize: 10, letterSpacing: "0.1em", color: "var(--ink-2)" }}>
           WALLS ({gym.walls.length})
         </div>

@@ -33,6 +33,9 @@ export default function GradeChip({
         width: big ? 80 : 64,
         height: big ? 80 : 60,
         border: "var(--bw) solid var(--ink)",
+        // Wonk variant hashed off the grade so a grid of chips doesn't repeat
+        // one shape but each grade keeps its shape between renders.
+        borderRadius: grade.charCodeAt(grade.length - 1) % 2 ? "var(--wonk-s1)" : "var(--wonk-s2)",
         background: color,
         display: "flex",
         alignItems: "center",

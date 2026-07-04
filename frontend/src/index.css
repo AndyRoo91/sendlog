@@ -297,6 +297,35 @@ button:nth-child(even), .chunky:nth-child(even) { border-radius: var(--wonk-s2);
   border-radius: var(--wonk-a);
 }
 
+/* ─── Grungy chrome, wave 2: W1 wonk utilities + W4 rough rules ─ */
+/* W1: inline-styled chips (role="button" divs, spans) sit outside the
+   button/.chunky selectors — they opt in with these. Alternate the two
+   variants at call sites so rows of chips don't repeat one shape. */
+.wonk { border-radius: var(--wonk-s1); }
+.wonk-2 { border-radius: var(--wonk-s2); }
+
+/* W4: hand-drawn divider. The wobbly line lives in a mask so the rule
+   can take any colour via background-color (defaults to the dashed
+   dividers' ink-2). Two seeds via the -b modifier. */
+:root {
+  --rough-line-a: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 8" preserveAspectRatio="none"><filter id="r" filterUnits="userSpaceOnUse" x="-6" y="-6" width="172" height="20"><feTurbulence type="fractalNoise" baseFrequency="0.03 0.4" numOctaves="2" seed="11"/><feDisplacementMap in="SourceGraphic" scale="4"/></filter><line x1="0" y1="4" x2="160" y2="4" stroke="white" stroke-width="2.5" filter="url(%23r)"/></svg>');
+  --rough-line-b: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 8" preserveAspectRatio="none"><filter id="r" filterUnits="userSpaceOnUse" x="-6" y="-6" width="172" height="20"><feTurbulence type="fractalNoise" baseFrequency="0.03 0.4" numOctaves="2" seed="27"/><feDisplacementMap in="SourceGraphic" scale="4"/></filter><line x1="0" y1="4" x2="160" y2="4" stroke="white" stroke-width="2.5" filter="url(%23r)"/></svg>');
+}
+.rough-rule {
+  height: 8px;
+  background-color: var(--ink-2);
+  -webkit-mask-image: var(--rough-line-a);
+  mask-image: var(--rough-line-a);
+  -webkit-mask-repeat: repeat-x;
+  mask-repeat: repeat-x;
+  -webkit-mask-size: 160px 8px;
+  mask-size: 160px 8px;
+}
+.rough-rule-b {
+  -webkit-mask-image: var(--rough-line-b);
+  mask-image: var(--rough-line-b);
+}
+
 /* ─── Grungy chrome, tier 3: boiling frame for hero elements ─── */
 /* A border-only pseudo-element pushed through the chrome-boil SVG filter
    (defs mounted globally by ui/GrungeDefs). Only the frame is displaced —

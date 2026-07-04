@@ -149,7 +149,8 @@ export default function Summary() {
           {fmtDuration(session.started_at, session.ended_at, session.duration_minutes)}
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", borderTop: "2px solid var(--ink)", borderBottom: "2px solid var(--ink)" }}>
+        <div className="rough-rule" style={{ backgroundColor: "var(--ink)" }} />
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)" }}>
           {[{ n: String(stats.sends), l: "SENDS" }, { n: String(stats.flashes), l: "FLASH" }, { n: stats.top, l: "TOP" }].map((s, i) => (
             <div key={i} style={{ padding: "12px 6px", textAlign: "center", borderRight: i < 2 ? "2px solid var(--ink)" : "none" }}>
               <div style={{ fontFamily: "var(--font-display)", fontSize: 28, lineHeight: 1 }}>{s.n}</div>
@@ -157,6 +158,7 @@ export default function Summary() {
             </div>
           ))}
         </div>
+        <div className="rough-rule rough-rule-b" style={{ backgroundColor: "var(--ink)" }} />
 
         <div style={{ padding: "14px 0 4px" }}>
           <div style={{ fontFamily: "var(--font-banner)", fontSize: 10, color: "var(--ink-2)", letterSpacing: "0.1em", marginBottom: 8, textAlign: "center" }}>BY GRADE</div>
@@ -182,6 +184,7 @@ export default function Summary() {
               const active = mood === m.value;
               return (
                 <div key={m.value} role="button" tabIndex={0}
+                  className={m.value % 2 ? "wonk" : "wonk-2"}
                   aria-label={`Mood: ${m.label}`} aria-pressed={active}
                   onClick={() => setMoodPersisted(m.value)}
                   onKeyDown={onKey(() => setMoodPersisted(m.value))}

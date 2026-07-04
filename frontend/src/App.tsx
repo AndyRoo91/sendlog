@@ -35,7 +35,7 @@ function BrandBar() {
       {user && (
         <Link to="/settings" aria-label={`Settings — signed in as ${user.username}`}
           style={{ textDecoration: "none" }}>
-          <div style={{
+          <div className="wonk" style={{
             fontFamily: "var(--font-banner)", fontSize: 10, letterSpacing: "0.08em",
             color: "var(--ink-2)", padding: "4px 8px", border: "var(--b) solid var(--ink)",
             background: "var(--paper)", boxShadow: "2px 2px 0 var(--ink)", transform: "rotate(-0.6deg)",

@@ -131,7 +131,8 @@ export default function SessionList() {
       </div>
 
       {/* Data backup row */}
-      <div style={{ marginTop: 32, borderTop: "2px dashed var(--ink-2)", paddingTop: 16, opacity: 0.7 }}>
+      <div style={{ marginTop: 32, opacity: 0.7 }}>
+        <div className="rough-rule" style={{ marginBottom: 16 }} />
         <div style={{ fontFamily: "var(--font-banner)", fontSize: 10, letterSpacing: "0.1em", color: "var(--ink-2)", marginBottom: 10 }}>
           ★ DATA BACKUP
         </div>

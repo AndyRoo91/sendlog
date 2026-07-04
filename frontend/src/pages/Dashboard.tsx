@@ -246,6 +246,7 @@ export default function Dashboard() {
               <div key={a.code} title={a.unlocked
                 ? `${a.title} — ${a.description}${a.unlocked_at ? ` (unlocked ${fmtTime(a.unlocked_at, "MMM d")})` : ""}`
                 : `Locked: ${a.description}`}
+                className={i % 2 ? "wonk-2" : "wonk"}
                 style={{
                   border: "var(--b) solid var(--ink)",
                   background: a.unlocked ? "var(--mustard)" : "var(--cream)",

@@ -537,7 +537,7 @@ export default function TickSheet() {
         <div style={{ padding: "10px 16px 0" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
             <div style={{ fontFamily: "var(--font-banner)", fontSize: 10, color: "var(--ink-2)", letterSpacing: "0.1em" }}>★ +1 A RECENT</div>
-            <div style={{ flex: 1, height: 0, borderTop: "2px dashed var(--ink-2)", opacity: 0.4 }} />
+            <div className="rough-rule" style={{ flex: 1, opacity: 0.4 }} />
           </div>
           <div style={{ display: "flex", gap: 10 }}>
             {recentCards.map((c, i) => {
@@ -609,7 +609,7 @@ export default function TickSheet() {
             <div style={{ fontFamily: "var(--font-banner)", fontSize: 10, color: "var(--ink-2)", letterSpacing: "0.1em" }}>
               THIS SESSION · {entries.length} {mode === "lead" ? "BURNS" : "TICKS"}
             </div>
-            <div style={{ flex: 1, height: 0, borderTop: "2px dashed var(--ink-2)", opacity: 0.4 }} />
+            <div className="rough-rule rough-rule-b" style={{ flex: 1, opacity: 0.4 }} />
           </div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             {feed.map((e, i) => {

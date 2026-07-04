@@ -487,7 +487,8 @@ function ContributionHeatmap({ daily, range }: { daily: DailyActivity[]; range: 
         </div>
       </div>
       {picking && (
-        <div style={{ marginTop: 10, borderTop: "2px dashed var(--ink-2)", paddingTop: 8 }}>
+        <div style={{ marginTop: 10 }}>
+          <div className="rough-rule rough-rule-b" style={{ marginBottom: 8 }} />
           <div className="gap-row" style={{ justifyContent: "space-between", alignItems: "center" }}>
             <span style={{ fontFamily: "var(--font-banner)", fontSize: 10, letterSpacing: "0.1em", color: "var(--ink-2)" }}>
               {fmtDay(picking.date, "EEE MMM d").toUpperCase()} · {picking.options.length} SESSIONS

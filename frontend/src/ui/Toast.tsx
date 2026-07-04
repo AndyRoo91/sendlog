@@ -19,13 +19,14 @@ export default function Toast({ message, onDismiss, action }: Props) {
       role="alert"
       aria-live="assertive"
       tabIndex={0}
+      className="boil-frame"
       onClick={onDismiss}
       onKeyDown={onKey(onDismiss)}
       style={{
         position: "fixed", top: 16, left: "50%", transform: "translateX(-50%)",
         zIndex: 200, maxWidth: 380, width: "calc(100% - 32px)",
         background: isNotice ? "var(--ink)" : "var(--red)", color: "var(--cream)",
-        border: "var(--bw) solid var(--ink)", boxShadow: "4px 4px 0 var(--ink)",
+        border: "var(--bw) solid transparent", boxShadow: "4px 4px 0 var(--ink)",
         padding: "10px 16px",
         fontFamily: "var(--font-banner)", fontSize: 12, letterSpacing: "0.06em",
         display: "flex", alignItems: "center", gap: 12,
