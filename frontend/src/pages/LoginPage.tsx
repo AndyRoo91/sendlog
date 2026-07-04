@@ -62,6 +62,7 @@ export default function LoginPage({ onAuthed }: Props) {
         }}>
           {(["login", "register"] as const).map((m) => (
             <div key={m} role="button" tabIndex={0} aria-pressed={mode === m}
+              className={m === "login" ? "wonk" : "wonk-2"}
               onClick={() => { setMode(m); setError(null); }}
               onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setMode(m); } }}
               style={{

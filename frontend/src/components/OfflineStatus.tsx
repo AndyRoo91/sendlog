@@ -40,6 +40,7 @@ export default function OfflineStatus() {
 
   return (
     <div
+      className="wonk"
       role={retryable ? "button" : "status"}
       aria-live="polite"
       tabIndex={retryable ? 0 : undefined}

@@ -41,7 +41,7 @@ function sessionStats(e: FeedEvent): string {
 
 function UsernameChip({ name, isMe }: { name: string; isMe: boolean }) {
   return (
-    <span style={{
+    <span className="wonk" style={{
       fontFamily: "var(--font-banner)", fontSize: 11, letterSpacing: "0.08em",
       color: "var(--cream)", background: nameColor(name), padding: "3px 9px",
       boxShadow: "2px 2px 0 var(--ink)", border: "var(--b) solid var(--ink)",
@@ -101,13 +101,14 @@ function ReactionRow({
 
   return (
     <div className="gap-row" style={{ marginTop: 10, gap: 5, flexWrap: "wrap" }}>
-      {PROPS.map((emoji) => {
+      {PROPS.map((emoji, i) => {
         const r = reactions.find((x) => x.emoji === emoji);
         const count = r?.count ?? 0;
         const reacted = r?.reacted ?? false;
         return (
           <div
             key={emoji}
+            className={i % 2 ? "wonk-2" : "wonk"}
             role="button"
             tabIndex={0}
             aria-pressed={reacted}
