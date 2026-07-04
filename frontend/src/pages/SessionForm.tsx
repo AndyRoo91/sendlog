@@ -75,7 +75,7 @@ export default function SessionForm() {
     <div className="page">
       <h1 style={{ marginBottom: 24 }}>{isEdit ? "Edit Session" : "Start Session"}</h1>
       <form onSubmit={handleSubmit}>
-        <div className="card gap-col">
+        <div className="card gap-col boil-frame">
           <div className="grid-3">
             <div>
               <label>Date *</label>

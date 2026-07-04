@@ -387,6 +387,14 @@ button:nth-child(even), .chunky:nth-child(even) { border-radius: var(--wonk-s2);
   filter: url(#chrome-boil);
   pointer-events: none;
 }
+/* A card promoted to boil-frame trades the rough border-image for the
+   living line: the pseudo draws the frame instead, and the fill goes back
+   to the border box (like the login card) so no gap opens where the
+   boiled line dips inward. !important to out-cascade the padding-box rule. */
+.card.boil-frame, .card-flat.boil-frame {
+  border-image: none;
+  background-clip: border-box !important;
+}
 /* Round variant for circular heroes (tick / achievement badges). */
 .boil-frame-round::before { border-radius: 50%; }
 @media (prefers-reduced-motion: reduce) {
