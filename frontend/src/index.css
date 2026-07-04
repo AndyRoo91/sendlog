@@ -283,25 +283,25 @@ button:nth-child(even), .chunky:nth-child(even) { border-radius: var(--wonk-s2);
    wide, so a card edge shows at most one repeat of the wobble — a
    100×100 source tiled the same 33px squiggle ~11 times per edge. */
 :root {
-  --rough-a: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400"><filter id="r"><feTurbulence type="fractalNoise" baseFrequency="0.045" numOctaves="2" seed="7"/><feDisplacementMap in="SourceGraphic" scale="8"/></filter><rect x="8" y="8" width="384" height="384" fill="none" stroke="%231a1612" stroke-width="5" filter="url(%23r)"/></svg>');
-  --rough-b: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400"><filter id="r"><feTurbulence type="fractalNoise" baseFrequency="0.045" numOctaves="2" seed="19"/><feDisplacementMap in="SourceGraphic" scale="8"/></filter><rect x="8" y="8" width="384" height="384" fill="none" stroke="%231a1612" stroke-width="5" filter="url(%23r)"/></svg>');
-  --rough-c: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400"><filter id="r"><feTurbulence type="fractalNoise" baseFrequency="0.045" numOctaves="2" seed="42"/><feDisplacementMap in="SourceGraphic" scale="8"/></filter><rect x="8" y="8" width="384" height="384" fill="none" stroke="%231a1612" stroke-width="5" filter="url(%23r)"/></svg>');
-  --rough-d: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400"><filter id="r"><feTurbulence type="fractalNoise" baseFrequency="0.038" numOctaves="2" seed="61"/><feDisplacementMap in="SourceGraphic" scale="9"/></filter><rect x="8" y="8" width="384" height="384" fill="none" stroke="%231a1612" stroke-width="5" filter="url(%23r)"/></svg>');
-  --rough-e: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400"><filter id="r"><feTurbulence type="fractalNoise" baseFrequency="0.052" numOctaves="2" seed="88"/><feDisplacementMap in="SourceGraphic" scale="7"/></filter><rect x="8" y="8" width="384" height="384" fill="none" stroke="%231a1612" stroke-width="5" filter="url(%23r)"/></svg>');
-  --rough-f: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400"><filter id="r"><feTurbulence type="fractalNoise" baseFrequency="0.042" numOctaves="2" seed="123"/><feDisplacementMap in="SourceGraphic" scale="9"/></filter><rect x="8" y="8" width="384" height="384" fill="none" stroke="%231a1612" stroke-width="5" filter="url(%23r)"/></svg>');
+  --rough-a: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400"><filter id="r"><feTurbulence type="fractalNoise" baseFrequency="0.045" numOctaves="2" seed="7"/><feDisplacementMap in="SourceGraphic" scale="5"/></filter><rect x="8" y="8" width="384" height="384" fill="none" stroke="%231a1612" stroke-width="5" filter="url(%23r)"/></svg>');
+  --rough-b: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400"><filter id="r"><feTurbulence type="fractalNoise" baseFrequency="0.045" numOctaves="2" seed="19"/><feDisplacementMap in="SourceGraphic" scale="5"/></filter><rect x="8" y="8" width="384" height="384" fill="none" stroke="%231a1612" stroke-width="5" filter="url(%23r)"/></svg>');
+  --rough-c: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400"><filter id="r"><feTurbulence type="fractalNoise" baseFrequency="0.045" numOctaves="2" seed="42"/><feDisplacementMap in="SourceGraphic" scale="5"/></filter><rect x="8" y="8" width="384" height="384" fill="none" stroke="%231a1612" stroke-width="5" filter="url(%23r)"/></svg>');
+  --rough-d: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400"><filter id="r"><feTurbulence type="fractalNoise" baseFrequency="0.038" numOctaves="2" seed="61"/><feDisplacementMap in="SourceGraphic" scale="5"/></filter><rect x="8" y="8" width="384" height="384" fill="none" stroke="%231a1612" stroke-width="5" filter="url(%23r)"/></svg>');
+  --rough-e: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400"><filter id="r"><feTurbulence type="fractalNoise" baseFrequency="0.052" numOctaves="2" seed="88"/><feDisplacementMap in="SourceGraphic" scale="5"/></filter><rect x="8" y="8" width="384" height="384" fill="none" stroke="%231a1612" stroke-width="5" filter="url(%23r)"/></svg>');
+  --rough-f: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400"><filter id="r"><feTurbulence type="fractalNoise" baseFrequency="0.042" numOctaves="2" seed="123"/><feDisplacementMap in="SourceGraphic" scale="5"/></filter><rect x="8" y="8" width="384" height="384" fill="none" stroke="%231a1612" stroke-width="5" filter="url(%23r)"/></svg>');
 }
 
 .card-flat, .card {
   border-radius: 0;            /* the drawn frame replaces the wonk on cards */
   border-color: transparent;   /* keep var(--b) width for layout, frame paints over */
-  /* Outset 6px shifts the stroke band outward so the clipped fill below
-     always reaches the drawn line. */
-  border-image: var(--rough-a) 19 / 10px / 6px round;
-  /* Without this the background paints a sharp rectangle to the border box
-     and pokes past the wavy line wherever it dips inward. !important because
+  /* No outset: the frame hugs the border box, so the offset-ink shadow sits
+     directly under the wavy line (sticker) instead of as a separate stripe. */
+  border-image: var(--rough-a) 19 / 10px / 0 round;
+  /* Fill reaches the border box; the wavy line overlays cream on inward
+     wobbles (no halo) and the page on outward ones. !important because
      several cards set `background:` as an inline shorthand, which resets
      background-clip and would silently defeat a normal rule. */
-  background-clip: padding-box !important;
+  background-clip: border-box !important;
 }
 /* Prime-ish strides so consecutive siblings land on different seeds and
    the assignment pattern only repeats over a long cycle — reads as
@@ -388,13 +388,8 @@ button:nth-child(even), .chunky:nth-child(even) { border-radius: var(--wonk-s2);
   pointer-events: none;
 }
 /* A card promoted to boil-frame trades the rough border-image for the
-   living line: the pseudo draws the frame instead, and the fill goes back
-   to the border box (like the login card) so no gap opens where the
-   boiled line dips inward. !important to out-cascade the padding-box rule. */
-.card.boil-frame, .card-flat.boil-frame {
-  border-image: none;
-  background-clip: border-box !important;
-}
+   living line: the pseudo draws the frame instead. */
+.card.boil-frame, .card-flat.boil-frame { border-image: none; }
 /* Round variant for circular heroes (tick / achievement badges). */
 .boil-frame-round::before { border-radius: 50%; }
 @media (prefers-reduced-motion: reduce) {
