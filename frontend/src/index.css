@@ -245,6 +245,75 @@ label { font-size: 11px; font-family: var(--font-banner); letter-spacing: 0.06em
 .tag-blue { background: var(--cobalt); }
 .tag-red { background: var(--red); }
 
+/* ─── Grungy chrome, tier 1: wonky hand-drawn boxes ──────────── */
+/* See directions/GRUNGY-CHROME.md. Asymmetric border-radius makes boxes
+   read as wobbly hand-drawn rectangles. Borders/backgrounds only — text
+   stays crisp and inputs/selects/textareas stay square (the hard rule). */
+:root {
+  /* big boxes (cards) — pronounced wobble, cycled so pages don't repeat */
+  --wonk-a: 255px 15px 225px 15px / 15px 225px 15px 255px;
+  --wonk-b: 15px 225px 15px 255px / 255px 15px 225px 15px;
+  --wonk-c: 225px 15px 255px 15px / 15px 255px 15px 225px;
+  /* small boxes (buttons, chips) — subtler so they stay boxy at size */
+  --wonk-s1: 4px 13px 6px 14px / 13px 5px 14px 6px;
+  --wonk-s2: 14px 5px 13px 4px / 6px 13px 5px 14px;
+}
+
+.card-flat, .card { border-radius: var(--wonk-a); }
+.card-flat:nth-child(even), .card:nth-child(even) { border-radius: var(--wonk-b); }
+.card-flat:nth-child(3n), .card:nth-child(3n) { border-radius: var(--wonk-c); }
+
+button, .chunky { border-radius: var(--wonk-s1); }
+button:nth-child(even), .chunky:nth-child(even) { border-radius: var(--wonk-s2); }
+
+.tag { border-radius: 6px 3px 7px 3px / 3px 7px 3px 6px; }
+
+/* ─── Grungy chrome, tier 2: rough pencil borders on cards ───── */
+/* A turbulence-displaced stroke rendered as an SVG border-image, so the
+   frame has genuinely rough edges while text inside stays crisp. The
+   hard-offset shadow is a separate box-shadow, so it stays clean under
+   the rough frame — reads like a sticker. Three seeds, cycled like the
+   wonk variants. Stroke colour is --ink baked in (data URIs can't read
+   CSS vars). */
+:root {
+  --rough-a: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><filter id="r"><feTurbulence type="fractalNoise" baseFrequency="0.045" numOctaves="2" seed="7"/><feDisplacementMap in="SourceGraphic" scale="8"/></filter><rect x="8" y="8" width="84" height="84" fill="none" stroke="%231a1612" stroke-width="5" filter="url(%23r)"/></svg>');
+  --rough-b: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><filter id="r"><feTurbulence type="fractalNoise" baseFrequency="0.045" numOctaves="2" seed="19"/><feDisplacementMap in="SourceGraphic" scale="8"/></filter><rect x="8" y="8" width="84" height="84" fill="none" stroke="%231a1612" stroke-width="5" filter="url(%23r)"/></svg>');
+  --rough-c: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><filter id="r"><feTurbulence type="fractalNoise" baseFrequency="0.045" numOctaves="2" seed="42"/><feDisplacementMap in="SourceGraphic" scale="8"/></filter><rect x="8" y="8" width="84" height="84" fill="none" stroke="%231a1612" stroke-width="5" filter="url(%23r)"/></svg>');
+}
+
+.card-flat, .card {
+  border-radius: 0;            /* the drawn frame replaces the wonk on cards */
+  border-color: transparent;   /* keep var(--b) width for layout, frame paints over */
+  border-image: var(--rough-a) 19 / 10px / 4px round;
+}
+.card-flat:nth-child(even), .card:nth-child(even) { border-image-source: var(--rough-b); }
+.card-flat:nth-child(3n), .card:nth-child(3n) { border-image-source: var(--rough-c); }
+
+/* Cards that signal state with a coloured border (PB red, current-week sea,
+   onboarding mustard) keep a solid wonky border — border-image would paint
+   over border-color and eat the signal. */
+.card-flat[style*="border-color"], .card[style*="border-color"] {
+  border-image: none;
+  border-radius: var(--wonk-a);
+}
+
+/* ─── Grungy chrome, tier 3: boiling frame for hero elements ─── */
+/* A border-only pseudo-element pushed through the chrome-boil SVG filter
+   (defs mounted globally by ui/GrungeDefs). Only the frame is displaced —
+   content underneath stays sharp. Reserved for hero moments (ConfirmSheet,
+   login card); the boil on every card would be noise. */
+.boil-frame { position: relative; }
+.boil-frame::before {
+  content: "";
+  position: absolute; inset: -1px;
+  border: var(--bw) solid var(--ink);
+  filter: url(#chrome-boil);
+  pointer-events: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .boil-frame::before { filter: url(#chrome-boil-still); }
+}
+
 /* ---- Crag motion loops (viewBox 260×300, centre at 130,150) ---- */
 .mv { transform-box: fill-box; transform-origin: center; }
 .mv-headbang { animation: headbang 0.9s steps(2) infinite; }
