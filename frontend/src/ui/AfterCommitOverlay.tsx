@@ -67,9 +67,10 @@ export default function AfterCommitOverlay({ tick, onDone, holdMs = 400 }: Props
       <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center" }}>
         <Ray size={300} color="var(--mustard)" />
         <div
+          className="boil-frame boil-frame-round"
           style={{
             position: "absolute", width: 130, height: 130, borderRadius: "50%",
-            background: "var(--sea)", border: "var(--bw) solid var(--ink)",
+            background: "var(--sea)", border: "var(--bw) solid transparent",
             boxShadow: "5px 5px 0 var(--ink)",
             display: "flex", alignItems: "center", justifyContent: "center",
             transform: visible ? "scale(1)" : "scale(0.6)", transition: "transform 140ms ease",
@@ -81,10 +82,11 @@ export default function AfterCommitOverlay({ tick, onDone, holdMs = 400 }: Props
         </div>
       </div>
       <div
+        className="boil-frame"
         style={{
           background: "var(--ink)", color: "var(--mustard)",
           padding: "6px 14px", fontFamily: "var(--font-display)", fontSize: 22,
-          border: "var(--bw) solid var(--ink)", transform: "rotate(-2deg)",
+          border: "var(--bw) solid transparent", transform: "rotate(-2deg)",
           boxShadow: "3px 3px 0 var(--red)", letterSpacing: "0.04em",
         }}
       >
