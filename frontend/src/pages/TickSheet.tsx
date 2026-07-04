@@ -13,7 +13,7 @@ import {
 import type { StyleId, CommitTick, ClimbMode } from "../ui";
 import type { Achievement } from "../api/client";
 import { useToast } from "../lib/useToast";
-import { enqueue, dequeue, queueSize, subscribe, flush, TICK_SYNCED_EVENT } from "../lib/syncQueue";
+import { enqueue, dequeue, TICK_SYNCED_EVENT } from "../lib/syncQueue";
 import type { TickSyncedDetail } from "../lib/syncQueue";
 import { BOULDER_GRADES, boulderGradeWindow, leadGradeWindow, gradeOrder } from "../lib/grades";
 import type { GradeSystem } from "../lib/grades";
@@ -81,7 +81,6 @@ export default function TickSheet() {
   // Ids of optimistic entries still waiting to reach the server (negative temp
   // ids). Used to badge them and to route deletes through the queue.
   const [pendingIds, setPendingIds] = useState<Set<number>>(() => new Set());
-  const [pendingSync, setPendingSync] = useState(() => queueSize());
   const { message: toastMsg, action: toastAction, toast, dismiss: dismissToast } = useToast();
   const confirmEndTimer = useRef<number | null>(null);
   const tickKey = useRef(0);
@@ -145,14 +144,6 @@ export default function TickSheet() {
   useEffect(() => () => {
     if (confirmEndTimer.current) window.clearTimeout(confirmEndTimer.current);
     if (pbClearTimer.current) window.clearTimeout(pbClearTimer.current);
-  }, []);
-
-  // Keep the pending-sync count live and nudge a flush when we land here
-  // (e.g. arriving back in signal). The queue module also flushes on `online`.
-  useEffect(() => {
-    const unsub = subscribe(() => setPendingSync(queueSize()));
-    void flush();
-    return unsub;
   }, []);
 
   // When a queued tick finally syncs in the background, swap our optimistic
@@ -440,22 +431,6 @@ export default function TickSheet() {
             <div style={{ fontFamily: "var(--font-display)", fontSize: 18 }}>{where}</div>
           </div>
           <button onClick={startTimer} style={{ background: "var(--red)", color: "var(--cream)", boxShadow: "3px 3px 0 var(--mustard)" }}>● START TIMER</button>
-        </div>
-      )}
-
-      {pendingSync > 0 && (
-        <div role="button" tabIndex={0}
-          onClick={() => { void flush(); }}
-          onKeyDown={onKey(() => { void flush(); })}
-          style={{
-            display: "flex", alignItems: "center", gap: 8, cursor: "pointer",
-            margin: "8px 16px 0", padding: "6px 12px",
-            background: "var(--mustard)", color: "var(--ink)",
-            border: "var(--b) solid var(--ink)", boxShadow: "2px 2px 0 var(--ink)",
-            fontFamily: "var(--font-banner)", fontSize: 11, letterSpacing: "0.08em",
-          }}>
-          <span aria-hidden>⟳</span>
-          {pendingSync} TICK{pendingSync === 1 ? "" : "S"} WAITING TO SYNC · TAP TO RETRY
         </div>
       )}
 
