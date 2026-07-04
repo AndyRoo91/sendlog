@@ -21,6 +21,10 @@
   --b: 2.5px;   /* outline weight */
   --bw: 3.5px;  /* heavy outline */
 
+  /* W7: photocopy grain tiled into .paper — static ink-tinted noise,
+     mostly transparent (alpha = 0.35·noise − 0.12, peaking ~0.23). */
+  --grain: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120"><filter id="g"><feTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="2" seed="5" stitchTiles="stitch"/><feColorMatrix type="matrix" values="0 0 0 0 0.102 0 0 0 0 0.086 0 0 0 0 0.071 0.35 0 0 0 -0.12"/></filter><rect width="120" height="120" filter="url(%23g)"/></svg>');
+
   --font-display: 'Alfa Slab One', 'Cooper Black', Georgia, serif;
   --font-banner: 'Bungee', 'Impact', sans-serif;
   --font-shade: 'Bungee Shade', 'Bungee', sans-serif;
@@ -54,6 +58,7 @@ h3 { font-size: 15px; }
 
 .paper {
   background:
+    var(--grain) 0 0 / 120px 120px,
     radial-gradient(circle at 1px 1px, rgba(26,22,18,0.12) 1px, transparent 0) 0 0 / 14px 14px,
     var(--paper);
   color: var(--ink);
@@ -364,6 +369,8 @@ button:nth-child(even), .chunky:nth-child(even) { border-radius: var(--wonk-s2);
   filter: url(#chrome-boil);
   pointer-events: none;
 }
+/* Round variant for circular heroes (tick / achievement badges). */
+.boil-frame-round::before { border-radius: 50%; }
 @media (prefers-reduced-motion: reduce) {
   .boil-frame::before { filter: url(#chrome-boil-still); }
 }

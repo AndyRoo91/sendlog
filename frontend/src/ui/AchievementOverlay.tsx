@@ -46,10 +46,10 @@ export default function AchievementOverlay({ queue, onDone, holdMs = 2200 }: Pro
         pointerEvents: visible ? "auto" : "none",
       }}
     >
-      <div style={{
+      <div className="boil-frame" style={{
         background: "var(--red)", color: "var(--cream)",
         padding: "6px 16px", fontFamily: "var(--font-banner)", fontSize: 14,
-        letterSpacing: "0.16em", border: "var(--bw) solid var(--ink)",
+        letterSpacing: "0.16em", border: "var(--bw) solid transparent",
         boxShadow: "3px 3px 0 var(--ink)", transform: "rotate(-1.5deg)",
       }}>
         ★ ACHIEVEMENT UNLOCKED ★
@@ -58,9 +58,10 @@ export default function AchievementOverlay({ queue, onDone, holdMs = 2200 }: Pro
       <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center" }}>
         <Ray size={340} color="var(--mustard)" />
         <div
+          className="boil-frame boil-frame-round"
           style={{
             position: "absolute", width: 160, height: 160, borderRadius: "50%",
-            background: "var(--cream)", border: "var(--bw) solid var(--ink)",
+            background: "var(--cream)", border: "var(--bw) solid transparent",
             boxShadow: "6px 6px 0 var(--ink)",
             display: "flex", alignItems: "center", justifyContent: "center",
             fontSize: 72, lineHeight: 1,
@@ -72,10 +73,10 @@ export default function AchievementOverlay({ queue, onDone, holdMs = 2200 }: Pro
         </div>
       </div>
 
-      <div style={{
+      <div className="boil-frame" style={{
         background: "var(--ink)", color: "var(--mustard)",
         padding: "8px 18px", fontFamily: "var(--font-display)", fontSize: 26,
-        border: "var(--bw) solid var(--ink)", transform: "rotate(1.5deg)",
+        border: "var(--bw) solid transparent", transform: "rotate(1.5deg)",
         boxShadow: "4px 4px 0 var(--red)", letterSpacing: "0.03em", textAlign: "center",
       }}>
         {current.title}
