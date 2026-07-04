@@ -277,13 +277,18 @@ button:nth-child(even), .chunky:nth-child(even) { border-radius: var(--wonk-s2);
 /* A turbulence-displaced stroke rendered as an SVG border-image, so the
    frame has genuinely rough edges while text inside stays crisp. The
    hard-offset shadow is a separate box-shadow, so it stays clean under
-   the rough frame — reads like a sticker. Three seeds, cycled like the
-   wonk variants. Stroke colour is --ink baked in (data URIs can't read
-   CSS vars). */
+   the rough frame — reads like a sticker. Six seeds, cycled below.
+   Stroke colour is --ink baked in (data URIs can't read CSS vars).
+   The 400×400 source matters: with slice 19 an edge tile paints ~190px
+   wide, so a card edge shows at most one repeat of the wobble — a
+   100×100 source tiled the same 33px squiggle ~11 times per edge. */
 :root {
-  --rough-a: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><filter id="r"><feTurbulence type="fractalNoise" baseFrequency="0.045" numOctaves="2" seed="7"/><feDisplacementMap in="SourceGraphic" scale="8"/></filter><rect x="8" y="8" width="84" height="84" fill="none" stroke="%231a1612" stroke-width="5" filter="url(%23r)"/></svg>');
-  --rough-b: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><filter id="r"><feTurbulence type="fractalNoise" baseFrequency="0.045" numOctaves="2" seed="19"/><feDisplacementMap in="SourceGraphic" scale="8"/></filter><rect x="8" y="8" width="84" height="84" fill="none" stroke="%231a1612" stroke-width="5" filter="url(%23r)"/></svg>');
-  --rough-c: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><filter id="r"><feTurbulence type="fractalNoise" baseFrequency="0.045" numOctaves="2" seed="42"/><feDisplacementMap in="SourceGraphic" scale="8"/></filter><rect x="8" y="8" width="84" height="84" fill="none" stroke="%231a1612" stroke-width="5" filter="url(%23r)"/></svg>');
+  --rough-a: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400"><filter id="r"><feTurbulence type="fractalNoise" baseFrequency="0.045" numOctaves="2" seed="7"/><feDisplacementMap in="SourceGraphic" scale="8"/></filter><rect x="8" y="8" width="384" height="384" fill="none" stroke="%231a1612" stroke-width="5" filter="url(%23r)"/></svg>');
+  --rough-b: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400"><filter id="r"><feTurbulence type="fractalNoise" baseFrequency="0.045" numOctaves="2" seed="19"/><feDisplacementMap in="SourceGraphic" scale="8"/></filter><rect x="8" y="8" width="384" height="384" fill="none" stroke="%231a1612" stroke-width="5" filter="url(%23r)"/></svg>');
+  --rough-c: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400"><filter id="r"><feTurbulence type="fractalNoise" baseFrequency="0.045" numOctaves="2" seed="42"/><feDisplacementMap in="SourceGraphic" scale="8"/></filter><rect x="8" y="8" width="384" height="384" fill="none" stroke="%231a1612" stroke-width="5" filter="url(%23r)"/></svg>');
+  --rough-d: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400"><filter id="r"><feTurbulence type="fractalNoise" baseFrequency="0.038" numOctaves="2" seed="61"/><feDisplacementMap in="SourceGraphic" scale="9"/></filter><rect x="8" y="8" width="384" height="384" fill="none" stroke="%231a1612" stroke-width="5" filter="url(%23r)"/></svg>');
+  --rough-e: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400"><filter id="r"><feTurbulence type="fractalNoise" baseFrequency="0.052" numOctaves="2" seed="88"/><feDisplacementMap in="SourceGraphic" scale="7"/></filter><rect x="8" y="8" width="384" height="384" fill="none" stroke="%231a1612" stroke-width="5" filter="url(%23r)"/></svg>');
+  --rough-f: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400"><filter id="r"><feTurbulence type="fractalNoise" baseFrequency="0.042" numOctaves="2" seed="123"/><feDisplacementMap in="SourceGraphic" scale="9"/></filter><rect x="8" y="8" width="384" height="384" fill="none" stroke="%231a1612" stroke-width="5" filter="url(%23r)"/></svg>');
 }
 
 .card-flat, .card {
@@ -298,8 +303,14 @@ button:nth-child(even), .chunky:nth-child(even) { border-radius: var(--wonk-s2);
      background-clip and would silently defeat a normal rule. */
   background-clip: padding-box !important;
 }
+/* Prime-ish strides so consecutive siblings land on different seeds and
+   the assignment pattern only repeats over a long cycle — reads as
+   random. Later rules win where strides collide. */
 .card-flat:nth-child(even), .card:nth-child(even) { border-image-source: var(--rough-b); }
 .card-flat:nth-child(3n), .card:nth-child(3n) { border-image-source: var(--rough-c); }
+.card-flat:nth-child(4n+3), .card:nth-child(4n+3) { border-image-source: var(--rough-d); }
+.card-flat:nth-child(5n+2), .card:nth-child(5n+2) { border-image-source: var(--rough-e); }
+.card-flat:nth-child(7n+4), .card:nth-child(7n+4) { border-image-source: var(--rough-f); }
 
 /* Cards that signal state with a coloured border (PB red, current-week sea,
    onboarding mustard) keep a solid wonky border — border-image would paint
@@ -375,6 +386,14 @@ button:nth-child(even), .chunky:nth-child(even) { border-radius: var(--wonk-s2);
   border: var(--bw) solid var(--ink);
   filter: url(#chrome-boil);
   pointer-events: none;
+}
+/* A card promoted to boil-frame trades the rough border-image for the
+   living line: the pseudo draws the frame instead, and the fill goes back
+   to the border box (like the login card) so no gap opens where the
+   boiled line dips inward. !important to out-cascade the padding-box rule. */
+.card.boil-frame, .card-flat.boil-frame {
+  border-image: none;
+  background-clip: border-box !important;
 }
 /* Round variant for circular heroes (tick / achievement badges). */
 .boil-frame-round::before { border-radius: 50%; }
