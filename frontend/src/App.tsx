@@ -20,6 +20,7 @@ const Progress = lazy(() => import("./pages/Progress"));
 import { Ribbon, TabBar } from "./ui";
 import InstallPrompt from "./components/InstallPrompt";
 import LockScreen from "./components/LockScreen";
+import OfflineStatus from "./components/OfflineStatus";
 import { AuthProvider, useAuth } from "./lib/auth";
 import { useIdleLock } from "./lib/idleLock";
 import "./App.css";
@@ -77,6 +78,7 @@ function Shell() {
         </Suspense>
       </main>
       {!isDesign && <TabBar />}
+      {!isDesign && <OfflineStatus />}
       <InstallPrompt />
       {locked && <LockScreen onUnlock={unlock} />}
     </div>
