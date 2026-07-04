@@ -50,9 +50,9 @@ export default function LoginPage({ onAuthed }: Props) {
         <Ribbon color="var(--red)" font="display">★ SENDLOG ★</Ribbon>
       </div>
 
-      <form onSubmit={handleSubmit} style={{
+      <form onSubmit={handleSubmit} className="boil-frame" style={{
         width: "100%", maxWidth: 360,
-        background: "var(--cream)", border: "var(--bw) solid var(--ink)",
+        background: "var(--cream)", border: "var(--bw) solid transparent",
         boxShadow: "6px 6px 0 var(--ink)", padding: "20px 18px",
         transform: "rotate(-0.4deg)",
       }}>

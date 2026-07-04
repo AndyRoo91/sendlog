@@ -27,9 +27,10 @@ export default function ConfirmSheet({ title, message, confirmLabel = "DELETE", 
     }}>
       <div role="alertdialog" aria-modal="true" aria-label={title}
         onClick={(e) => e.stopPropagation()}
+        className="boil-frame"
         style={{
           width: "100%", maxWidth: 340,
-          background: "var(--paper)", border: "var(--bw) solid var(--ink)",
+          background: "var(--paper)", border: "var(--bw) solid transparent",
           boxShadow: "6px 6px 0 var(--ink)", padding: "18px 16px 16px",
           transform: "rotate(-0.6deg)",
         }}>

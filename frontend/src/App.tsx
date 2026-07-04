@@ -17,7 +17,7 @@ import PlanPage from "./pages/PlanPage";
 
 // Heavy pages split into their own chunks
 const Progress = lazy(() => import("./pages/Progress"));
-import { Ribbon, TabBar } from "./ui";
+import { Ribbon, TabBar, GrungeDefs } from "./ui";
 import InstallPrompt from "./components/InstallPrompt";
 import LockScreen from "./components/LockScreen";
 import OfflineStatus from "./components/OfflineStatus";
@@ -100,6 +100,7 @@ export default function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
+        <GrungeDefs />
         <AuthGate />
       </BrowserRouter>
     </AuthProvider>

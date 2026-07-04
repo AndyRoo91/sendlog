@@ -297,6 +297,23 @@ button:nth-child(even), .chunky:nth-child(even) { border-radius: var(--wonk-s2);
   border-radius: var(--wonk-a);
 }
 
+/* ─── Grungy chrome, tier 3: boiling frame for hero elements ─── */
+/* A border-only pseudo-element pushed through the chrome-boil SVG filter
+   (defs mounted globally by ui/GrungeDefs). Only the frame is displaced —
+   content underneath stays sharp. Reserved for hero moments (ConfirmSheet,
+   login card); the boil on every card would be noise. */
+.boil-frame { position: relative; }
+.boil-frame::before {
+  content: "";
+  position: absolute; inset: -1px;
+  border: var(--bw) solid var(--ink);
+  filter: url(#chrome-boil);
+  pointer-events: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .boil-frame::before { filter: url(#chrome-boil-still); }
+}
+
 /* ---- Crag motion loops (viewBox 260×300, centre at 130,150) ---- */
 .mv { transform-box: fill-box; transform-origin: center; }
 .mv-headbang { animation: headbang 0.9s steps(2) infinite; }
