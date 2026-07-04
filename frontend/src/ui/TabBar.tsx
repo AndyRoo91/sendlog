@@ -12,7 +12,7 @@ const TABS = [
 /** Phone bottom tab bar. LOG IT is the centre action. */
 export default function TabBar() {
   return (
-    <nav className="tabbar">
+    <nav className="tabbar torn-top">
       {TABS.map((t) => (
         <NavLink key={t.to} to={t.to} end={t.end} className={({ isActive }) => `tab ${isActive ? "active" : ""}`}>
           {t.icon}

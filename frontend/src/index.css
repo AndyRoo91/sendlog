@@ -326,6 +326,31 @@ button:nth-child(even), .chunky:nth-child(even) { border-radius: var(--wonk-s2);
   mask-image: var(--rough-line-b);
 }
 
+/* W3: torn edge for the full-bleed ink slabs (TabBar top, SessionStrip
+   bottom). A displaced filled strip in a mask — the slab keeps its box;
+   the pseudo-element paints a ragged skyline just past the edge. The
+   strip overlaps the slab by 1px so no hairline gap opens up. */
+:root {
+  --torn-edge: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 10" preserveAspectRatio="none"><filter id="r" filterUnits="userSpaceOnUse" x="-6" y="-8" width="172" height="26"><feTurbulence type="fractalNoise" baseFrequency="0.045 0.3" numOctaves="2" seed="17"/><feDisplacementMap in="SourceGraphic" scale="6"/></filter><path d="M0 5 L160 5 L160 10 L0 10 Z" fill="white" filter="url(%23r)"/></svg>');
+}
+.torn-top::before, .torn-bottom::after {
+  content: "";
+  position: absolute;
+  left: 0; right: 0; height: 9px;
+  background: var(--ink);
+  -webkit-mask-image: var(--torn-edge);
+  mask-image: var(--torn-edge);
+  -webkit-mask-repeat: repeat-x;
+  mask-repeat: repeat-x;
+  -webkit-mask-size: 160px 9px;
+  mask-size: 160px 9px;
+  pointer-events: none;
+}
+/* The host must already be positioned (fixed/relative/…) — setting
+   position here would clobber the tabbar's position: fixed. */
+.torn-top::before { top: -8px; }
+.torn-bottom::after { bottom: -8px; transform: scaleY(-1); }
+
 /* ─── Grungy chrome, tier 3: boiling frame for hero elements ─── */
 /* A border-only pseudo-element pushed through the chrome-boil SVG filter
    (defs mounted globally by ui/GrungeDefs). Only the frame is displaced —
