@@ -289,7 +289,14 @@ button:nth-child(even), .chunky:nth-child(even) { border-radius: var(--wonk-s2);
 .card-flat, .card {
   border-radius: 0;            /* the drawn frame replaces the wonk on cards */
   border-color: transparent;   /* keep var(--b) width for layout, frame paints over */
-  border-image: var(--rough-a) 19 / 10px / 4px round;
+  /* Outset 6px shifts the stroke band outward so the clipped fill below
+     always reaches the drawn line. */
+  border-image: var(--rough-a) 19 / 10px / 6px round;
+  /* Without this the background paints a sharp rectangle to the border box
+     and pokes past the wavy line wherever it dips inward. !important because
+     several cards set `background:` as an inline shorthand, which resets
+     background-clip and would silently defeat a normal rule. */
+  background-clip: padding-box !important;
 }
 .card-flat:nth-child(even), .card:nth-child(even) { border-image-source: var(--rough-b); }
 .card-flat:nth-child(3n), .card:nth-child(3n) { border-image-source: var(--rough-c); }
