@@ -245,6 +245,29 @@ label { font-size: 11px; font-family: var(--font-banner); letter-spacing: 0.06em
 .tag-blue { background: var(--cobalt); }
 .tag-red { background: var(--red); }
 
+/* ─── Grungy chrome, tier 1: wonky hand-drawn boxes ──────────── */
+/* See directions/GRUNGY-CHROME.md. Asymmetric border-radius makes boxes
+   read as wobbly hand-drawn rectangles. Borders/backgrounds only — text
+   stays crisp and inputs/selects/textareas stay square (the hard rule). */
+:root {
+  /* big boxes (cards) — pronounced wobble, cycled so pages don't repeat */
+  --wonk-a: 255px 15px 225px 15px / 15px 225px 15px 255px;
+  --wonk-b: 15px 225px 15px 255px / 255px 15px 225px 15px;
+  --wonk-c: 225px 15px 255px 15px / 15px 255px 15px 225px;
+  /* small boxes (buttons, chips) — subtler so they stay boxy at size */
+  --wonk-s1: 4px 13px 6px 14px / 13px 5px 14px 6px;
+  --wonk-s2: 14px 5px 13px 4px / 6px 13px 5px 14px;
+}
+
+.card-flat, .card { border-radius: var(--wonk-a); }
+.card-flat:nth-child(even), .card:nth-child(even) { border-radius: var(--wonk-b); }
+.card-flat:nth-child(3n), .card:nth-child(3n) { border-radius: var(--wonk-c); }
+
+button, .chunky { border-radius: var(--wonk-s1); }
+button:nth-child(even), .chunky:nth-child(even) { border-radius: var(--wonk-s2); }
+
+.tag { border-radius: 6px 3px 7px 3px / 3px 7px 3px 6px; }
+
 /* ---- Crag motion loops (viewBox 260×300, centre at 130,150) ---- */
 .mv { transform-box: fill-box; transform-origin: center; }
 .mv-headbang { animation: headbang 0.9s steps(2) infinite; }
