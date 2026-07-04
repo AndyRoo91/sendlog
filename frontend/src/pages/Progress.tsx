@@ -11,6 +11,7 @@ import type {
 } from "../api/client";
 import { format, subDays, startOfWeek, eachDayOfInterval } from "date-fns";
 import { Link, useNavigate } from "react-router-dom";
+import { localDay, fmtDay } from "../lib/dates";
 import type { SendDetail, SessionSummary } from "../api/client";
 import { Ribbon } from "../ui";
 import { onKey } from "../lib/a11y";
@@ -77,7 +78,7 @@ function ChartCard({
   const showTrend = projection === true && data.length >= 3;
   const fit = showTrend ? linearFit(data.map((p) => p.value)) : null;
   const chartData = data.map((p, i) => ({
-    date: format(new Date(p.date), "MMM d"),
+    date: fmtDay(p.date, "MMM d"),
     value: p.value,
     ...(fit ? { trend: Math.round((fit.intercept + fit.slope * i) * 10) / 10 } : {}),
   }));
@@ -119,15 +120,15 @@ function LeadProgression({ onsight, flash, redpoint }: { onsight: ProgressPoint[
   // merge series by date
   const byDate: Record<string, { date: string; onsight?: number; flash?: number; redpoint?: number }> = {};
   for (const p of onsight) {
-    const d = format(new Date(p.date), "MMM d");
+    const d = fmtDay(p.date, "MMM d");
     (byDate[d] ??= { date: d }).onsight = p.value;
   }
   for (const p of flash) {
-    const d = format(new Date(p.date), "MMM d");
+    const d = fmtDay(p.date, "MMM d");
     (byDate[d] ??= { date: d }).flash = p.value;
   }
   for (const p of redpoint) {
-    const d = format(new Date(p.date), "MMM d");
+    const d = fmtDay(p.date, "MMM d");
     (byDate[d] ??= { date: d }).redpoint = p.value;
   }
   const merged = Object.values(byDate);
@@ -196,7 +197,7 @@ function VolumeChart({ data }: { data: ProgressPoint[] }) {
       </div>
     );
   }
-  const chartData = data.map((p) => ({ date: format(new Date(p.date), "MMM d"), value: p.value }));
+  const chartData = data.map((p) => ({ date: fmtDay(p.date, "MMM d"), value: p.value }));
   return (
     <div className={CHART_CARD_CLS} style={{ padding: 16 }}>
       <div style={CHART_TITLE_STYLE}>Session Volume (ticks per session)</div>
@@ -360,7 +361,7 @@ function PBTimeline({ points }: { points: PBTimelinePoint[] }) {
     );
   }
   const data = points.map((p) => ({
-    date: format(new Date(p.date), "MMM d"),
+    date: fmtDay(p.date, "MMM d"),
     lead_pb: p.lead_pb ?? undefined,
     boulder_pb: p.boulder_pb ?? undefined,
     lead_grade: p.lead_grade,
@@ -439,7 +440,7 @@ function ContributionHeatmap({ daily, range }: { daily: DailyActivity[]; range: 
 
   const byDate = new Map(daily.map((d) => [d.date, d.ticks]));
   const today = new Date();
-  const earliest = new Date(daily[0].date);
+  const earliest = localDay(daily[0].date);
   const rawStart = range === "all" ? earliest : subDays(today, HEATMAP_WINDOW[range] - 1);
   const start = startOfWeek(rawStart, { weekStartsOn: 0 }); // align columns to weeks (Sun)
   const days = eachDayOfInterval({ start, end: today });
@@ -489,7 +490,7 @@ function ContributionHeatmap({ daily, range }: { daily: DailyActivity[]; range: 
         <div style={{ marginTop: 10, borderTop: "2px dashed var(--ink-2)", paddingTop: 8 }}>
           <div className="gap-row" style={{ justifyContent: "space-between", alignItems: "center" }}>
             <span style={{ fontFamily: "var(--font-banner)", fontSize: 10, letterSpacing: "0.1em", color: "var(--ink-2)" }}>
-              {format(new Date(picking.date + "T00:00:00"), "EEE MMM d").toUpperCase()} · {picking.options.length} SESSIONS
+              {fmtDay(picking.date, "EEE MMM d").toUpperCase()} · {picking.options.length} SESSIONS
             </span>
             <span role="button" tabIndex={0} className="muted" onClick={() => setPicking(null)} onKeyDown={onKey(() => setPicking(null))}
               style={{ fontSize: 12, cursor: "pointer" }}>×</span>
@@ -616,7 +617,7 @@ function DrillDownSheet({
                     color: "var(--cream)", background: "var(--sea)", padding: "2px 7px",
                     border: "var(--b) solid var(--ink)",
                   }}>{SEND_TYPE_LABEL[s.send_type] ?? s.send_type.toUpperCase()}</span>
-                  <span className="muted" style={{ fontSize: 12 }}>{format(new Date(s.date), "MMM d yyyy")}</span>
+                  <span className="muted" style={{ fontSize: 12 }}>{fmtDay(s.date, "MMM d yyyy")}</span>
                 </div>
                 {(s.route_name || s.attempts != null) && (
                   <div className="muted" style={{ fontSize: 13, marginTop: 5 }}>
@@ -646,7 +647,7 @@ function TrainingLoadChart({ points }: { points: TrainingLoadPoint[] }) {
       </div>
     );
   }
-  const data = points.map((p) => ({ date: format(new Date(p.date), "MMM d"), ratio: p.ratio, acute: p.acute, chronic: p.chronic }));
+  const data = points.map((p) => ({ date: fmtDay(p.date, "MMM d"), ratio: p.ratio, acute: p.acute, chronic: p.chronic }));
   const maxRatio = Math.max(1.6, ...points.map((p) => p.ratio));
   return (
     <div className={CHART_CARD_CLS} style={{ padding: 16 }}>

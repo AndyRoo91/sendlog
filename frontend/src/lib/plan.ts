@@ -1,7 +1,8 @@
 import type { PlanDetail } from "../api/client";
+import { localDay } from "./dates";
 
 /** "2026-06-08" → Date at local midnight (no UTC drift). */
-export function day(iso: string): Date { return new Date(iso + "T00:00:00"); }
+export const day = localDay;
 
 /** 1-based current week of a plan, clamped to its length. */
 export function planWeek(plan: PlanDetail): number {

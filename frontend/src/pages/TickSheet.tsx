@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { onKey } from "../lib/a11y";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { format } from "date-fns";
+import { fmtDay, parseUTC } from "../lib/dates";
 import { api } from "../api/client";
 import type { SessionDetail, BoulderEntry, LeadRouteEntry, RecentCombo, Wall } from "../api/client";
 import {
@@ -30,9 +30,6 @@ const LEAD_SYSTEMS: GradeSystem[] = ["ewbank", "yds", "french"];
 const CARD_TILTS = [-1.2, 0.8, -1.8, 1.0, -0.5, 1.5, -0.9, 0.4, -1.6, 1.1, -0.7, 1.8];
 function cardTilt(i: number) { return CARD_TILTS[i % CARD_TILTS.length]; }
 
-function parseUTC(s: string): Date {
-  return new Date(/Z|[+-]\d\d:?\d\d$/.test(s) ? s : s + "Z");
-}
 function fmtElapsed(startISO: string, now: number): string {
   const secs = Math.max(0, Math.floor((now - parseUTC(startISO).getTime()) / 1000));
   const h = Math.floor(secs / 3600), m = Math.floor((secs % 3600) / 60), s = secs % 60;
@@ -404,7 +401,7 @@ export default function TickSheet() {
   const running = Boolean(session.started_at) && !session.ended_at;
   const hasEntries = entries.length > 0;
   const where = (session.location || "SESSION").toUpperCase();
-  const dateLabel = format(new Date(session.date), "EEE · d MMM").toUpperCase();
+  const dateLabel = fmtDay(session.date, "EEE · d MMM").toUpperCase();
   const recentCards = recents.filter((c) => c.kind === mode).slice(0, 2);
 
   return (

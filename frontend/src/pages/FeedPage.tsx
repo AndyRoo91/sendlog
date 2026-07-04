@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { formatDistanceToNowStrict } from "date-fns";
+import { relativeTime } from "../lib/dates";
 import { api } from "../api/client";
 import type { FeedEvent, ReactionSummary } from "../api/client";
 import { Ribbon, Toast, PullToRefresh, Crag } from "../ui";
@@ -18,10 +18,7 @@ function nameColor(name: string): string {
 }
 
 /** Interpret naive backend timestamps (UTC) and render "2d ago". */
-function whenLabel(at: string): string {
-  const iso = /[zZ]|[+-]\d\d:\d\d$/.test(at) ? at : at + "Z";
-  return formatDistanceToNowStrict(new Date(iso), { addSuffix: true });
-}
+const whenLabel = relativeTime;
 
 function sessionHeadline(e: FeedEvent): { emoji: string; text: string } {
   if (e.training_only) return { emoji: "🏋️", text: "put in a board session" };

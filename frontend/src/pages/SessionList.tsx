@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api/client";
 import type { SessionSummary } from "../api/client";
-import { format } from "date-fns";
+import { fmtDay } from "../lib/dates";
 import { Ribbon, Toast, PullToRefresh } from "../ui";
 import { useToast } from "../lib/useToast";
 import { usePullToRefresh } from "../lib/usePullToRefresh";
@@ -114,7 +114,7 @@ export default function SessionList() {
                   <span style={{
                     fontFamily: "var(--font-banner)", fontSize: 13, letterSpacing: "0.06em",
                   }}>
-                    {format(new Date(s.date), "EEE · MMM d yyyy").toUpperCase()}
+                    {fmtDay(s.date, "EEE · MMM d yyyy").toUpperCase()}
                   </span>
                   {s.location && (
                     <span className="muted" style={{ marginLeft: 10, fontSize: 13 }}>{s.location}</span>

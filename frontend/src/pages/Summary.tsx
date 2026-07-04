@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { onKey } from "../lib/a11y";
 import { useNavigate, useParams } from "react-router-dom";
-import { format } from "date-fns";
+import { fmtDay, parseUTC } from "../lib/dates";
 import { toPng } from "html-to-image";
 import { api } from "../api/client";
 import type { SessionDetail, BoulderEntry, LeadRouteEntry } from "../api/client";
@@ -14,9 +14,6 @@ type AnyEntry = (BoulderEntry | LeadRouteEntry) & { grade_system?: string };
 
 const SEND_STYLES = new Set(["flash", "send", "onsight", "toprope"]);
 
-function parseUTC(s: string): Date {
-  return new Date(/Z|[+-]\d\d:?\d\d$/.test(s) ? s : s + "Z");
-}
 function fmtDuration(start?: string | null, end?: string | null, fallbackMin?: number | null): string {
   if (start && end) {
     const secs = Math.max(0, Math.floor((parseUTC(end).getTime() - parseUTC(start).getTime()) / 1000));
@@ -145,7 +142,7 @@ export default function Summary() {
         </div>
 
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 4 }}>
-          <div style={{ fontFamily: "var(--font-banner)", fontSize: 11, letterSpacing: "0.1em" }}>{format(new Date(session.date), "EEE · d MMM").toUpperCase()}</div>
+          <div style={{ fontFamily: "var(--font-banner)", fontSize: 11, letterSpacing: "0.1em" }}>{fmtDay(session.date, "EEE · d MMM").toUpperCase()}</div>
           <div style={{ fontFamily: "var(--font-banner)", fontSize: 11, letterSpacing: "0.1em", color: "var(--ink-2)" }}>{(session.location || "").toUpperCase()}</div>
         </div>
         <div style={{ fontFamily: "var(--font-display)", fontSize: 36, lineHeight: 1, marginBottom: 14 }}>

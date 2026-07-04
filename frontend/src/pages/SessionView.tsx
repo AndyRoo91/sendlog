@@ -5,7 +5,7 @@ import type {
   SessionDetail, WarmupEntry, FingerboardEntry, BoulderEntry,
   LeadRouteEntry, StrengthEntry, EntryPhoto, Gym,
 } from "../api/client";
-import { format } from "date-fns";
+import { fmtDay } from "../lib/dates";
 import PhotoUploader from "../components/PhotoUploader";
 import ProtocolPicker from "../components/ProtocolPicker";
 import { photoUrl, thumbUrl } from "../lib/photos";
@@ -665,7 +665,7 @@ function SessionHeader({ session, onUpdate }: { session: SessionDetail; onUpdate
     <div style={{ marginBottom: 24 }}>
       <div className="gap-row" style={{ justifyContent: "space-between" }}>
         <div>
-          <h1>{format(new Date(session.date), "EEEE, MMMM d yyyy")}</h1>
+          <h1>{fmtDay(session.date, "EEEE, MMMM d yyyy")}</h1>
           <div className="gap-row" style={{ marginTop: 4, flexWrap: "wrap" }}>
             {session.gym_id != null && gyms.find((g) => g.id === session.gym_id) && (
               <span className="muted" style={{ fontFamily: "var(--font-banner)", fontSize: 12, letterSpacing: "0.05em" }}>
