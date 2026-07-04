@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { format, formatDistanceToNowStrict } from "date-fns";
+import { fmtTime, relativeTime } from "../lib/dates";
 import { api } from "../api/client";
 import type { RouteDetail as RouteDetailT, RouteNote, RoutePin, EntryPhoto } from "../api/client";
 import { pinKind } from "../lib/pins";
@@ -64,10 +64,7 @@ function BetaNotes({
     onChange(notes.filter((n) => n.id !== id));
   }
 
-  const whenNote = (at: string) => {
-    const iso = /[zZ]|[+-]\d\d:\d\d$/.test(at) ? at : at + "Z";
-    return formatDistanceToNowStrict(new Date(iso), { addSuffix: true });
-  };
+  const whenNote = relativeTime;
 
   return (
     <div className="card" style={{ marginBottom: 16 }}>
@@ -237,7 +234,7 @@ export default function RouteDetail() {
                   <div key={t.id} className="gap-row" style={{ gap: 8 }}>
                     <span style={{ fontFamily: "var(--font-display)", fontSize: 16 }}>{t.grade}</span>
                     <span className="tag" style={{ background: st.color, color: st.text }}>{st.label}</span>
-                    {t.logged_at && <span className="muted" style={{ fontSize: 12 }}>{format(new Date(t.logged_at.endsWith("Z") ? t.logged_at : t.logged_at + "Z"), "MMM d")}</span>}
+                    {t.logged_at && <span className="muted" style={{ fontSize: 12 }}>{fmtTime(t.logged_at, "MMM d")}</span>}
                   </div>
                 );
               })}
@@ -256,7 +253,7 @@ export default function RouteDetail() {
                     <span style={{ fontFamily: "var(--font-display)", fontSize: 16 }}>{t.grade}</span>
                     <span className="tag" style={{ background: st.color, color: st.text }}>{st.label}</span>
                     {t.falls != null && t.falls > 0 && <span className="muted" style={{ fontSize: 12 }}>{t.falls} falls</span>}
-                    {t.logged_at && <span className="muted" style={{ fontSize: 12 }}>{format(new Date(t.logged_at.endsWith("Z") ? t.logged_at : t.logged_at + "Z"), "MMM d")}</span>}
+                    {t.logged_at && <span className="muted" style={{ fontSize: 12 }}>{fmtTime(t.logged_at, "MMM d")}</span>}
                   </div>
                 );
               })}

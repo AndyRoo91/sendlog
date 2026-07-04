@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { format } from "date-fns";
+import { fmtDay } from "../lib/dates";
 import { api } from "../api/client";
 import type { Gym, Wall, WallSet, Circuit } from "../api/client";
 import { ConfirmSheet, Ribbon, Toast } from "../ui";
@@ -16,7 +16,7 @@ function angleLabel(angle?: number | null): string {
 
 /** "2026-03-15" → "Mar 15" without UTC drift. */
 function setDate(iso: string): string {
-  return format(new Date(iso + "T00:00:00"), "MMM d");
+  return fmtDay(iso, "MMM d");
 }
 
 function progressLabel(s: WallSet): string {

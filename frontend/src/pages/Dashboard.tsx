@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api/client";
 import type { Achievement, BuddyState, SessionSummary } from "../api/client";
-import { format } from "date-fns";
+import { localDay, fmtDay, fmtTime, parseUTC, daysAgo } from "../lib/dates";
 import { ICON, Ribbon, Crag, lobbyCondition } from "../ui";
 import type { CragState } from "../ui";
 import { isDuckOn, setDuck, useDuckMode, useKonami } from "../lib/duckMode";
@@ -63,22 +63,16 @@ export default function Dashboard() {
   // so you can jump straight back to logging instead of hunting the list.
   const runningSession = sessions.find((s) => s.started_at && !s.ended_at) ?? null;
   const thisMonth = sessions.filter((s) => {
-    const d = new Date(s.date);
+    const d = localDay(s.date);
     const now = new Date();
     return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
   }).length;
-  const last = sessions[0] ? format(new Date(sessions[0].date), "MMM d") : "—";
+  const last = sessions[0] ? fmtDay(sessions[0].date, "MMM d") : "—";
 
-  // Days-since-last-climb nudge. Uses local-day math so "today" reads as 0.
-  function daysBetween(iso: string): number {
-    const a = new Date(iso); a.setHours(0, 0, 0, 0);
-    const b = new Date(); b.setHours(0, 0, 0, 0);
-    return Math.max(0, Math.round((b.getTime() - a.getTime()) / 86_400_000));
-  }
   // Lobby condition — count sessions that had started_at within the last 14 days.
   const sessions14 = sessions.filter((s) => {
     if (!s.started_at) return false;
-    const ms = Date.now() - new Date(s.started_at.endsWith("Z") || /[+-]\d\d:?\d\d$/.test(s.started_at) ? s.started_at : s.started_at + "Z").getTime();
+    const ms = Date.now() - parseUTC(s.started_at).getTime();
     return ms <= 14 * 24 * 60 * 60 * 1000;
   }).length;
   const CRAG_COPY: Record<CragState, { head: string; body: string }> = {
@@ -104,7 +98,7 @@ export default function Dashboard() {
     ? { head: "ease off.", body: `load's spiking (ACWR ${buddy.load_ratio?.toFixed(1) ?? "high"}). take a deload — lighter week, more rest.` }
     : CRAG_COPY[cragState];
 
-  const daysSince = sessions[0] ? daysBetween(sessions[0].date) : null;
+  const daysSince = sessions[0] ? daysAgo(sessions[0].date) : null;
   const nudge: { text: string; color: string } | null =
     daysSince === null ? null
     : daysSince === 0 ? { text: "★ FRESH OFF A SEND ★", color: "var(--red)" }
@@ -250,7 +244,7 @@ export default function Dashboard() {
           }}>
             {achievements.map((a, i) => (
               <div key={a.code} title={a.unlocked
-                ? `${a.title} — ${a.description}${a.unlocked_at ? ` (unlocked ${format(new Date(a.unlocked_at), "MMM d")})` : ""}`
+                ? `${a.title} — ${a.description}${a.unlocked_at ? ` (unlocked ${fmtTime(a.unlocked_at, "MMM d")})` : ""}`
                 : `Locked: ${a.description}`}
                 style={{
                   border: "var(--b) solid var(--ink)",
@@ -299,7 +293,7 @@ export default function Dashboard() {
                 <div className="gap-row" style={{ justifyContent: "space-between" }}>
                   <div>
                     <span style={{ fontFamily: "var(--font-banner)", fontSize: 12, letterSpacing: "0.06em" }}>
-                      {format(new Date(s.date), "EEE · MMM d").toUpperCase()}
+                      {fmtDay(s.date, "EEE · MMM d").toUpperCase()}
                     </span>
                     {s.location && (
                       <span className="muted" style={{ marginLeft: 10, fontSize: 13 }}>{s.location}</span>
