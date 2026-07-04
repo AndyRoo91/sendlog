@@ -8,14 +8,15 @@ interface Props {
 export default function SessionStrip({ where = "BLOC SHOP", elapsed = "47:23", date = "TUE · 26 MAY" }: Props) {
   return (
     <div
+      className="torn-bottom"
       style={{
+        position: "relative",
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
         padding: "16px 16px 12px",
         background: "var(--ink)",
         color: "var(--cream)",
-        borderBottom: "var(--bw) solid var(--ink)",
       }}
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>

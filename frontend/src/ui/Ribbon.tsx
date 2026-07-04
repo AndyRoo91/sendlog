@@ -38,8 +38,8 @@ export default function Ribbon({
   const content = duck ? duckify(children) : children;
   return (
     <div style={{ display: "inline-flex", alignItems: "stretch", transform: `rotate(${rotate}deg)`, ...style }}>
-      <svg width="14" viewBox="0 0 14 40" preserveAspectRatio="none" style={{ display: "block" }}>
-        <polygon points="14,0 0,20 14,40" fill={color} stroke="var(--ink)" strokeWidth="2" />
+      <svg width="14" viewBox="0 0 14 40" preserveAspectRatio="none" style={{ display: "block", overflow: "visible" }}>
+        <polygon points="14,0 0,20 14,40" fill={color} stroke="var(--ink)" strokeWidth="2" filter="url(#chrome-boil-still)" />
       </svg>
       <div
         style={{
@@ -47,18 +47,21 @@ export default function Ribbon({
           color: textColor,
           padding: "7px 12px",
           fontFamily: FONT_MAP[font],
-          borderTop: "2px solid var(--ink)",
-          borderBottom: "2px solid var(--ink)",
           letterSpacing: "0.05em",
           whiteSpace: "nowrap",
           display: "flex",
           alignItems: "center",
+          position: "relative",
         }}
       >
+        {/* Hand-drawn top/bottom rules replacing the straight 2px borders.
+            Absolutely positioned so the banner keeps its exact box. */}
+        <span aria-hidden="true" className="rough-rule" style={{ position: "absolute", left: -1, right: -1, top: -3, backgroundColor: "var(--ink)" }} />
         {content}
+        <span aria-hidden="true" className="rough-rule rough-rule-b" style={{ position: "absolute", left: -1, right: -1, bottom: -3, backgroundColor: "var(--ink)" }} />
       </div>
-      <svg width="14" viewBox="0 0 14 40" preserveAspectRatio="none" style={{ display: "block" }}>
-        <polygon points="0,0 14,20 0,40" fill={color} stroke="var(--ink)" strokeWidth="2" />
+      <svg width="14" viewBox="0 0 14 40" preserveAspectRatio="none" style={{ display: "block", overflow: "visible" }}>
+        <polygon points="0,0 14,20 0,40" fill={color} stroke="var(--ink)" strokeWidth="2" filter="url(#chrome-boil-still)" />
       </svg>
     </div>
   );
