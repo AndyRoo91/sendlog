@@ -113,7 +113,7 @@ export default function Summary() {
     { value: 5, emoji: "🔥", label: "FIRE" },
   ];
 
-  if (!session) return <div className="page"><p className="muted">Loading…</p></div>;
+  if (!session) return <div className="page"><p className="muted">chalking up…</p></div>;
 
   const maxCount = Math.max(1, ...stats.pyramid.map((p) => p.count));
   const summaryState: CragState = stats.sends > 0 ? "stoked" : "shakeoff";

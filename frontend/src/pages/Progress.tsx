@@ -71,7 +71,7 @@ function ChartCard({
     return (
       <div className={CHART_CARD_CLS} style={{ padding: 16 }}>
         <div style={CHART_TITLE_STYLE}>{title}</div>
-        <p className="muted" style={{ fontSize: 13 }}>No data yet — log some sessions to see progress.</p>
+        <p className="muted" style={{ fontSize: 13 }}>Nothing to crunch yet — log a few sessions and the numbers show up.</p>
       </div>
     );
   }
@@ -796,7 +796,7 @@ export default function Progress() {
       <SectionChips value={section} onChange={changeSection} />
 
       {!data ? (
-        <p className="muted">Loading…</p>
+        <p className="muted">chalking up…</p>
       ) : (
       <div className="gap-col" style={{ opacity: loading ? 0.5 : 1, transition: "opacity 0.15s steps(2, end)" }}>
         {section === "overview" && (

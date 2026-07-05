@@ -300,7 +300,7 @@ export default function TickSheet() {
           removeLocalEntry(committedMode, tempId);
           markPending(tempId, false);
           setCommitTick(null);
-          toast(err instanceof Error ? err.message : "Failed to save tick.");
+          toast(err instanceof Error ? err.message : "that tick didn't stick — give it another go.");
         }
       }
     },
@@ -396,7 +396,7 @@ export default function TickSheet() {
     [entries]
   );
 
-  if (!session) return <div className="page"><p className="muted">Loading…</p></div>;
+  if (!session) return <div className="page"><p className="muted">chalking up…</p></div>;
 
   const running = Boolean(session.started_at) && !session.ended_at;
   const hasEntries = entries.length > 0;

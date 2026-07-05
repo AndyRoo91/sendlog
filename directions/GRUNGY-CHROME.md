@@ -13,10 +13,10 @@ wonky — to match the grimy early-MTV feel the buddy (Crag) already has.*
   `#chrome-boil-still` filters; `.boil-frame` puts a boiling border-only
   pseudo-element on the ConfirmSheet dialog and the login card
 - **Wave 2 shipped** — cohesion sweep (PRs #79 #80 #81); W8 chart fills parked
-- **Wave 3 shipping** — print-authenticity pass (2026-07-05): P1+P6 Ribbon
+- **Wave 3 shipped** — print-authenticity pass (2026-07-05): P1+P6 Ribbon
   slice (PR #87), P6 hero cards + P7 props (PR #88), P2 overprint + P5
-  stepped motion (PR #89), P3 duotone photos + P4 ghost watermarks (this
-  PR). Remaining: P8 voice sweep.
+  stepped motion (PR #89), P3 duotone photos + P4 ghost watermarks (PR #90),
+  P8 voice sweep (this PR). All eight critique points landed.
 
 ## Why it's tractable
 

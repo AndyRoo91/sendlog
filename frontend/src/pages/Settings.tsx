@@ -7,7 +7,7 @@ import { onKey } from "../lib/a11y";
 
 /** Parse a `${status}: ${body}` error string into a friendly detail line. */
 function friendlyError(err: unknown): string {
-  const raw = err instanceof Error ? err.message : "Something went wrong";
+  const raw = err instanceof Error ? err.message : "that didn't stick";
   const match = raw.match(/^\d+: (.+)$/);
   if (!match) return raw;
   try {

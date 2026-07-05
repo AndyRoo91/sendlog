@@ -58,7 +58,7 @@ function Shell() {
     <div className="app-shell paper">
       {!isDesign && <BrandBar />}
       <main className="app-main">
-        <Suspense fallback={<div className="page"><p className="muted">Loading…</p></div>}>
+        <Suspense fallback={<div className="page"><p className="muted">chalking up…</p></div>}>
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/sessions" element={<SessionList />} />
@@ -89,7 +89,7 @@ function AuthGate() {
   const { user, loading, setUser } = useAuth();
   if (loading) {
     return <div className="paper-plain" style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <p className="muted">Loading…</p>
+      <p className="muted">chalking up…</p>
     </div>;
   }
   if (!user) return <LoginPage onAuthed={setUser} />;

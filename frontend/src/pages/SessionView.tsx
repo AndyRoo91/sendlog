@@ -122,7 +122,7 @@ function WarmupSection({ sessionId, entries, onChange }: {
         <InlineWarmupForm form={form} setForm={setForm} saving={saving}
           onSave={save} onCancel={() => setOpen(false)} />
       )}
-      {entries.length === 0 && !open && <p className="muted" style={{ fontSize: 13 }}>No entries yet.</p>}
+      {entries.length === 0 && !open && <p className="muted" style={{ fontSize: 13 }}>Nothing logged here yet.</p>}
     </div>
   );
 }
@@ -221,7 +221,7 @@ function FingerboardSection({ sessionId, entries, onChange }: {
         </div>
       ))}
       {open && !editId && <InlineFbForm form={form} setForm={setForm} saving={saving} onSave={save} onCancel={() => setOpen(false)} />}
-      {entries.length === 0 && !open && <p className="muted" style={{ fontSize: 13 }}>No entries yet.</p>}
+      {entries.length === 0 && !open && <p className="muted" style={{ fontSize: 13 }}>Nothing logged here yet.</p>}
     </div>
   );
 }
@@ -341,7 +341,7 @@ function LeadSection({ sessionId, entries, onChange }: {
         </div>
       ))}
       {open && !editId && <InlineLeadForm form={form} setForm={setForm} saving={saving} onSave={save} onCancel={() => setOpen(false)} />}
-      {entries.length === 0 && !open && <p className="muted" style={{ fontSize: 13 }}>No entries yet.</p>}
+      {entries.length === 0 && !open && <p className="muted" style={{ fontSize: 13 }}>Nothing logged here yet.</p>}
     </div>
   );
 }
@@ -465,7 +465,7 @@ function BoulderSection({ sessionId, entries, onChange }: {
         </div>
       ))}
       {open && !editId && <InlineBoulderForm form={form} setForm={setForm} saving={saving} onSave={save} onCancel={() => setOpen(false)} />}
-      {entries.length === 0 && !open && <p className="muted" style={{ fontSize: 13 }}>No entries yet.</p>}
+      {entries.length === 0 && !open && <p className="muted" style={{ fontSize: 13 }}>Nothing logged here yet.</p>}
     </div>
   );
 }
@@ -554,7 +554,7 @@ function StrengthSection({ sessionId, entries, onChange }: {
         </div>
       ))}
       {open && !editId && <InlineStrengthForm form={form} setForm={setForm} saving={saving} onSave={save} onCancel={() => setOpen(false)} />}
-      {entries.length === 0 && !open && <p className="muted" style={{ fontSize: 13 }}>No entries yet.</p>}
+      {entries.length === 0 && !open && <p className="muted" style={{ fontSize: 13 }}>Nothing logged here yet.</p>}
     </div>
   );
 }
@@ -707,7 +707,7 @@ export default function SessionView() {
     navigate("/sessions");
   }
 
-  if (!session) return <div className="page"><p className="muted">Loading…</p></div>;
+  if (!session) return <div className="page"><p className="muted">chalking up…</p></div>;
 
   return (
     <div className="page">

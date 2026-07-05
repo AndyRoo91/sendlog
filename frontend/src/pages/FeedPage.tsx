@@ -237,7 +237,7 @@ export default function FeedPage() {
         <Ribbon color="var(--sea)" textColor="var(--cream)">★ THE FEED ★</Ribbon>
       </div>
 
-      {loading && <p className="muted">Loading…</p>}
+      {loading && <p className="muted">chalking up…</p>}
 
       {!loading && events.length === 0 && (
         <div className="card-flat offset-ink" style={{ padding: 20, textAlign: "center" }}>

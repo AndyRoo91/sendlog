@@ -292,7 +292,7 @@ function GymCard({ gym, onChanged, onError }: {
           WALLS ({gym.walls.length})
         </div>
         {gym.walls.length === 0 && (
-          <p className="muted" style={{ fontSize: 12, marginTop: 4 }}>No walls yet — add one below.</p>
+          <p className="muted" style={{ fontSize: 12, marginTop: 4 }}>No walls yet — build one below.</p>
         )}
         {gym.walls.map((w) => (
           <WallRow key={w.id} wall={w} onChanged={onChanged} onError={onError} />
@@ -340,7 +340,7 @@ export default function GymsPage() {
         <button type="submit" className="btn-primary" disabled={!newName.trim()}>Add Gym</button>
       </form>
 
-      {loading && <p className="muted">Loading…</p>}
+      {loading && <p className="muted">chalking up…</p>}
       {!loading && gyms.length === 0 && (
         <div className="card-flat offset-ink" style={{ padding: 16 }}>
           <p className="muted" style={{ fontSize: 13 }}>
