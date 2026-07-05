@@ -183,6 +183,9 @@ function EventCard({ e, i, isMe, onReactionError }: {
       padding: "13px 15px", transform: `rotate(${tilt}deg)`,
       borderColor: e.is_pb ? "var(--red)" : undefined,
     }}>
+      {/* P7 tape doubling as the P2 showcase: .tape multiplies, so where it
+          crosses the red PB keyline the overlap prints a dirty third colour. */}
+      {e.is_pb && <div aria-hidden="true" className="tape" style={{ top: -10, right: -18, transform: "rotate(34deg)" }} />}
       <div className="gap-row" style={{ justifyContent: "space-between", alignItems: "center", gap: 8 }}>
         <UsernameChip name={e.username} isMe={isMe} />
         <span className="muted" style={{ fontSize: 11, fontFamily: "var(--font-banner)", letterSpacing: "0.05em" }}>

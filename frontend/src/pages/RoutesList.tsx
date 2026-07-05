@@ -86,6 +86,8 @@ export default function RoutesList() {
 
   return (
     <div className="page">
+      {/* P4: sits in the dead space below the (often short) project list. */}
+      <div aria-hidden="true" className="ghost-word" style={{ top: 320}}>PROJECTS</div>
       <PullToRefresh distance={ptr.distance} phase={ptr.phase} threshold={ptr.threshold} />
       <div className="gap-row" style={{ justifyContent: "space-between", marginBottom: 20 }}>
         <h1>Projects</h1>

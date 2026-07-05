@@ -329,7 +329,7 @@ export default function GymsPage() {
 
   return (
     <div className="page">
-      <div aria-hidden="true" className="ghost-word">GYMS</div>
+      <div aria-hidden="true" className="ghost-word" style={{ top: 380}}>GYMS</div>
       <div style={{ marginBottom: 20 }}>
         <Ribbon color="var(--cobalt)" textColor="var(--cream)">★ GYMS ★</Ribbon>
       </div>
@@ -344,8 +344,8 @@ export default function GymsPage() {
       {!loading && gyms.length === 0 && (
         <div className="card-flat offset-ink" style={{ padding: 16 }}>
           <p className="muted" style={{ fontSize: 13 }}>
-            No gyms yet. Add your regular gyms and their walls — you'll be able to tag sessions to them,
-            and they're the foundation for set/reset tracking next.
+            No home gym on the books. Add your local and its walls — sessions tag
+            to them, and set/reset tracking hangs off the walls.
           </p>
         </div>
       )}

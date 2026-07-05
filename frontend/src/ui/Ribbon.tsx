@@ -18,8 +18,9 @@ interface Props {
   font?: RibbonFont;
   style?: CSSProperties;
   /** Spot-colour misregistration plate behind the banner text (P1). Defaults
-   *  to mustard, which reads as an off-register second pass on the usual red /
-   *  sea fills. Pass a colour that contrasts this ribbon's fill. */
+   *  to ink — critique round 2 found the original mustard plate under cream
+   *  type read as a soft glow, not a registration slip; a dark contrasting
+   *  plate reads off-plate. Pass a colour to override per-ribbon. */
   misregColor?: string;
 }
 
@@ -37,7 +38,7 @@ export default function Ribbon({
   rotate = 0,
   font = "banner",
   style = {},
-  misregColor = "var(--mustard)",
+  misregColor = "var(--ink)",
 }: Props) {
   const duck = useDuckMode();
   const content = duck ? duckify(children) : children;

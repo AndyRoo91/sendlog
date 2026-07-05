@@ -20,16 +20,19 @@ export default function GrungeDefs() {
         </filter>
         {/* Wave 3 · P3: two-ink photo duotone — luminance mapped through a
             3-stop table: shadows print ink, midtones the red plate,
-            highlights the paper. Display-time only (.print-photo). */}
+            highlights the paper. Display-time only (.print-photo).
+            Shadow stops lifted from pure ink after critique round 2 — full
+            crush turned subjects into silhouettes; a warm dark grey keeps
+            photo content legible while still reading printed. */}
         <filter id="print-photo">
           <feColorMatrix
             type="matrix"
             values="0.2126 0.7152 0.0722 0 0  0.2126 0.7152 0.0722 0 0  0.2126 0.7152 0.0722 0 0  0 0 0 1 0"
           />
           <feComponentTransfer>
-            <feFuncR type="table" tableValues="0.102 0.839 0.984" />
-            <feFuncG type="table" tableValues="0.086 0.227 0.941" />
-            <feFuncB type="table" tableValues="0.071 0.165 0.831" />
+            <feFuncR type="table" tableValues="0.19 0.839 0.984" />
+            <feFuncG type="table" tableValues="0.155 0.227 0.941" />
+            <feFuncB type="table" tableValues="0.13 0.165 0.831" />
           </feComponentTransfer>
         </filter>
       </defs>

@@ -16,7 +16,43 @@ wonky — to match the grimy early-MTV feel the buddy (Crag) already has.*
 - **Wave 3 shipped** — print-authenticity pass (2026-07-05): P1+P6 Ribbon
   slice (PR #87), P6 hero cards + P7 props (PR #88), P2 overprint + P5
   stepped motion (PR #89), P3 duotone photos + P4 ghost watermarks (PR #90),
-  P8 voice sweep (this PR). All eight critique points landed.
+  P8 voice sweep (PR #91). All eight critique points landed.
+- **Wave 4 shipped (this PR)** — critique round 2 (2026-07-05, reviewed the
+  docs/screenshots/wave3-critique set): "more under- than over-cooked."
+  Verdicts + actions below.
+
+## Wave 4 — critique round 2 (2026-07-05)
+
+Reviewer verdicts on Wave 3, and what this wave does about each. Their
+explicit don'ts: **no more keyline, no more misregistration** — those are done.
+
+- **P1 keep/fix** — numeral misreg is "the win of the whole pass"; untouched.
+  The ribbon plate (mustard under cream) read as a glow, not a slip →
+  Ribbon `misregColor` default is now **ink** (contrasting plate).
+- **P2 underdone** — the multiply that exists (tape/ring/stamp + the
+  precomputed `--op-*` shadow tokens) wasn't legible in the shots. One
+  deliberate showcase added: **tape across the PB feed card's red keyline**
+  (tape multiplies → visible dirty overlap). Under-card blends remain
+  physics-blocked (see the `--op-*` comment in index.css).
+- **P3 coverage + contrast** — the "full-colour second photo" was the
+  PhotoUploader gallery (stored photos, wrongly exempt) → now duotoned;
+  Lightbox tap-through stays true-colour. Shadow stops lifted
+  (0.10 → 0.19) so subjects stop silhouetting.
+- **P4 spread, don't turn up** — ghost added to Projects; Gyms/Projects
+  ghosts repositioned into the actual dead space (below the empty-state
+  card). Note: SessionList's ghost already exists but is subtle between
+  card gaps — left as-is per "don't turn it up."
+- **P5 unverifiable statically** — needs a live look / recording; not
+  assumed passed.
+- **P6 done** — no changes. The dashboard "every row shouts" note is mostly
+  coloured slabs (onboarding, nudge banner), not keylines; only the running
+  banner wears the heavy keyline. Revisit only if it still reads noisy live.
+- **P7 restraint kept** — the one additional prop is the PB-card tape
+  (doubles as the P2 showcase). The "missing" dashboard coffee-ring exists —
+  it's below the fold in the screenshot set.
+- **P8 finish the empties** — SessionView section empties and the Gyms
+  empty card re-voiced. Settings explanatory copy stays plain
+  **intentionally** (functional instructions read clear, not quirky).
 
 ## Why it's tractable
 
