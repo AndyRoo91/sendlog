@@ -17,6 +17,10 @@ interface Props {
   rotate?: number;
   font?: RibbonFont;
   style?: CSSProperties;
+  /** Spot-colour misregistration plate behind the banner text (P1). Defaults
+   *  to mustard, which reads as an off-register second pass on the usual red /
+   *  sea fills. Pass a colour that contrasts this ribbon's fill. */
+  misregColor?: string;
 }
 
 const FONT_MAP: Record<RibbonFont, string> = {
@@ -33,13 +37,14 @@ export default function Ribbon({
   rotate = 0,
   font = "banner",
   style = {},
+  misregColor = "var(--mustard)",
 }: Props) {
   const duck = useDuckMode();
   const content = duck ? duckify(children) : children;
   return (
     <div style={{ display: "inline-flex", alignItems: "stretch", transform: `rotate(${rotate}deg)`, ...style }}>
       <svg width="14" viewBox="0 0 14 40" preserveAspectRatio="none" style={{ display: "block", overflow: "visible" }}>
-        <polygon points="14,0 0,20 14,40" fill={color} stroke="var(--ink)" strokeWidth="2" filter="url(#chrome-boil-still)" />
+        <polygon points="14,0 0,20 14,40" fill={color} stroke="var(--ink)" strokeWidth="3.5" filter="url(#chrome-boil-still)" />
       </svg>
       <div
         style={{
@@ -57,11 +62,11 @@ export default function Ribbon({
         {/* Hand-drawn top/bottom rules replacing the straight 2px borders.
             Absolutely positioned so the banner keeps its exact box. */}
         <span aria-hidden="true" className="rough-rule" style={{ position: "absolute", left: -1, right: -1, top: -3, backgroundColor: "var(--ink)" }} />
-        {content}
+        <span className="misreg" style={{ "--misreg": misregColor } as CSSProperties}>{content}</span>
         <span aria-hidden="true" className="rough-rule rough-rule-b" style={{ position: "absolute", left: -1, right: -1, bottom: -3, backgroundColor: "var(--ink)" }} />
       </div>
       <svg width="14" viewBox="0 0 14 40" preserveAspectRatio="none" style={{ display: "block", overflow: "visible" }}>
-        <polygon points="0,0 14,20 0,40" fill={color} stroke="var(--ink)" strokeWidth="2" filter="url(#chrome-boil-still)" />
+        <polygon points="0,0 14,20 0,40" fill={color} stroke="var(--ink)" strokeWidth="3.5" filter="url(#chrome-boil-still)" />
       </svg>
     </div>
   );

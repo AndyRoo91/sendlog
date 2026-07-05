@@ -15,9 +15,11 @@ interface StatProps {
   value: string;
   color: string;
   rotate?: number;
+  /** Off-register plate colour behind the numeral (P1); contrast the numeral. */
+  misreg?: string;
 }
 
-function Stat({ label, value, color, rotate = 0 }: StatProps) {
+function Stat({ label, value, color, rotate = 0, misreg = "var(--red)" }: StatProps) {
   return (
     <div className="card-flat offset-ink" style={{
       padding: "12px 10px", textAlign: "center", transform: `rotate(${rotate}deg)`,
@@ -27,8 +29,9 @@ function Stat({ label, value, color, rotate = 0 }: StatProps) {
         fontFamily: "var(--font-banner)", fontSize: 10, letterSpacing: "0.08em",
         color: "var(--ink-2)", marginBottom: 6, textTransform: "uppercase",
       }}>{label}</div>
-      <div style={{
+      <div className="misreg-lg" style={{
         fontFamily: "var(--font-display)", fontSize: 30, lineHeight: 1, color,
+        ["--misreg" as string]: misreg,
       }}>{value}</div>
     </div>
   );
@@ -196,7 +199,7 @@ export default function Dashboard() {
       }}>
         <Stat label="Total" value={String(totalSessions)} color="var(--ink)" rotate={0.5} />
         <Stat label="This month" value={String(thisMonth)} color="var(--cobalt)" rotate={-1} />
-        <Stat label="Last" value={last} color="var(--red)" rotate={0.5} />
+        <Stat label="Last" value={last} color="var(--red)" rotate={0.5} misreg="var(--cobalt)" />
       </div>
 
       <Link to="/routes" style={{ textDecoration: "none" }}>
