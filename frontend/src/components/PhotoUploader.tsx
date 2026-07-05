@@ -43,16 +43,22 @@ export default function PhotoUploader({ entryType, entryId, photos, onChange, on
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: photos.length ? 8 : 0 }}>
         {photos.map((p) => (
           <div key={p.id} style={{ position: "relative" }}>
-            <img
-              src={thumbUrl(p.filename)}
-              alt="Climb photo"
-              onClick={() => setLightbox(photoUrl(p.filename))}
-              style={{
-                width: 80, height: 80, objectFit: "cover",
-                border: "var(--b) solid var(--ink)",
-                cursor: "pointer",
-              }}
-            />
+            {/* P3: stored photos print duotone like every other layout thumb —
+                the Lightbox tap-through stays true-colour. Wrap only the img so
+                the halftone overlay doesn't screen the delete/topo controls. */}
+            <span className="print-photo-wrap">
+              <img
+                src={thumbUrl(p.filename)}
+                alt="Climb photo"
+                className="print-photo"
+                onClick={() => setLightbox(photoUrl(p.filename))}
+                style={{
+                  width: 80, height: 80, objectFit: "cover",
+                  border: "var(--b) solid var(--ink)",
+                  cursor: "pointer",
+                }}
+              />
+            </span>
             {onSetTopo && (
               <div
                 onClick={() => onSetTopo(p.id)}

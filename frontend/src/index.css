@@ -239,6 +239,12 @@ h3 { font-size: 15px; }
   max-width: 440px; margin: 0 auto; padding: 18px 16px;
   position: relative; isolation: isolate;
   overflow: hidden; overflow: clip;
+  /* Stretch toward the viewport bottom so the clip region covers the
+     visible dead space on short pages — otherwise ghost words placed
+     "in the empty area" sit outside the page's box and get clipped
+     (header ≈ 90px + tab bar 84px + page padding). */
+  min-height: calc(100vh - 230px);
+  min-height: calc(100dvh - 230px);
 }
 
 /* Wave 3 · P4: ghost watermark — huge faded display type behind each
