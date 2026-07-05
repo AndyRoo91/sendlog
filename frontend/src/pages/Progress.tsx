@@ -788,6 +788,7 @@ export default function Progress() {
 
   return (
     <div className="page">
+      <div aria-hidden="true" className="ghost-word">CHARTS</div>
       <div style={{ marginBottom: 22 }}>
         <Ribbon color="var(--sea)" textColor="var(--cream)">★ PROGRESS ★</Ribbon>
       </div>

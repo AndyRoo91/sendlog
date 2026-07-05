@@ -327,8 +327,8 @@ function LeadSection({ sessionId, entries, onChange }: {
           {(e.photos ?? []).length > 0 && (
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
               {(e.photos ?? []).map((p) => (
-                <a key={p.id} href={photoUrl(p.filename)} target="_blank" rel="noreferrer">
-                  <img src={thumbUrl(p.filename)} alt="" style={{ width: 80, height: 80, objectFit: "cover", borderRadius: 8, border: "1px solid var(--border)" }} />
+                <a key={p.id} className="print-photo-wrap" href={photoUrl(p.filename)} target="_blank" rel="noreferrer">
+                  <img src={thumbUrl(p.filename)} alt="" className="print-photo" style={{ width: 80, height: 80, objectFit: "cover", borderRadius: 8, border: "1px solid var(--border)" }} />
                 </a>
               ))}
             </div>
@@ -451,8 +451,8 @@ function BoulderSection({ sessionId, entries, onChange }: {
           {(e.photos ?? []).length > 0 && (
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
               {(e.photos ?? []).map((p) => (
-                <a key={p.id} href={photoUrl(p.filename)} target="_blank" rel="noreferrer">
-                  <img src={thumbUrl(p.filename)} alt="" style={{ width: 80, height: 80, objectFit: "cover", borderRadius: 8, border: "1px solid var(--border)" }} />
+                <a key={p.id} className="print-photo-wrap" href={photoUrl(p.filename)} target="_blank" rel="noreferrer">
+                  <img src={thumbUrl(p.filename)} alt="" className="print-photo" style={{ width: 80, height: 80, objectFit: "cover", borderRadius: 8, border: "1px solid var(--border)" }} />
                 </a>
               ))}
             </div>

@@ -232,7 +232,39 @@ h3 { font-size: 15px; }
 /* ─── Legacy base classes, re-themed onto the new tokens ─────── */
 /* (kept until SessionView/SessionForm are rebuilt in PR 2/3)     */
 
-.page { max-width: 440px; margin: 0 auto; padding: 18px 16px; }
+/* isolation + clip so the P4 ghost word can sit at z-index:-1 (behind the
+   page's content but above the paper) and bleed off-edge without adding
+   horizontal scroll. `hidden` is the fallback where `clip` is missing. */
+.page {
+  max-width: 440px; margin: 0 auto; padding: 18px 16px;
+  position: relative; isolation: isolate;
+  overflow: hidden; overflow: clip;
+}
+
+/* Wave 3 · P4: ghost watermark — huge faded display type behind each
+   page's content, zine-style. One word per page, bleeding off the edge.
+   ~4–5% ink so body text contrast is untouched. */
+.ghost-word {
+  position: absolute; z-index: -1; left: -10px; top: 112px;
+  font-family: var(--font-shade); font-size: 130px; line-height: 0.9;
+  color: rgba(26, 22, 18, 0.055); white-space: nowrap;
+  transform: rotate(-3deg);
+  pointer-events: none; user-select: none;
+}
+
+/* Wave 3 · P3: user photos print as an ink+red duotone (filter defs in
+   ui/GrungeDefs) with a halftone screen on top, so they live in the same
+   press world as the chrome. Display-time only — files on disk stay
+   true-colour, and topos / the Lightbox / upload previews are exempt
+   (hold-colour identification needs the real photo). */
+.print-photo { filter: url(#print-photo) contrast(1.05); display: block; }
+.print-photo-wrap { position: relative; display: inline-block; line-height: 0; }
+.print-photo-wrap::after {
+  content: ""; position: absolute; inset: 0;
+  background-image: radial-gradient(circle, rgba(26,22,18,0.35) 0.6px, transparent 1px);
+  background-size: 4px 4px;
+  mix-blend-mode: multiply; pointer-events: none;
+}
 
 .card {
   background: var(--cream);

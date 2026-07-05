@@ -112,6 +112,7 @@ export default function Dashboard() {
 
   return (
     <div className="page">
+      <div aria-hidden="true" className="ghost-word">SENDLOG</div>
       <div className="gap-row" style={{ justifyContent: "space-between", marginBottom: 20, alignItems: "flex-start" }}>
         <Ribbon color="var(--red)" textColor="var(--cream)">★ DASHBOARD ★</Ribbon>
         <Link to="/sessions/new">

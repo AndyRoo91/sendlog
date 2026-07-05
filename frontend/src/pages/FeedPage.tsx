@@ -231,6 +231,7 @@ export default function FeedPage() {
 
   return (
     <div className="page">
+      <div aria-hidden="true" className="ghost-word">BETA</div>
       <PullToRefresh distance={ptr.distance} phase={ptr.phase} threshold={ptr.threshold} />
       <div style={{ marginBottom: 20 }}>
         <Ribbon color="var(--sea)" textColor="var(--cream)">★ THE FEED ★</Ribbon>
