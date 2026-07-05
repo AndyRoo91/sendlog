@@ -78,7 +78,8 @@ h3 { font-size: 15px; }
   letter-spacing: 0.02em;
   cursor: pointer;
   position: relative;
-  transition: transform .08s;
+  /* Wave 3 · P5: stepped, not smooth — lo-fi cel, not SaaS ease. */
+  transition: transform .08s steps(2, end);
 }
 .chunky:active { transform: translate(1px, 1px); }
 
@@ -102,10 +103,24 @@ h3 { font-size: 15px; }
 
 .card-flat { border: var(--b) solid var(--ink); background: var(--cream); position: relative; }
 
-.offset-red { box-shadow: 3px 3px 0 var(--red); }
-.offset-cobalt { box-shadow: 3px 3px 0 var(--cobalt); }
-.offset-sea { box-shadow: 3px 3px 0 var(--sea); }
-.offset-mustard { box-shadow: 3px 3px 0 var(--mustard); }
+/* Wave 3 · P2: coloured shadows overprint the paper instead of stacking
+   opaque. box-shadow can't take a blend mode, and a blended ::after plate
+   at z-index:-1 gets buried behind ancestor backgrounds (verified — the
+   .paper root swallows it; isolating the host kills the blend). The
+   shadow's backdrop is always the paper though, so the multiply result is
+   precomputed: --op-* = colour × paper-2, the dirty ink a real press
+   would leave. True mix-blend-mode is reserved for top-layer props
+   (.tape, .coffee-ring, the SENT stamp) where it works reliably. */
+:root {
+  --op-red: #c23a1e;      /* red × paper-2 */
+  --op-cobalt: #263f61;   /* cobalt × paper-2 */
+  --op-sea: #297551;      /* sea × paper-2 */
+  --op-mustard: #d28e29;  /* mustard × paper-2 */
+}
+.offset-red { box-shadow: 3px 3px 0 var(--op-red); }
+.offset-cobalt { box-shadow: 3px 3px 0 var(--op-cobalt); }
+.offset-sea { box-shadow: 3px 3px 0 var(--op-sea); }
+.offset-mustard { box-shadow: 3px 3px 0 var(--op-mustard); }
 .offset-ink { box-shadow: 4px 4px 0 var(--ink); }
 
 .display-shadow {
@@ -140,6 +155,9 @@ h3 { font-size: 15px; }
   position: absolute; width: 80px; height: 22px;
   background: rgba(232,168,59,0.7); border: 1px solid rgba(26,22,18,0.2);
   transform: rotate(-4deg);
+  /* P2: tape overprints whatever it crosses — line work shows through
+     like real sticky tape over print. */
+  mix-blend-mode: multiply;
 }
 
 /* Wave 3 · P7: coffee-ring stain — an annulus with a bite missing (the
@@ -151,6 +169,7 @@ h3 { font-size: 15px; }
     radial-gradient(circle, transparent 60%, rgba(58,46,34,0.13) 63%, rgba(58,46,34,0.07) 68%, transparent 71%);
   -webkit-mask-image: conic-gradient(from 40deg, black 0deg 290deg, transparent 310deg 330deg, black 350deg);
   mask-image: conic-gradient(from 40deg, black 0deg 290deg, transparent 310deg 330deg, black 350deg);
+  mix-blend-mode: multiply; /* P2: stains the print under it */
   pointer-events: none;
 }
 
@@ -226,12 +245,14 @@ h3 { font-size: 15px; }
 button {
   cursor: pointer; border: var(--b) solid var(--ink); border-radius: 0;
   padding: 10px 16px; font-size: 13px; font-family: var(--font-banner);
-  letter-spacing: 0.04em; transition: transform .08s;
+  letter-spacing: 0.04em; transition: transform .08s steps(2, end);
 }
 button:active { transform: translate(1px, 1px); }
 button:disabled { opacity: 0.4; cursor: not-allowed; }
 
-.btn-primary { background: var(--ink); color: var(--mustard); box-shadow: 3px 3px 0 var(--red); }
+/* P2: the signature red plate under the primary button overprints the
+   paper — precomputed multiply colour (see --op-* rationale above). */
+.btn-primary { background: var(--ink); color: var(--mustard); box-shadow: 3px 3px 0 var(--op-red); }
 .btn-secondary { background: var(--cream); color: var(--ink); box-shadow: 3px 3px 0 var(--ink); }
 .btn-danger { background: var(--red); color: var(--cream); box-shadow: 3px 3px 0 var(--ink); }
 .btn-sm { padding: 5px 10px; font-size: 11px; box-shadow: 2px 2px 0 var(--ink); }

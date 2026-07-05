@@ -139,7 +139,7 @@ export default function Summary() {
             position: "absolute", top: 84, right: 10, transform: "rotate(-14deg)",
             fontFamily: "var(--font-banner)", fontSize: 22, letterSpacing: "0.14em",
             color: "var(--red)", border: "3px solid var(--red)", borderRadius: "var(--wonk-s1)",
-            padding: "2px 10px", opacity: 0.72,
+            padding: "2px 10px", opacity: 0.72, mixBlendMode: "multiply",
           }}>
             SENT
           </div>
@@ -210,7 +210,7 @@ export default function Summary() {
                     boxShadow: active ? "2px 2px 0 var(--ink)" : "none",
                     padding: "6px 0 4px", textAlign: "center", cursor: "pointer",
                     transform: active ? "translate(-1px, -1px)" : "none",
-                    transition: "transform 80ms ease",
+                    transition: "transform 80ms steps(2, end)",
                   }}>
                   <div style={{ fontSize: 22, lineHeight: 1 }}>{m.emoji}</div>
                   <div style={{

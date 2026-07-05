@@ -96,7 +96,7 @@ export default function RestTimer() {
         <div aria-hidden style={{
           position: "absolute", inset: 0, transformOrigin: "left",
           transform: `scaleX(${pct})`, background: "rgba(232,168,59,0.22)",
-          transition: "transform 0.25s linear", pointerEvents: "none",
+          transition: "transform 0.25s steps(3, end)", pointerEvents: "none",
         }} />
       )}
       <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "space-between" }}>

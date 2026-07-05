@@ -32,7 +32,7 @@ export default function StylePicker({ mode, grade, falls, onFalls, onPick, onDis
           background: "var(--cream)", border: "var(--bw) solid var(--ink)",
           boxShadow: "0 -4px 0 var(--red), 5px 0 0 var(--ink), -5px 0 0 var(--ink)",
           padding: "12px 14px 14px",
-          animation: "sendlog-picker-up 180ms cubic-bezier(0.34, 1.3, 0.64, 1)",
+          animation: "sendlog-picker-up 180ms steps(3, end)",
         }}
       >
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
