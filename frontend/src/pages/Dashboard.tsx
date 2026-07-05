@@ -135,11 +135,14 @@ export default function Dashboard() {
       )}
       {runningSession && (
         <Link to={`/sessions/${runningSession.id}`} style={{ textDecoration: "none" }}>
-          <div className="card-flat" style={{
+          {/* No inline border: the `border` shorthand resets border-image,
+              and inline wins — it would erase the rough keyline frame.
+              .card-flat already provides the border. */}
+          <div className="card-flat keyline" style={{
             padding: "10px 14px", marginBottom: 16, background: "var(--sea)",
             color: "var(--cream)", display: "flex", alignItems: "center", gap: 10,
             transform: "rotate(-0.5deg)", boxShadow: "3px 3px 0 var(--ink)",
-            border: "var(--b) solid var(--ink)", cursor: "pointer",
+            cursor: "pointer",
           }}>
             <span style={{ fontSize: 12, color: "var(--mustard)" }}>●</span>
             <div style={{ flex: 1 }}>
@@ -196,7 +199,10 @@ export default function Dashboard() {
 
       <div style={{
         display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14, marginBottom: 22,
+        position: "relative",
       }}>
+        {/* P7: coffee-ring stain — someone put a mug down on the logbook. */}
+        <div aria-hidden="true" className="coffee-ring" style={{ top: -34, right: -18, transform: "rotate(24deg)" }} />
         <Stat label="Total" value={String(totalSessions)} color="var(--ink)" rotate={0.5} />
         <Stat label="This month" value={String(thisMonth)} color="var(--cobalt)" rotate={-1} />
         <Stat label="Last" value={last} color="var(--red)" rotate={0.5} misreg="var(--cobalt)" />
