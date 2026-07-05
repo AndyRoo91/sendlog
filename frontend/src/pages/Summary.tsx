@@ -126,8 +126,24 @@ export default function Summary() {
       </div>
 
       {/* Tick certificate (captured for share) */}
-      <div ref={certRef} style={{ margin: "16px 14px 0", background: "var(--cream)", border: "var(--bw) solid var(--ink)", boxShadow: "6px 6px 0 var(--ink)", padding: "16px 14px", position: "relative" }}>
+      <div ref={certRef} style={{ margin: "16px 14px 0", background: "var(--cream)", border: "var(--bx) solid var(--ink)", boxShadow: "6px 6px 0 var(--ink)", padding: "16px 14px", position: "relative" }}>
         <div style={{ position: "absolute", top: -2, left: 0, right: 0, height: 8, background: "repeating-linear-gradient(90deg, var(--paper) 0 6px, transparent 6px 12px)" }} />
+
+        {/* P7: tape corners — the certificate is stuck into the logbook. */}
+        <div aria-hidden="true" className="tape" style={{ top: -10, left: -22, transform: "rotate(-38deg)" }} />
+        <div aria-hidden="true" className="tape" style={{ top: -10, right: -22, transform: "rotate(38deg)" }} />
+
+        {/* P7: rubber-stamp thwack — only when something actually got sent. */}
+        {stats.sends > 0 && (
+          <div aria-hidden="true" style={{
+            position: "absolute", top: 84, right: 10, transform: "rotate(-14deg)",
+            fontFamily: "var(--font-banner)", fontSize: 22, letterSpacing: "0.14em",
+            color: "var(--red)", border: "3px solid var(--red)", borderRadius: "var(--wonk-s1)",
+            padding: "2px 10px", opacity: 0.72,
+          }}>
+            SENT
+          </div>
+        )}
 
         {/* Crag — celebrates or shakes off, never sad */}
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, marginBottom: 14 }}>

@@ -142,6 +142,18 @@ h3 { font-size: 15px; }
   transform: rotate(-4deg);
 }
 
+/* Wave 3 · P7: coffee-ring stain — an annulus with a bite missing (the
+   conic fade) so it reads as a mug set down, not a printed circle. Purely
+   decorative; hosts position it and keep pointer-events off. */
+.coffee-ring {
+  position: absolute; width: 110px; height: 110px; border-radius: 50%;
+  background:
+    radial-gradient(circle, transparent 60%, rgba(58,46,34,0.13) 63%, rgba(58,46,34,0.07) 68%, transparent 71%);
+  -webkit-mask-image: conic-gradient(from 40deg, black 0deg 290deg, transparent 310deg 330deg, black 350deg);
+  mask-image: conic-gradient(from 40deg, black 0deg 290deg, transparent 310deg 330deg, black 350deg);
+  pointer-events: none;
+}
+
 /* New-personal-best chip celebration — bouncy shake, plays a few times then settles. */
 @keyframes sendlog-pb-shake {
   0%   { transform: var(--tilt) translate(0, 0)   scale(1); }
@@ -336,6 +348,15 @@ button:nth-child(even), .chunky:nth-child(even) { border-radius: var(--wonk-s2);
   border-image: none;
   border-radius: var(--wonk-a);
 }
+
+/* Wave 3 · P6: heavy keyline for hero cards (running-session banner etc).
+   Same rough technique, thicker stroke (9 vs 5 in the 400px source ≈ a
+   ~4.7px painted line vs ~2.6px). Doubled selector + placement after the
+   nth-child cyclers so it out-cascades them. */
+:root {
+  --rough-heavy: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400"><filter id="r"><feTurbulence type="fractalNoise" baseFrequency="0.045" numOctaves="2" seed="33"/><feDisplacementMap in="SourceGraphic" scale="5"/></filter><rect x="8" y="8" width="384" height="384" fill="none" stroke="%231a1612" stroke-width="9" filter="url(%23r)"/></svg>');
+}
+.card-flat.keyline, .card.keyline { border-image-source: var(--rough-heavy); }
 
 /* ─── Grungy chrome, wave 2: W1 wonk utilities + W4 rough rules ─ */
 /* W1: inline-styled chips (role="button" divs, spans) sit outside the
