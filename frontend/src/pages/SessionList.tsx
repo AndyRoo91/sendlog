@@ -71,6 +71,7 @@ export default function SessionList() {
 
   return (
     <div className="page">
+      <div aria-hidden="true" className="ghost-word">SESSIONS</div>
       <PullToRefresh distance={ptr.distance} phase={ptr.phase} threshold={ptr.threshold} />
       <div className="gap-row" style={{ justifyContent: "space-between", marginBottom: 22, alignItems: "flex-start" }}>
         <Ribbon color="var(--cobalt)" textColor="var(--cream)">★ SESSIONS ★</Ribbon>

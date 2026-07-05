@@ -329,6 +329,7 @@ export default function GymsPage() {
 
   return (
     <div className="page">
+      <div aria-hidden="true" className="ghost-word">GYMS</div>
       <div style={{ marginBottom: 20 }}>
         <Ribbon color="var(--cobalt)" textColor="var(--cream)">★ GYMS ★</Ribbon>
       </div>
