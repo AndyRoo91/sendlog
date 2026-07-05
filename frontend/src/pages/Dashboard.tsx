@@ -289,9 +289,9 @@ export default function Dashboard() {
           }}>RECENT SESSIONS</div>
           <Link to="/sessions" style={{ fontSize: 12, fontFamily: "var(--font-banner)", letterSpacing: "0.08em" }}>VIEW ALL →</Link>
         </div>
-        {loading && <p className="muted">Loading…</p>}
+        {loading && <p className="muted">chalking up…</p>}
         {!loading && recent.length === 0 && (
-          <p className="muted">No sessions yet. <Link to="/sessions/new">Log your first one!</Link></p>
+          <p className="muted">Nothing logged yet. <Link to="/sessions/new">Get on something →</Link></p>
         )}
         <div className="gap-col">
           {recent.map((s, i) => (

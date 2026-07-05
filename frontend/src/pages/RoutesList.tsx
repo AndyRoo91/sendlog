@@ -133,10 +133,10 @@ export default function RoutesList() {
         </form>
       )}
 
-      {loading && <p className="muted">Loading…</p>}
+      {loading && <p className="muted">chalking up…</p>}
 
       {!loading && routes.length === 0 && !open && (
-        <div className="card"><p className="muted" style={{ fontSize: 13 }}>No projects yet. Create one and pin your high-points on a photo to track progress across sessions.</p></div>
+        <div className="card"><p className="muted" style={{ fontSize: 13 }}>No projects on the go. Start one, pin your high-points on a photo, and watch the send creep closer.</p></div>
       )}
       {!loading && routes.length > 0 && q && leads.length === 0 && boulders.length === 0 && (
         <div className="card"><p className="muted" style={{ fontSize: 13 }}>No projects match "{query}".</p></div>

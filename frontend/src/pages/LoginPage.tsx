@@ -26,7 +26,7 @@ export default function LoginPage({ onAuthed }: Props) {
     } catch (err) {
       // The req() helper throws `${status}: ${text}` — the FastAPI body is JSON
       // like {"detail": "Invalid username or password"}, so try to surface that.
-      const raw = err instanceof Error ? err.message : "Something went wrong";
+      const raw = err instanceof Error ? err.message : "that didn't stick";
       let friendly = raw;
       const match = raw.match(/^\d+: (.+)$/);
       if (match) {

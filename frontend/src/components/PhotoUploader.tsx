@@ -97,7 +97,7 @@ export default function PhotoUploader({ entryType, entryId, photos, onChange, on
         onClick={() => inputRef.current?.click()}
         disabled={uploading}
       >
-        {uploading ? "Uploading…" : "📷 Add photo"}
+        {uploading ? "developing…" : "📷 Add photo"}
       </button>
 
       {lightbox && <Lightbox src={lightbox} onClose={() => setLightbox(null)} />}

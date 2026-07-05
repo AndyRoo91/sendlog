@@ -87,7 +87,7 @@ export default function PlanPage() {
       </div>
 
       {!loaded ? (
-        <p className="muted">Loading…</p>
+        <p className="muted">chalking up…</p>
       ) : !plan ? (
         <div className="card-flat offset-ink" style={{ padding: 20 }}>
           <p className="muted" style={{ fontSize: 14 }}>

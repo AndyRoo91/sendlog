@@ -91,10 +91,10 @@ export default function SessionList() {
         </div>
       )}
 
-      {loading && <p className="muted">Loading…</p>}
+      {loading && <p className="muted">chalking up…</p>}
       {!loading && sessions.length === 0 && (
         <div className="card-flat offset-ink" style={{ padding: 16 }}>
-          <p className="muted">No sessions yet. <Link to="/sessions/new">Log your first one!</Link></p>
+          <p className="muted">Logbook's empty. <Link to="/sessions/new">Rack up your first session →</Link></p>
         </div>
       )}
       {!loading && sessions.length > 0 && visible.length === 0 && (

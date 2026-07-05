@@ -139,7 +139,7 @@ export default function RouteDetail() {
     setRoute(updated);
   }
 
-  if (!route) return <div className="page"><p className="muted">Loading…</p></div>;
+  if (!route) return <div className="page"><p className="muted">chalking up…</p></div>;
 
   return (
     <div className="page">
@@ -204,7 +204,7 @@ export default function RouteDetail() {
             <input ref={fileRef} type="file" accept="image/*" style={{ display: "none" }}
               onChange={(e) => e.target.files?.[0] && uploadTopo(e.target.files[0])} />
             <button className="btn-primary" disabled={uploading} onClick={() => fileRef.current?.click()}>
-              {uploading ? "Uploading…" : "📷 Upload topo photo"}
+              {uploading ? "developing…" : "📷 Upload topo photo"}
             </button>
           </div>
         )}

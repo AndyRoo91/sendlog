@@ -163,7 +163,7 @@ export default function TopoPinEditor({ routeId, topoFilename, pins, onChange, o
         <div style={{ fontFamily: "var(--font-banner)", fontSize: 10, letterSpacing: "0.1em", color: "var(--ink-2)", marginBottom: 8 }}>
           PROGRESSION · {ordered.length} PIN{ordered.length === 1 ? "" : "S"}
         </div>
-        {ordered.length === 0 && <p className="muted" style={{ fontSize: 13 }}>No pins yet — tap the photo above.</p>}
+        {ordered.length === 0 && <p className="muted" style={{ fontSize: 13 }}>No high-points marked yet — tap the photo to drop one.</p>}
         {ordered.map((p) => {
           const k = pinKind(p.kind);
           return (
