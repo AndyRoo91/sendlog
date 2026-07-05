@@ -145,7 +145,7 @@ export default function Summary() {
           <div style={{ fontFamily: "var(--font-banner)", fontSize: 11, letterSpacing: "0.1em" }}>{fmtDay(session.date, "EEE · d MMM").toUpperCase()}</div>
           <div style={{ fontFamily: "var(--font-banner)", fontSize: 11, letterSpacing: "0.1em", color: "var(--ink-2)" }}>{(session.location || "").toUpperCase()}</div>
         </div>
-        <div style={{ fontFamily: "var(--font-display)", fontSize: 36, lineHeight: 1, marginBottom: 14 }}>
+        <div className="misreg-lg" style={{ fontFamily: "var(--font-display)", fontSize: 36, lineHeight: 1, marginBottom: 14 }}>
           {fmtDuration(session.started_at, session.ended_at, session.duration_minutes)}
         </div>
 
@@ -153,7 +153,7 @@ export default function Summary() {
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)" }}>
           {[{ n: String(stats.sends), l: "SENDS" }, { n: String(stats.flashes), l: "FLASH" }, { n: stats.top, l: "TOP" }].map((s, i) => (
             <div key={i} style={{ padding: "12px 6px", textAlign: "center", borderRight: i < 2 ? "2px solid var(--ink)" : "none" }}>
-              <div style={{ fontFamily: "var(--font-display)", fontSize: 28, lineHeight: 1 }}>{s.n}</div>
+              <div className="misreg" style={{ fontFamily: "var(--font-display)", fontSize: 28, lineHeight: 1 }}>{s.n}</div>
               <div style={{ fontFamily: "var(--font-banner)", fontSize: 10, color: "var(--ink-2)", letterSpacing: "0.1em", marginTop: 4 }}>{s.l}</div>
             </div>
           ))}

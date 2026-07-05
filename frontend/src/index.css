@@ -112,6 +112,23 @@ h3 { font-size: 15px; }
   text-shadow: 2px 2px 0 var(--ink), -1px -1px 0 var(--ink), 1px -1px 0 var(--ink), -1px 1px 0 var(--ink);
 }
 
+/* ─── Grungy chrome, wave 3: P1 misregistration ──────────────── */
+/* Cheap spot-colour printing never lines up: a coloured "plate" prints a
+   few px off-register behind the ink. Reproduced as a single offset
+   text-shadow in a spot colour — the glyphs themselves stay crisp, so the
+   one hard rule (never displace/blur type) still holds; only a colour copy
+   shifts. Hero display type only; set --misreg to a colour that contrasts
+   whatever the type sits on. Skips under reduced-data? No — it's static. */
+.misreg { text-shadow: 2px 2.5px 0 var(--misreg, var(--red)); }
+/* Heavier plate for the biggest numerals, where a 2px shift reads timid. */
+.misreg-lg { text-shadow: 3px 3.5px 0 var(--misreg, var(--red)); }
+
+/* P6 — line-weight hierarchy. Traditional flash carries a thick outer
+   keyline and thin interior lines; --bx is that heavy outer stroke, for
+   hero elements only (the Ribbon here; hero cards follow separately since
+   they paint their frame with border-image). */
+:root { --bx: 5px; }
+
 .row { display: flex; align-items: center; }
 .col { display: flex; flex-direction: column; }
 .gap-2 { gap: 8px; } .gap-3 { gap: 12px; } .gap-4 { gap: 16px; }
