@@ -25,7 +25,7 @@ export default function GradeChipSlot({ grade, color, tally, selected, onTap, on
       )}
       <div
         {...handlers}
-        style={{ position: "relative", zIndex: 1, transform: selected ? "scale(1.06)" : "none", transition: "transform 160ms ease" }}
+        style={{ position: "relative", zIndex: 1, transform: selected ? "scale(1.06)" : "none", transition: "transform 160ms steps(2, end)" }}
       >
         <GradeChip
           grade={grade}

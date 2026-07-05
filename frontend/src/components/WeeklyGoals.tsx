@@ -16,7 +16,7 @@ function Ring({ value, goal, label, color }: { value: number; goal: number; labe
           <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgba(26,22,18,0.15)" strokeWidth={stroke} />
           <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color} strokeWidth={stroke}
             strokeLinecap="round" strokeDasharray={circ} strokeDashoffset={circ * (1 - pct)}
-            style={{ transition: "stroke-dashoffset 500ms ease" }} />
+            style={{ transition: "stroke-dashoffset 500ms steps(4, end)" }} />
         </svg>
         <div style={{
           position: "absolute", inset: 0, display: "flex", flexDirection: "column",

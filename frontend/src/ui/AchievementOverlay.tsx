@@ -42,7 +42,7 @@ export default function AchievementOverlay({ queue, onDone, holdMs = 2200 }: Pro
         position: "fixed", inset: 0, zIndex: 110,
         display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
         gap: 12, background: "rgba(26,22,18,0.35)",
-        opacity: visible ? 1 : 0, transition: "opacity 180ms ease",
+        opacity: visible ? 1 : 0, transition: "opacity 180ms steps(3, end)",
         pointerEvents: visible ? "auto" : "none",
       }}
     >
@@ -66,7 +66,7 @@ export default function AchievementOverlay({ queue, onDone, holdMs = 2200 }: Pro
             display: "flex", alignItems: "center", justifyContent: "center",
             fontSize: 72, lineHeight: 1,
             transform: visible ? "scale(1) rotate(-3deg)" : "scale(0.4) rotate(-3deg)",
-            transition: "transform 220ms cubic-bezier(0.34, 1.56, 0.64, 1)",
+            transition: "transform 220ms steps(3, end)",
           }}
         >
           {current.emoji}

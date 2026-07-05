@@ -37,7 +37,7 @@ export default function PullToRefresh({ distance, phase, threshold }: Props) {
           border: "2.5px solid var(--mustard)", borderTopColor: "transparent",
           borderRadius: "50%",
           transform: spinning ? undefined : `rotate(${progress * 270}deg)`,
-          animation: spinning ? "sendlog-ptr-spin 0.7s linear infinite" : undefined,
+          animation: spinning ? "sendlog-ptr-spin 0.7s steps(8) infinite" : undefined,
         }}
       />
       {label}

@@ -797,7 +797,7 @@ export default function Progress() {
       {!data ? (
         <p className="muted">Loading…</p>
       ) : (
-      <div className="gap-col" style={{ opacity: loading ? 0.5 : 1, transition: "opacity 0.15s" }}>
+      <div className="gap-col" style={{ opacity: loading ? 0.5 : 1, transition: "opacity 0.15s steps(2, end)" }}>
         {section === "overview" && (
           <>
             <ContributionHeatmap daily={data.daily_activity} range={range} />

@@ -122,7 +122,7 @@ function ReactionRow({
               boxShadow: reacted ? "2px 2px 0 var(--ink)" : "none",
               cursor: "pointer",
               opacity: count === 0 ? 0.4 : 1,
-              transition: "opacity 0.1s, background 0.1s",
+              transition: "opacity 0.1s steps(2, end), background 0.1s steps(2, end)",
             }}
           >
             <span style={{ fontSize: 15, lineHeight: 1 }}>{emoji}</span>

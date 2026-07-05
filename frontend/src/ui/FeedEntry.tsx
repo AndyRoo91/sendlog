@@ -120,7 +120,7 @@ export default function FeedEntry({ grade, style, color, text = "var(--cream)", 
           cursor: onClick ? "pointer" : "default",
           userSelect: "none",
           transform: `translateX(${dx}px) rotate(${tilt}deg)`,
-          transition: dragging ? "none" : "transform 180ms ease",
+          transition: dragging ? "none" : "transform 180ms steps(3, end)",
         }}
       >
         {dot && (

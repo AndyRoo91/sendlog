@@ -96,7 +96,7 @@ export default function StickerRating({ seed, value, onChange, size = 52, slots 
               boxShadow: filled ? "2px 2px 0 var(--ink)" : "none",
               cursor: readOnly ? "default" : "pointer",
               transform: filled ? "rotate(-2deg)" : "rotate(0)",
-              transition: "transform 120ms ease, box-shadow 120ms ease",
+              transition: "transform 120ms steps(2, end), box-shadow 120ms steps(2, end)",
               display: "flex", alignItems: "center", justifyContent: "center",
               overflow: "hidden",
             }}
@@ -108,7 +108,7 @@ export default function StickerRating({ seed, value, onChange, size = 52, slots 
               style={{
                 width: "100%", height: "100%", objectFit: "contain",
                 filter: filled ? "none" : "grayscale(0.85) opacity(0.35)",
-                transition: "filter 120ms ease",
+                transition: "filter 120ms steps(2, end)",
                 pointerEvents: "none",
               }}
             />

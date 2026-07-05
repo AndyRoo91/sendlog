@@ -60,7 +60,7 @@ export default function AfterCommitOverlay({ tick, onDone, holdMs = 400 }: Props
         position: "fixed", inset: 0, zIndex: 100,
         display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
         gap: 8, background: "rgba(26,22,18,0.12)",
-        opacity: visible ? 1 : 0, transition: "opacity 100ms ease",
+        opacity: visible ? 1 : 0, transition: "opacity 100ms steps(2, end)",
         pointerEvents: visible ? "auto" : "none",
       }}
     >
@@ -73,7 +73,7 @@ export default function AfterCommitOverlay({ tick, onDone, holdMs = 400 }: Props
             background: "var(--sea)", border: "var(--bw) solid transparent",
             boxShadow: "5px 5px 0 var(--ink)",
             display: "flex", alignItems: "center", justifyContent: "center",
-            transform: visible ? "scale(1)" : "scale(0.6)", transition: "transform 140ms ease",
+            transform: visible ? "scale(1)" : "scale(0.6)", transition: "transform 140ms steps(3, end)",
           }}
         >
           <svg width="70" height="70" viewBox="0 0 70 70" fill="none" stroke="var(--cream)" strokeWidth="8" strokeLinecap="round" strokeLinejoin="round">
