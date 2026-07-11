@@ -61,16 +61,41 @@ function EntryActions({ onEdit, onDelete }: { onEdit: () => void; onDelete: () =
 
 // ─── Warmup section ───────────────────────────────────────────────────────────
 
-function WarmupSection({ sessionId, entries, onChange }: {
+/* One-tap standard routine, following the widely-taught progressive
+   structure (pulse raise → mobility → activation → easy climbing):
+   Hörst / Lattice-style guidance, e.g. Hooper's Beta 10-minute warm-up. */
+const QUICK_WARMUP = [
+  { activity: "Pulse raiser — jog / skip / bike", duration_minutes: 5, notes: "easy pace, ~50% effort" },
+  { activity: "Mobility — shoulders, wrists, hips", duration_minutes: 5, notes: "circles + openers, nothing forced" },
+  { activity: "Scapular pulls + easy hangs", duration_minutes: 5, notes: "jugs or a big edge, 2–3 sets" },
+  { activity: "Easy climbing pyramid", duration_minutes: 10, notes: "2–3 easy, 1 moderate, then session grades" },
+];
+
+function WarmupSection({ sessionId, entries, onChange, autoOpen = false }: {
   sessionId: number;
   entries: WarmupEntry[];
   onChange: (entries: WarmupEntry[]) => void;
+  autoOpen?: boolean;
 }) {
   const blank = () => ({ activity: "", duration_minutes: null as number | null, notes: null as string | null });
   const [form, setForm] = useState(blank());
   const [editId, setEditId] = useState<number | null>(null);
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(autoOpen);
   const [saving, setSaving] = useState(false);
+  // The deep-link hash can resolve after mount on a cold load — adjust
+  // during render when the prop flips (React's derive-from-props pattern).
+  const [prevAuto, setPrevAuto] = useState(autoOpen);
+  if (autoOpen !== prevAuto) { setPrevAuto(autoOpen); if (autoOpen) setOpen(true); }
+
+  async function quickFill() {
+    setSaving(true);
+    try {
+      const created: WarmupEntry[] = [];
+      for (const w of QUICK_WARMUP) created.push(await api.addWarmup(sessionId, w));
+      onChange([...entries, ...created]);
+      setOpen(false);
+    } finally { setSaving(false); }
+  }
 
   function startEdit(e: WarmupEntry) {
     setForm({ activity: e.activity, duration_minutes: e.duration_minutes ?? null, notes: e.notes ?? null });
@@ -98,12 +123,20 @@ function WarmupSection({ sessionId, entries, onChange }: {
   }
 
   return (
-    <div className="card gap-col">
+    <div id="warmup" className="card gap-col">
       <div className="section-header">
         <h2>Warmup / Stretching</h2>
-        <button className="btn-secondary btn-sm" onClick={() => { setForm(blank()); setEditId(null); setOpen(!open); }}>
-          {open && !editId ? "Cancel" : "+ Add"}
-        </button>
+        <div className="gap-row" style={{ gap: 6 }}>
+          {entries.length === 0 && (
+            <button className="btn-secondary btn-sm" onClick={quickFill} disabled={saving}
+              title="Pulse raiser, mobility, scap pulls + easy hangs, easy climbing">
+              {saving ? "…" : "⚡ The usual"}
+            </button>
+          )}
+          <button className="btn-secondary btn-sm" onClick={() => { setForm(blank()); setEditId(null); setOpen(!open); }}>
+            {open && !editId ? "Cancel" : "+ Add"}
+          </button>
+        </div>
       </div>
 
       {entries.map((e) => editId === e.id ? (
@@ -164,14 +197,19 @@ function InlineWarmupForm({ form, setForm, saving, onSave, onCancel }: {
 
 // ─── Fingerboard section ──────────────────────────────────────────────────────
 
-function FingerboardSection({ sessionId, entries, onChange }: {
+function FingerboardSection({ sessionId, entries, onChange, autoOpen = false }: {
   sessionId: number; entries: FingerboardEntry[]; onChange: (e: FingerboardEntry[]) => void;
+  autoOpen?: boolean;
 }) {
   const blank = () => ({ edge_mm: null as number|null, added_weight_kg: null as number|null, hang_duration_s: null as number|null, num_sets: null as number|null, notes: null as string|null });
   const [form, setForm] = useState(blank());
   const [editId, setEditId] = useState<number | null>(null);
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(autoOpen);
   const [saving, setSaving] = useState(false);
+  // The deep-link hash can resolve after mount on a cold load — adjust
+  // during render when the prop flips (React's derive-from-props pattern).
+  const [prevAuto, setPrevAuto] = useState(autoOpen);
+  if (autoOpen !== prevAuto) { setPrevAuto(autoOpen); if (autoOpen) setOpen(true); }
 
   function startEdit(e: FingerboardEntry) {
     setForm({ edge_mm: e.edge_mm??null, added_weight_kg: e.added_weight_kg??null, hang_duration_s: e.hang_duration_s??null, num_sets: e.num_sets??null, notes: e.notes??null });
@@ -198,7 +236,7 @@ function FingerboardSection({ sessionId, entries, onChange }: {
   }
 
   return (
-    <div className="card gap-col">
+    <div id="fingerboard" className="card gap-col">
       <div className="section-header">
         <h2>Fingerboard</h2>
         <button className="btn-secondary btn-sm" onClick={() => { setForm(blank()); setEditId(null); setOpen(!open); }}>
@@ -694,10 +732,28 @@ export default function SessionView() {
   const [session, setSession] = useState<SessionDetail | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  // Deep link from the TickSheet quick buttons: #warmup / #fingerboard
+  // scrolls to the section and opens its add form. Re-read when the
+  // session lands — on a cold load the hash isn't reliably readable at
+  // mount time.
+  const [jumpTo, setJumpTo] = useState(() => window.location.hash.replace("#", ""));
 
   useEffect(() => {
-    if (id) api.getSession(Number(id)).then(setSession);
+    if (!id) return;
+    api.getSession(Number(id)).then((s) => {
+      setSession(s);
+      const h = window.location.hash.replace("#", "");
+      if (h) setJumpTo(h);
+    });
   }, [id]);
+
+  useEffect(() => {
+    if (!session || !jumpTo) return;
+    // After the sections render, bring the target into view.
+    requestAnimationFrame(() => {
+      document.getElementById(jumpTo)?.scrollIntoView({ block: "start", behavior: "smooth" });
+    });
+  }, [session, jumpTo]);
 
   async function handleDelete() {
     if (!session) return;
@@ -726,13 +782,13 @@ export default function SessionView() {
       <SessionHeader session={session} onUpdate={setSession} />
 
       <div className="gap-col">
-        <WarmupSection sessionId={session.id} entries={session.warmup_entries}
+        <WarmupSection sessionId={session.id} entries={session.warmup_entries} autoOpen={jumpTo === "warmup"}
           onChange={(e) => setSession({ ...session, warmup_entries: e })} />
         <LeadSection sessionId={session.id} entries={session.lead_route_entries}
           onChange={(e) => setSession({ ...session, lead_route_entries: e })} />
         <BoulderSection sessionId={session.id} entries={session.boulder_entries}
           onChange={(e) => setSession({ ...session, boulder_entries: e })} />
-        <FingerboardSection sessionId={session.id} entries={session.fingerboard_entries}
+        <FingerboardSection sessionId={session.id} entries={session.fingerboard_entries} autoOpen={jumpTo === "fingerboard"}
           onChange={(e) => setSession({ ...session, fingerboard_entries: e })} />
         <StrengthSection sessionId={session.id} entries={session.strength_entries}
           onChange={(e) => setSession({ ...session, strength_entries: e })} />
