@@ -671,9 +671,26 @@ export default function TickSheet() {
         </div>
       )}
 
-      <div style={{ padding: "22px 16px 0", textAlign: "center" }}>
-        <Link to={`/sessions/${sessionId}/edit`} style={{ fontFamily: "var(--font-banner)", fontSize: 12, letterSpacing: "0.06em" }}>
-          FULL LOG · WARMUP, BOARD ↗
+      {/* Warmup + board deep-link straight to the section with its add
+          form open — one tap instead of full-log-then-hunt. */}
+      <div style={{ padding: "22px 16px 0", display: "flex", gap: 10, justifyContent: "center" }}>
+        {([
+          { hash: "warmup", label: "🔥 WARMUP", wonk: "wonk" },
+          { hash: "fingerboard", label: "🤙 BOARD", wonk: "wonk-2" },
+        ] as const).map((b) => (
+          <Link key={b.hash} to={`/sessions/${sessionId}/edit#${b.hash}`} className={b.wonk} style={{
+            fontFamily: "var(--font-banner)", fontSize: 12, letterSpacing: "0.08em",
+            color: "var(--ink)", textDecoration: "none", background: "var(--cream)",
+            border: "var(--b) solid var(--ink)", boxShadow: "2px 2px 0 var(--ink)",
+            padding: "9px 16px",
+          }}>
+            {b.label}
+          </Link>
+        ))}
+      </div>
+      <div style={{ padding: "12px 16px 0", textAlign: "center" }}>
+        <Link to={`/sessions/${sessionId}/edit`} style={{ fontFamily: "var(--font-banner)", fontSize: 11, letterSpacing: "0.06em", color: "var(--ink-2)" }}>
+          FULL LOG ↗
         </Link>
       </div>
 
