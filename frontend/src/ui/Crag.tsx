@@ -1,9 +1,15 @@
-/* Crag.tsx — "Crag" the climbing gecko.
+/* Crag.tsx — "Crag" the climbing buddy.
    Ported from design_handoff_climbing_buddy/buddy.jsx.
    Grungy early-MTV cel style: cut-out puppet rig + animated turbulence boil.
    Keep the GRIME palette local — the slight grime offset from app tokens is the point.
+
+   The rig is species-agnostic: poses, eyes, mouths, motion and extras are
+   shared, and each species (gecko / ibex / galah / wombat) plugs in its own
+   palette, head, limb-ends and tail. Same moods, same build tiers, new animal.
 */
 import { useState, useEffect } from "react";
+import type { FC } from "react";
+import type { CragSpecies } from "./cragSpecies";
 
 // ---- grimed palette (intentionally slightly different from app tokens) ----
 const GRIME = {
@@ -11,13 +17,6 @@ const GRIME = {
   ink2:         "#3a2f22",
   paper:        "#e7d9b6",
   cream:        "#f2e6c4",
-  skinPrimed:   "#8a9a4e",
-  skinPrimedSh: "#5f6c34",
-  skinFlat:     "#7c8550",
-  skinDetrain:  "#8f9270",
-  skinDetrSh:   "#646650",
-  belly:        "#cdcf9a",
-  bellyDet:     "#c2bd92",
   red:          "#bd3a2c",
   mustard:      "#cf9a36",
   sea:          "#2f7d68",
@@ -34,12 +33,14 @@ type MouthKind = "grin" | "yell" | "lazy" | "frown" | "snore" | "grit" | "loll";
 type BrowKind  = "up" | "down" | "flat";
 type MotionKind = "headbang" | "slouch" | "jump" | "breathe" | "pump";
 type ExtraKind = "chalk" | "sparks" | "couch" | "snack" | "dumbbell" | "lines" | "zzz" | "sweat";
+type SkinTone  = "fit" | "flat" | "soft";
+type ShadeTone = "fit" | "soft";
 
 interface PoseConfig {
   label:    string;
   sub:      string;
-  skin:     string;
-  skinSh:   string;
+  tone:     SkinTone;    // body colour key into the species palette
+  shade:    ShadeTone;   // shadow colour key
   belly:    number;
   ripped:   boolean;
   slouch?:  boolean;
@@ -59,12 +60,39 @@ interface PoseConfig {
   grip?:    "fist";
 }
 
+// Every species supplies the same colour slots so any pose works on any animal.
+interface Palette {
+  fit:       string;   // in-form coat
+  fitSh:     string;
+  flat:      string;   // worked / mid coat
+  soft:      string;   // gone-to-seed coat
+  softSh:    string;
+  belly:     string;   // chest plate
+  bellySoft: string;
+  head?:     string;   // head override (galah's pink face); defaults to body skin
+  headSh?:   string;
+}
+
+interface HeadProps  { p: PoseConfig; skin: string; skinSh: string; pal: Palette; uid: string; build: number; }
+interface EndProps   { skin: string; ink: string; fist?: boolean; }   // hand / hoof / wingtip / paw
+interface TailProps  { skin: string; skinSh: string; ink: string; }
+
+interface SpeciesConfig {
+  pal:     Palette;
+  texture: "spots" | "fur" | "none";  // torso overlay
+  Head:    FC<HeadProps>;
+  End:     FC<EndProps>;
+  Tail:    FC<TailProps>;
+}
+
 export interface CragProps {
-  state?:  CragState;
-  size?:   number;       // px, default 300
-  showBg?: boolean;      // default true; false = transparent
-  uid?:    string;       // unique id for SVG filter/pattern defs — use when multiple Crags on one page
-  build?:  number;       // 0..3 physique tier — scales musculature (default 0 = scrawny)
+  state?:   CragState;
+  species?: CragSpecies;  // default "gecko" — the original
+  size?:    number;       // px, default 300
+  showBg?:  boolean;      // default true; false = transparent
+  uid?:     string;       // unique id for SVG filter/pattern defs — use when multiple Crags on one page
+  build?:   number;       // 0..3 physique tier — scales musculature (default 0 = scrawny)
+  still?:   boolean;      // freeze boil + motion (picker previews — one animated buddy per screen)
 }
 
 // ---- reduced-motion hook ----
@@ -108,7 +136,7 @@ function BuddyDefs({ id, frozen }: BuddyDefsProps) {
       </filter>
 
       {/* sticker halo — a dilated cream copy of the silhouette drawn behind
-          the figure so the green skin never melts into a green wash panel */}
+          the figure so the coat never melts into a same-hue wash panel */}
       <filter id={`halo-${id}`} x="-15%" y="-15%" width="130%" height="130%">
         <feMorphology in="SourceAlpha" operator="dilate" radius="4.5" result="fat" />
         <feFlood floodColor={GRIME.cream} result="tint" />
@@ -134,7 +162,7 @@ function BuddyDefs({ id, frozen }: BuddyDefsProps) {
         <line x1="0" y1="0" x2="0" y2="6" stroke={GRIME.ink} strokeWidth="0.8" opacity="0.4" />
       </pattern>
 
-      {/* mottle dots on skin */}
+      {/* mottle dots on skin (gecko) */}
       <pattern id={`spots-${id}`} width="22" height="22" patternUnits="userSpaceOnUse">
         <circle cx="5"  cy="6"  r="2.3" fill={GRIME.ink} opacity="0.22" />
         <circle cx="15" cy="15" r="1.6" fill={GRIME.ink} opacity="0.18" />
@@ -148,7 +176,7 @@ function BuddyDefs({ id, frozen }: BuddyDefsProps) {
 const POSES: Record<CragState, PoseConfig> = {
   primed: {
     label: "PRIMED", sub: "active weeks · lean & psyched",
-    skin: GRIME.skinPrimed, skinSh: GRIME.skinPrimedSh,
+    tone: "fit", shade: "fit",
     belly: 0.74, ripped: true,
     eyes: "wide", mouth: "grin", brow: "up",
     armL: -38, armR: 28, legL: 18, legR: -14, tail: -22, headTilt: -4,
@@ -157,7 +185,7 @@ const POSES: Record<CragState, PoseConfig> = {
   },
   detrained: {
     label: "OFF-SEASON", sub: "quiet stretch · taking it easy",
-    skin: GRIME.skinDetrain, skinSh: GRIME.skinDetrSh,
+    tone: "soft", shade: "soft",
     belly: 1.32, ripped: false, slouch: true,
     eyes: "stoned", mouth: "lazy", brow: "flat",
     armL: 8, armR: -64, legL: 70, legR: 52, tail: 40, headTilt: 10,
@@ -166,7 +194,7 @@ const POSES: Record<CragState, PoseConfig> = {
   },
   stoked: {
     label: "STOKED", sub: "SEND ✓ — buzzing for you",
-    skin: GRIME.skinPrimed, skinSh: GRIME.skinPrimedSh,
+    tone: "fit", shade: "fit",
     belly: 0.8, ripped: true,
     eyes: "joy", mouth: "yell", brow: "up",
     armL: -120, armR: 118, legL: 26, legR: -22, tail: -54, headTilt: -2,
@@ -175,7 +203,7 @@ const POSES: Record<CragState, PoseConfig> = {
   },
   shakeoff: {
     label: "SHAKE IT OFF", sub: "came off? go again",
-    skin: GRIME.skinFlat, skinSh: GRIME.skinPrimedSh,
+    tone: "flat", shade: "fit",
     belly: 0.9, ripped: true,
     eyes: "focus", mouth: "grin", brow: "up", grip: "fist",
     armL: -8, armR: 128, legL: 22, legR: -18, tail: -24, headTilt: -3,
@@ -184,7 +212,7 @@ const POSES: Record<CragState, PoseConfig> = {
   },
   resting: {
     label: "RESTING", sub: "rest day · do not disturb",
-    skin: GRIME.skinFlat, skinSh: GRIME.skinPrimedSh,
+    tone: "flat", shade: "fit",
     belly: 1.05, ripped: false,
     eyes: "closed", mouth: "snore", brow: "flat",
     armL: -10, armR: 10, legL: 40, legR: -36, tail: 30, headTilt: 8,
@@ -193,7 +221,7 @@ const POSES: Record<CragState, PoseConfig> = {
   },
   training: {
     label: "TRAINING", sub: "rebuilding · eye of the tiger",
-    skin: GRIME.skinPrimed, skinSh: GRIME.skinPrimedSh,
+    tone: "fit", shade: "fit",
     belly: 0.86, ripped: true,
     eyes: "focus", mouth: "grit", brow: "down", band: true, grip: "fist",
     armL: -112, armR: 112, legL: 20, legR: -16, tail: -28, headTilt: -2,
@@ -202,7 +230,7 @@ const POSES: Record<CragState, PoseConfig> = {
   },
   cooked: {
     label: "COOKED", sub: "pumped silly · arms gone to jelly",
-    skin: GRIME.skinFlat, skinSh: GRIME.skinDetrSh,
+    tone: "flat", shade: "soft",
     belly: 1.02, ripped: true, slouch: true,
     eyes: "dizzy", mouth: "loll", brow: "flat",
     armL: -4, armR: 4, legL: 46, legR: -40, tail: 36, headTilt: 9,
@@ -211,7 +239,7 @@ const POSES: Record<CragState, PoseConfig> = {
   },
   nervous: {
     label: "NERVOUS", sub: "new grade · heart in the throat",
-    skin: GRIME.skinPrimed, skinSh: GRIME.skinPrimedSh,
+    tone: "fit", shade: "fit",
     belly: 0.84, ripped: true,
     eyes: "wide", mouth: "grit", brow: "up",
     armL: -52, armR: 22, legL: -34, legR: -14, tail: -8, headTilt: -3,
@@ -220,7 +248,7 @@ const POSES: Record<CragState, PoseConfig> = {
   },
   focused: {
     label: "FOCUSED", sub: "long session · dialled right in",
-    skin: GRIME.skinPrimed, skinSh: GRIME.skinPrimedSh,
+    tone: "fit", shade: "fit",
     belly: 0.82, ripped: true,
     eyes: "focus", mouth: "grit", brow: "down", grip: "fist",
     armL: -72, armR: 66, legL: 14, legR: -12, tail: -16, headTilt: 0,
@@ -229,38 +257,10 @@ const POSES: Record<CragState, PoseConfig> = {
   },
 };
 
-// ---- toe-pad hand ----
-interface HandProps { skin: string; ink: string; fist?: boolean; }
-
-function Hand({ skin, ink, fist }: HandProps) {
-  if (fist) {
-    return (
-      <g>
-        <circle cx="0" cy="-10" r="14" fill={skin} stroke={ink} strokeWidth="2.8" />
-        <path d="M -11 -16 q 11 -6 22 0 M -11 -9 q 11 -6 22 0 M -11 -2 q 11 -6 22 0"
-          fill="none" stroke={ink} strokeWidth="1.8" strokeLinecap="round" />
-        <path d="M -12 -10 q 12 9 24 0" fill="none" stroke={ink} strokeWidth="2.2" />
-      </g>
-    );
-  }
-  const toes = [-32, -14, 6, 26];
-  return (
-    <g>
-      {toes.map((a, i) => (
-        <g key={i} transform={`rotate(${a})`}>
-          <rect x="-3.4" y="-22" width="6.8" height="20" rx="3" fill={skin} stroke={ink} strokeWidth="2.4" />
-          <circle cx="0" cy="-23" r="6.2" fill={skin} stroke={ink} strokeWidth="2.4" />
-          <circle cx="0" cy="-23" r="2.2" fill={ink} opacity="0.35" />
-        </g>
-      ))}
-    </g>
-  );
-}
-
 // ---- eyes ----
-interface EyesProps { kind: EyeKind; }
+interface EyesProps { kind: EyeKind; lidFill: string; }
 
-function Eyes({ kind }: EyesProps) {
+function Eyes({ kind, lidFill }: EyesProps) {
   const ink = GRIME.ink;
   const white = "#efe9d6";
 
@@ -272,7 +272,7 @@ function Eyes({ kind }: EyesProps) {
       {lid != null && (
         <path
           d={`M ${-r - 1} ${-r * 0.2} A ${r + 1} ${r + 1} 0 0 1 ${r + 1} ${-r * 0.2} L ${r + 1} ${-r - 2} L ${-r - 1} ${-r - 2} Z`}
-          fill={GRIME.skinPrimedSh} stroke={ink} strokeWidth="2.6"
+          fill={lidFill} stroke={ink} strokeWidth="2.6"
           transform={`translate(0 ${lid})`} opacity="0.96"
         />
       )}
@@ -380,15 +380,421 @@ function Mouth({ kind }: MouthProps) {
   }
 }
 
+// ---- brows (shared across species — placed in head-local coords) ----
+function Brows({ kind }: { kind: BrowKind }) {
+  const ink = GRIME.ink;
+  if (kind === "up")   return <path d="M -38 -36 q 14 -12 30 -6 M 6 -38 q 16 -10 30 -2" fill="none" stroke={ink} strokeWidth="3"   strokeLinecap="round" />;
+  if (kind === "down") return <path d="M -36 -20 q 16 -8 28 4 M 8 -22 q 14 -8 28 2"    fill="none" stroke={ink} strokeWidth="3.4" strokeLinecap="round" />;
+  return <path d="M -36 -30 l 28 2 M 8 -30 l 28 0" fill="none" stroke={ink} strokeWidth="2.6" strokeLinecap="round" />;
+}
+
+// ---- sweatband (training) — shared; heads position it ----
+function Band() {
+  const ink = GRIME.ink;
+  return (
+    <g>
+      <path d="M -58 -6 Q 12 -22 82 -4 L 80 14 Q 12 -4 -56 12 Z"
+        fill={GRIME.red} stroke={ink} strokeWidth="2.8" strokeLinejoin="round" />
+      <rect x="-3" y="-16" width="11" height="13" rx="1.5" fill={GRIME.cream} stroke={ink} strokeWidth="1.8" />
+      <path d="M -56 4 l -17 4 l 4 11 l 15 -7 Z"
+        fill={GRIME.red} stroke={ink} strokeWidth="2.4" strokeLinejoin="round" />
+    </g>
+  );
+}
+
 // ===========================================================
-// The Gecko
+// GECKO — the original
 // ===========================================================
-export default function Crag({ state = "primed", size = 300, showBg = true, uid, build = 0 }: CragProps) {
+
+function GeckoEnd({ skin, ink, fist }: EndProps) {
+  if (fist) {
+    return (
+      <g>
+        <circle cx="0" cy="-10" r="14" fill={skin} stroke={ink} strokeWidth="2.8" />
+        <path d="M -11 -16 q 11 -6 22 0 M -11 -9 q 11 -6 22 0 M -11 -2 q 11 -6 22 0"
+          fill="none" stroke={ink} strokeWidth="1.8" strokeLinecap="round" />
+        <path d="M -12 -10 q 12 9 24 0" fill="none" stroke={ink} strokeWidth="2.2" />
+      </g>
+    );
+  }
+  const toes = [-32, -14, 6, 26];
+  return (
+    <g>
+      {toes.map((a, i) => (
+        <g key={i} transform={`rotate(${a})`}>
+          <rect x="-3.4" y="-22" width="6.8" height="20" rx="3" fill={skin} stroke={ink} strokeWidth="2.4" />
+          <circle cx="0" cy="-23" r="6.2" fill={skin} stroke={ink} strokeWidth="2.4" />
+          <circle cx="0" cy="-23" r="2.2" fill={ink} opacity="0.35" />
+        </g>
+      ))}
+    </g>
+  );
+}
+
+function GeckoTail({ skin, ink }: TailProps) {
+  return (
+    <g>
+      <circle cx="6" cy="6" r="20" fill={skin} stroke={ink} strokeWidth="3.4" />
+      <path d="M 0 0 Q 60 6 96 -34 Q 120 -58 132 -40 Q 116 -30 104 -10 Q 78 26 18 28 Z"
+        fill={skin} stroke={ink} strokeWidth="3.4" strokeLinejoin="round" />
+      <path d="M 18 6 Q 64 8 96 -24" fill="none" stroke={ink} strokeWidth="2" opacity="0.4" />
+    </g>
+  );
+}
+
+function GeckoHead({ p, skin, skinSh, uid }: HeadProps) {
+  const ink = GRIME.ink;
+  return (
+    <g>
+      {/* dorsal crest spikes — drawn first so the skull covers their bases
+          and only the pointed tips read as a frill */}
+      <g>
+        <path d="M -36 -50 L -26 -80 L -12 -54 Z" fill={skinSh} stroke={ink} strokeWidth="2.6" strokeLinejoin="round" />
+        <path d="M -14 -54 L 0 -88 L 16 -56 Z"    fill={skin}   stroke={ink} strokeWidth="2.8" strokeLinejoin="round" />
+        <path d="M 14 -54 L 30 -84 L 46 -52 Z"    fill={skin}   stroke={ink} strokeWidth="2.8" strokeLinejoin="round" />
+        <path d="M 42 -48 L 54 -72 L 64 -44 Z"    fill={skinSh} stroke={ink} strokeWidth="2.6" strokeLinejoin="round" />
+      </g>
+      {/* unified cranium + muzzle silhouette */}
+      <path d="M -58 -12 C -70 -56 -26 -74 16 -70 C 56 -66 84 -46 82 -12
+               C 81 8 72 22 54 28 C 58 40 52 54 30 58 C 16 62 -2 62 -16 56
+               C -34 50 -52 42 -58 22 C -64 6 -64 4 -58 -12 Z"
+        fill={skin} stroke={ink} strokeWidth="3.8" strokeLinejoin="round" />
+      {/* muzzle crease */}
+      <path d="M -50 16 Q 6 30 60 16" fill="none" stroke={ink} strokeWidth="2" opacity="0.4" />
+      {/* nostrils */}
+      <circle cx="-4" cy="30" r="2.6" fill={ink} />
+      <circle cx="18" cy="31" r="2.6" fill={ink} />
+      <Brows kind={p.brow} />
+      {/* head crest bumps */}
+      <path d="M -18 -68 q 6 -10 14 -2 q 8 -8 16 0 q 8 -8 16 2"
+        fill="none" stroke={ink} strokeWidth="2.4" opacity="0.6" />
+      {p.band && <g transform="translate(0 -48)"><Band /></g>}
+      {/* eyes sit high on the cranium */}
+      <g transform="translate(0 -34)"><Eyes kind={p.eyes} lidFill={skinSh} /></g>
+      {/* mouth centered on the muzzle */}
+      <g transform="translate(6 40)"><Mouth kind={p.mouth} /></g>
+      {/* cheek mottle */}
+      <path d="M -58 -12 C -70 -56 -26 -74 16 -70 C 56 -66 84 -46 82 -12 C 81 8 72 22 54 28 C 58 40 52 54 30 58 C 16 62 -2 62 -16 56 C -34 50 -52 42 -58 22 C -64 6 -64 4 -58 -12 Z"
+        fill={`url(#spots-${uid})`} opacity="0.7" />
+    </g>
+  );
+}
+
+// ===========================================================
+// IBEX — the alpine unit. Horns grow with the build tier.
+// ===========================================================
+const HORN = "#b59a6e";
+const HORN_SH = "#8a7350";
+
+// Right-sweeping horn per build tier (0 = young spikes … 3 = full-curl legend).
+// The far horn is this path mirrored. The rig clips ≈ y −92 head-local, so
+// horns grow BACKWARDS (lateral sweep) like the real animal, never straight up.
+const HORN_F = [
+  "M 14 -56 Q 22 -82 36 -88 Q 44 -80 34 -64 Q 26 -54 22 -48 Z",
+  "M 12 -54 Q 28 -90 58 -84 Q 66 -76 52 -64 Q 34 -54 24 -46 Z",
+  "M 12 -52 Q 32 -96 70 -82 Q 86 -72 80 -56 Q 68 -48 48 -50 Q 28 -50 22 -46 Z",
+  "M 10 -50 Q 30 -100 70 -90 Q 94 -80 92 -52 Q 90 -32 74 -30 Q 62 -32 66 -44 Q 78 -48 80 -60 Q 78 -78 58 -82 Q 36 -82 26 -60 Q 20 -50 18 -44 Z",
+];
+// Matching ridge ticks along the horn spine.
+const HORN_RIDGE = [
+  "M 20 -62 q 8 -8 12 -14",
+  "M 22 -60 q 10 -8 16 -12 M 40 -74 q 8 -2 12 0",
+  "M 24 -60 q 10 -10 18 -12 M 46 -74 q 10 -2 14 2 M 66 -68 q 6 6 8 12",
+  "M 24 -58 q 10 -10 18 -14 M 46 -78 q 10 -2 16 2 M 70 -72 q 8 6 10 14",
+];
+
+function IbexHead({ p, skin, skinSh, uid, build }: HeadProps) {
+  const ink = GRIME.ink;
+  const tier = Math.max(0, Math.min(3, Math.round(build)));
+  return (
+    <g>
+      {/* ears first — the full-curl horn sweeps back over the near ear */}
+      <path d="M -40 -34 Q -64 -44 -70 -30 Q -62 -18 -42 -24 Z" fill={skin}   stroke={ink} strokeWidth="2.8" strokeLinejoin="round" />
+      <path d="M 58 -30 Q 80 -38 84 -24 Q 76 -14 58 -20 Z"      fill={skinSh} stroke={ink} strokeWidth="2.6" strokeLinejoin="round" />
+      {/* horns — a mirrored pair; the far one darker and a touch smaller so
+          the pair reads with depth instead of as symmetric handles */}
+      <g transform="translate(-8 -2) scale(-0.86 0.92)">
+        <path d={HORN_F[tier]} fill={HORN_SH} stroke={ink} strokeWidth="2.8" strokeLinejoin="round" />
+      </g>
+      <path d={HORN_F[tier]} fill={HORN} stroke={ink} strokeWidth="3" strokeLinejoin="round" />
+      <path d={HORN_RIDGE[tier]} fill="none" stroke={ink} strokeWidth="1.8" strokeLinecap="round" opacity="0.55" />
+      {/* cranium + long muzzle (shared gecko silhouette reads goat-long already) */}
+      <path d="M -58 -12 C -70 -56 -26 -74 16 -70 C 56 -66 84 -46 82 -12
+               C 81 8 72 22 54 28 C 58 40 52 54 30 58 C 16 62 -2 62 -16 56
+               C -34 50 -52 42 -58 22 C -64 6 -64 4 -58 -12 Z"
+        fill={skin} stroke={ink} strokeWidth="3.8" strokeLinejoin="round" />
+      {/* muzzle bridge + crease */}
+      <path d="M 2 -14 Q 6 6 6 18" fill="none" stroke={ink} strokeWidth="2" opacity="0.3" />
+      <path d="M -50 16 Q 6 30 60 16" fill="none" stroke={ink} strokeWidth="2" opacity="0.4" />
+      {/* goat nostril slits */}
+      <path d="M -8 27 q -5 5 -1 10" fill="none" stroke={ink} strokeWidth="2.6" strokeLinecap="round" />
+      <path d="M 17 28 q 5 5 1 10"  fill="none" stroke={ink} strokeWidth="2.6" strokeLinecap="round" />
+      <Brows kind={p.brow} />
+      {/* fur hatch on the crown */}
+      <path d="M -20 -64 q 4 -8 10 -2 m 4 -2 q 4 -8 10 -2 m 4 -2 q 4 -6 9 -1"
+        fill="none" stroke={ink} strokeWidth="2" opacity="0.5" />
+      {p.band && <g transform="translate(0 -46)"><Band /></g>}
+      <g transform="translate(0 -34)"><Eyes kind={p.eyes} lidFill={skinSh} /></g>
+      <g transform="translate(6 38)"><Mouth kind={p.mouth} /></g>
+      {/* the beard — non-negotiable on an ibex */}
+      <path d="M -6 52 Q -12 76 2 86 Q 14 76 16 54 Q 4 62 -6 52 Z"
+        fill={skinSh} stroke={ink} strokeWidth="2.8" strokeLinejoin="round" />
+      <path d="M 0 60 Q 2 70 3 78 M 8 58 Q 9 68 8 74" fill="none" stroke={ink} strokeWidth="1.4" opacity="0.5" />
+      {/* cheek fur */}
+      <path d="M -52 26 l -8 6 M -46 36 l -8 5" fill="none" stroke={ink} strokeWidth="1.8" opacity="0.4" />
+      <g opacity="0.25"><path d="M -58 -12 C -70 -56 -26 -74 16 -70 C 56 -66 84 -46 82 -12 C 81 8 72 22 54 28 C 58 40 52 54 30 58 C 16 62 -2 62 -16 56 C -34 50 -52 42 -58 22 C -64 6 -64 4 -58 -12 Z"
+        fill={`url(#hatch2-${uid})`} /></g>
+    </g>
+  );
+}
+
+function IbexEnd({ skin, ink }: EndProps) {
+  // cloven hoof — fist or open, a hoof is a hoof
+  return (
+    <g>
+      <path d="M -12 -6 Q 0 -12 12 -6 L 13 6 Q 0 12 -13 6 Z" fill={skin} stroke={ink} strokeWidth="2.6" strokeLinejoin="round" />
+      <path d="M -13 -4 L -14 -22 Q -8 -28 -2 -24 L -1 -8 M 1 -8 L 2 -24 Q 8 -28 14 -22 L 13 -4 Q 0 -12 -13 -4 Z"
+        fill="#453626" stroke={ink} strokeWidth="2.6" strokeLinejoin="round" />
+      <path d="M 0 -8 L 0 -24" stroke={ink} strokeWidth="2" />
+    </g>
+  );
+}
+
+function IbexTail({ skin, ink }: TailProps) {
+  return (
+    <g>
+      <circle cx="4" cy="6" r="16" fill={skin} stroke={ink} strokeWidth="3.2" />
+      <path d="M 0 0 Q 24 -2 34 -20 Q 38 -32 28 -32 Q 16 -26 6 -10 Q 0 -4 0 0 Z"
+        fill={skin} stroke={ink} strokeWidth="3" strokeLinejoin="round" />
+      <path d="M 12 -8 q 8 -8 14 -16" fill="none" stroke={ink} strokeWidth="1.6" opacity="0.5" />
+    </g>
+  );
+}
+
+// ===========================================================
+// GALAH — loud, pink, zero fear.
+// ===========================================================
+const CREST = "#e3b7a4";
+const BEAK = "#c4b28a";
+const BEAK_SH = "#9a8a64";
+
+function GalahHead({ p, skinSh, pal }: HeadProps) {
+  const ink = GRIME.ink;
+  const face = pal.head ?? pal.fit;
+  const faceSh = pal.headSh ?? skinSh;
+  // crest fans upright when psyched, sweeps back when flat or gritting
+  const crest = p.brow === "up" ? [-42, -20, 2, 24, 46] : [22, 40, 57, 73, 87];
+  return (
+    <g>
+      {/* crest feathers — bases hidden under the skull */}
+      <g transform="translate(6 -56)">
+        {crest.map((a, i) => (
+          <g key={i} transform={`rotate(${a})`}>
+            <path d="M 0 6 Q -9 -18 -2 -42 Q 2 -48 7 -42 Q 11 -16 0 6 Z"
+              fill={i % 2 ? CREST : "#d8a692"} stroke={ink} strokeWidth="2.6" strokeLinejoin="round" />
+            <path d="M 2 -8 L 2 -34" stroke={ink} strokeWidth="1.4" opacity="0.4" />
+          </g>
+        ))}
+      </g>
+      {/* round pink skull */}
+      <path d="M -52 -8 C -62 -50 -18 -72 20 -68 C 58 -64 80 -42 78 -8
+               C 76 18 62 36 38 44 C 18 52 -12 52 -30 42 C -46 34 -58 18 -52 -8 Z"
+        fill={face} stroke={ink} strokeWidth="3.8" strokeLinejoin="round" />
+      {/* bare eye-rings — the galah stare */}
+      <ellipse cx="-24" cy="-34" rx="21" ry="19" fill="#e9ddc0" stroke={ink} strokeWidth="2" opacity="0.85" />
+      <ellipse cx="21"  cy="-34" rx="16" ry="15" fill="#e9ddc0" stroke={ink} strokeWidth="2" opacity="0.85" />
+      <Brows kind={p.brow} />
+      {p.band && <g transform="translate(0 -46)"><Band /></g>}
+      <g transform="translate(0 -34)"><Eyes kind={p.eyes} lidFill={faceSh} /></g>
+      {/* hooked upper beak over the mouth — cere dots on top */}
+      <path d="M -20 4 Q 8 -6 36 4 Q 36 24 21 32 Q 15 44 8 47 Q 1 44 -5 32 Q -18 24 -20 4 Z"
+        fill={BEAK} stroke={ink} strokeWidth="3.2" strokeLinejoin="round" />
+      {/* underside shade sells the hook */}
+      <path d="M -5 32 Q 8 38 21 32 Q 15 43 8 46 Q 1 43 -5 32 Z" fill={BEAK_SH} stroke={ink} strokeWidth="1.6" />
+      <path d="M -10 10 Q 8 4 26 10" fill="none" stroke={ink} strokeWidth="1.6" opacity="0.4" />
+      <circle cx="2" cy="7" r="1.8" fill={ink} opacity="0.7" />
+      <circle cx="15" cy="7" r="1.8" fill={ink} opacity="0.7" />
+      {/* mouth reads as the open lower beak */}
+      <g transform="translate(6 52) scale(0.9)"><Mouth kind={p.mouth} /></g>
+    </g>
+  );
+}
+
+function GalahEnd({ skin, ink, fist }: EndProps) {
+  if (fist) {
+    // folded wing knuckle
+    return (
+      <g>
+        <path d="M -14 -18 Q 0 -26 14 -18 Q 16 -6 12 2 Q 0 -4 -12 2 Q -16 -6 -14 -18 Z"
+          fill={skin} stroke={ink} strokeWidth="2.8" strokeLinejoin="round" />
+        <path d="M -8 -14 Q 0 -18 8 -14 M -10 -7 Q 0 -12 10 -7" fill="none" stroke={ink} strokeWidth="1.6" opacity="0.5" />
+      </g>
+    );
+  }
+  const feathers = [-34, -13, 7, 27];
+  return (
+    <g>
+      {feathers.map((a, i) => (
+        <g key={i} transform={`rotate(${a})`}>
+          <path d="M -4 0 Q -7 -14 0 -31 Q 7 -14 4 0 Q 0 5 -4 0 Z"
+            fill={skin} stroke={ink} strokeWidth="2.4" strokeLinejoin="round" />
+          <path d="M 0 -6 L 0 -24" stroke={ink} strokeWidth="1.3" opacity="0.4" />
+        </g>
+      ))}
+    </g>
+  );
+}
+
+function GalahTail({ skin, skinSh, ink }: TailProps) {
+  const angles = [-32, -16, 0];
+  return (
+    <g>
+      <circle cx="4" cy="6" r="15" fill={skin} stroke={ink} strokeWidth="3.2" />
+      {angles.map((a, i) => (
+        <g key={i} transform={`rotate(${a})`}>
+          <path d="M 0 -7 L 74 -14 Q 86 -10 76 -1 L 0 7 Q -6 0 0 -7 Z"
+            fill={i === 1 ? skinSh : skin} stroke={ink} strokeWidth="2.8" strokeLinejoin="round" />
+          <path d="M 8 -1 L 62 -7" stroke={ink} strokeWidth="1.3" opacity="0.4" />
+        </g>
+      ))}
+    </g>
+  );
+}
+
+// ===========================================================
+// WOMBAT — built like a boulder.
+// ===========================================================
+
+function WombatHead({ p, skin, skinSh, uid }: HeadProps) {
+  const ink = GRIME.ink;
+  return (
+    <g>
+      {/* small round ears, bases under the skull */}
+      <g>
+        <path d="M -44 -46 Q -50 -74 -28 -70 Q -14 -64 -22 -44 Z" fill={skin}   stroke={ink} strokeWidth="3" strokeLinejoin="round" />
+        <path d="M 26 -44 Q 30 -72 52 -66 Q 64 -58 52 -40 Z"      fill={skin}   stroke={ink} strokeWidth="3" strokeLinejoin="round" />
+        <path d="M -38 -52 Q -40 -64 -30 -62 Z" fill={skinSh} stroke={ink} strokeWidth="1.8" />
+        <path d="M 34 -50 Q 38 -60 46 -56 Z"    fill={skinSh} stroke={ink} strokeWidth="1.8" />
+      </g>
+      {/* broad low skull — all cheek */}
+      <path d="M -64 -6 C -72 -48 -28 -70 16 -68 C 60 -66 88 -44 86 -8
+               C 84 20 70 36 48 44 C 26 54 -16 56 -38 46 C -58 38 -70 24 -64 -6 Z"
+        fill={skin} stroke={ink} strokeWidth="3.8" strokeLinejoin="round" />
+      <Brows kind={p.brow} />
+      {p.band && <g transform="translate(0 -48)"><Band /></g>}
+      <g transform="translate(0 -34)"><Eyes kind={p.eyes} lidFill={skinSh} /></g>
+      {/* the big nose pad */}
+      <rect x="-12" y="6" width="48" height="32" rx="14" fill="#3f332a" stroke={ink} strokeWidth="3" />
+      <path d="M 2 20 q -4 5 0 10 M 22 20 q 4 5 0 10" fill="none" stroke="#cbbd9c" strokeWidth="2.2" strokeLinecap="round" opacity="0.7" />
+      <path d="M -2 8 Q 12 4 26 8" fill="none" stroke="#cbbd9c" strokeWidth="1.6" opacity="0.4" />
+      {/* whiskers */}
+      <path d="M -18 26 l -22 -4 M -16 32 l -21 2 M 40 26 l 22 -4 M 38 32 l 21 2"
+        fill="none" stroke={ink} strokeWidth="1.6" strokeLinecap="round" opacity="0.5" />
+      <circle cx="-24" cy="24" r="1.4" fill={ink} opacity="0.5" />
+      <circle cx="-22" cy="31" r="1.4" fill={ink} opacity="0.5" />
+      <circle cx="46" cy="24" r="1.4" fill={ink} opacity="0.5" />
+      <circle cx="44" cy="31" r="1.4" fill={ink} opacity="0.5" />
+      {/* mouth tucked under the nose */}
+      <g transform="translate(10 48) scale(0.86)"><Mouth kind={p.mouth} /></g>
+      {/* cheek fur tufts */}
+      <path d="M -60 14 l -9 4 M -58 24 l -9 3 M 82 12 l 9 4 M 80 22 l 9 3"
+        fill="none" stroke={ink} strokeWidth="1.8" opacity="0.4" />
+      <g opacity="0.22"><path d="M -64 -6 C -72 -48 -28 -70 16 -68 C 60 -66 88 -44 86 -8 C 84 20 70 36 48 44 C 26 54 -16 56 -38 46 C -58 38 -70 24 -64 -6 Z"
+        fill={`url(#hatch2-${uid})`} /></g>
+    </g>
+  );
+}
+
+function WombatEnd({ skin, ink, fist }: EndProps) {
+  if (fist) {
+    return (
+      <g>
+        <circle cx="0" cy="-10" r="14" fill={skin} stroke={ink} strokeWidth="2.8" />
+        <path d="M -9 -22 L -7 -30 L -3 -22 M -2 -23 L 1 -31 L 4 -23 M 6 -21 L 9 -28 L 11 -20 Z"
+          fill="#e8ddc2" stroke={ink} strokeWidth="1.8" strokeLinejoin="round" />
+        <path d="M -12 -10 q 12 9 24 0" fill="none" stroke={ink} strokeWidth="2.2" />
+      </g>
+    );
+  }
+  return (
+    <g>
+      <circle cx="0" cy="-8" r="13" fill={skin} stroke={ink} strokeWidth="2.8" />
+      {[-9, 0, 9].map((x, i) => (
+        <path key={i} d={`M ${x - 3.4} -16 L ${x} -32 L ${x + 3.4} -16 Z`}
+          fill="#e8ddc2" stroke={ink} strokeWidth="2" strokeLinejoin="round" />
+      ))}
+      <path d="M -8 -4 q 8 6 16 0" fill="none" stroke={ink} strokeWidth="1.8" opacity="0.5" />
+    </g>
+  );
+}
+
+function WombatTail({ skin, ink }: TailProps) {
+  // wombats barely have one — that's the gag
+  return (
+    <g>
+      <circle cx="6" cy="6" r="16" fill={skin} stroke={ink} strokeWidth="3.2" />
+      <path d="M 2 -2 Q 20 -4 25 -12 Q 27 -20 17 -19 Q 7 -16 0 -6 Z"
+        fill={skin} stroke={ink} strokeWidth="2.8" strokeLinejoin="round" />
+    </g>
+  );
+}
+
+// ---- the species table ----
+const SPECIES: Record<CragSpecies, SpeciesConfig> = {
+  gecko: {
+    pal: {
+      fit: "#8a9a4e", fitSh: "#5f6c34", flat: "#7c8550",
+      soft: "#8f9270", softSh: "#646650",
+      belly: "#cdcf9a", bellySoft: "#c2bd92",
+    },
+    texture: "spots",
+    Head: GeckoHead, End: GeckoEnd, Tail: GeckoTail,
+  },
+  ibex: {
+    pal: {
+      fit: "#97764a", fitSh: "#6a5232", flat: "#8b7350",
+      soft: "#9a8a68", softSh: "#6b604a",
+      belly: "#d9c99f", bellySoft: "#cbbc93",
+    },
+    texture: "fur",
+    Head: IbexHead, End: IbexEnd, Tail: IbexTail,
+  },
+  galah: {
+    pal: {
+      fit: "#8f887a", fitSh: "#625c50", flat: "#857e70",
+      soft: "#948e82", softSh: "#67614f",
+      belly: "#c97f72", bellySoft: "#bd8378",
+      head: "#c97f72", headSh: "#9e5c50",
+    },
+    texture: "none",
+    Head: GalahHead, End: GalahEnd, Tail: GalahTail,
+  },
+  wombat: {
+    pal: {
+      fit: "#82705c", fitSh: "#574a3a", flat: "#7a6a58",
+      soft: "#877b6a", softSh: "#5c5344",
+      belly: "#c6b493", bellySoft: "#b9ab8c",
+    },
+    texture: "fur",
+    Head: WombatHead, End: WombatEnd, Tail: WombatTail,
+  },
+};
+
+// ===========================================================
+// The buddy
+// ===========================================================
+export default function Crag({ state = "primed", species = "gecko", size = 300, showBg = true, uid, build = 0, still = false }: CragProps) {
   const id = uid ?? state;
   const p = POSES[state];
+  const sp = SPECIES[species] ?? SPECIES.gecko;
+  const pal = sp.pal;
+  const skin   = pal[p.tone];
+  const skinSh = p.shade === "fit" ? pal.fitSh : pal.softSh;
   const ink = GRIME.ink;
   const reduced = useReducedMotion();
-  const motionClass = reduced ? "mv" : `mv mv-${p.motion}`;
+  const frozen = reduced || still;
+  const motionClass = frozen ? "mv" : `mv mv-${p.motion}`;
+  const { Head, End, Tail } = sp;
 
   // Physique tier (0..3) drives muscle definition. Bloated poses (detrained
   // couch-belly) stay soft regardless — the gag is they've gone to seed.
@@ -405,10 +811,12 @@ export default function Crag({ state = "primed", size = 300, showBg = true, uid,
   const legScale = soft ? 1 : 1 + tier * 0.06;
   const shoulderW = soft ? 1 : 1 + tier * 0.08;
 
+  const torsoOutline = "M 0 -52 Q 44 -44 44 8 Q 46 50 0 58 Q -44 50 -44 8 Q -44 -44 0 -52 Z";
+
   return (
     <div style={{ width: size, height: size, position: "relative", flexShrink: 0 }}>
       <svg viewBox="0 0 260 300" width={size} height={size} style={{ display: "block" }}>
-        <BuddyDefs id={id} frozen={reduced} />
+        <BuddyDefs id={id} frozen={frozen} />
 
         {/* grungy background */}
         {showBg && (
@@ -443,8 +851,8 @@ export default function Crag({ state = "primed", size = 300, showBg = true, uid,
             filter={`url(#boilbg-${id})`} />
         )}
 
-        {/* the boiling character — halo'd against wash panels so the green
-            silhouette never sinks into a green background */}
+        {/* the boiling character — halo'd against wash panels so the coat
+            silhouette never sinks into a same-hue background */}
         <g filter={showBg ? `url(#halo-${id})` : undefined}>
         <g filter={`url(#boil-${id})`}>
           <g transform="translate(130 156) scale(0.86) translate(-130 -150)">
@@ -452,29 +860,26 @@ export default function Crag({ state = "primed", size = 300, showBg = true, uid,
 
             {/* TAIL — root cap keeps it fused to the torso under rotation */}
             <g transform={`translate(-20 40) rotate(${p.tail})`}>
-              <circle cx="6" cy="6" r="20" fill={p.skin} stroke={ink} strokeWidth="3.4" />
-              <path d="M 0 0 Q 60 6 96 -34 Q 120 -58 132 -40 Q 116 -30 104 -10 Q 78 26 18 28 Z"
-                fill={p.skin} stroke={ink} strokeWidth="3.4" strokeLinejoin="round" />
-              <path d="M 18 6 Q 64 8 96 -24" fill="none" stroke={ink} strokeWidth="2" opacity="0.4" />
+              <Tail skin={skin} skinSh={skinSh} ink={ink} />
             </g>
 
             {/* BACK LEG — hip cap (cx/cy at pivot so it stays put under rotation) */}
             <g transform={`translate(30 54) rotate(${p.legR}) scale(${legScale})`}>
-              <circle cx="0" cy="0" r="17" fill={p.skinSh} stroke={ink} strokeWidth="3.2" />
+              <circle cx="0" cy="0" r="17" fill={skinSh} stroke={ink} strokeWidth="3.2" />
               <path d="M 0 -10 Q 26 4 30 40 Q 30 56 16 58 Q 6 40 -8 24 Q -10 6 0 -10 Z"
-                fill={p.skinSh} stroke={ink} strokeWidth="3.2" strokeLinejoin="round" />
+                fill={skinSh} stroke={ink} strokeWidth="3.2" strokeLinejoin="round" />
               <g transform="translate(22 56) rotate(150) scale(0.7)">
-                <Hand skin={p.skinSh} ink={ink} />
+                <End skin={skinSh} ink={ink} />
               </g>
             </g>
 
             {/* FRONT LEG — hip cap */}
             <g transform={`translate(-28 54) rotate(${p.legL}) scale(${legScale})`}>
-              <circle cx="0" cy="0" r="17" fill={p.skin} stroke={ink} strokeWidth="3.2" />
+              <circle cx="0" cy="0" r="17" fill={skin} stroke={ink} strokeWidth="3.2" />
               <path d="M 0 -10 Q -26 4 -30 40 Q -30 56 -16 58 Q -6 40 8 24 Q 10 6 0 -10 Z"
-                fill={p.skin} stroke={ink} strokeWidth="3.2" strokeLinejoin="round" />
+                fill={skin} stroke={ink} strokeWidth="3.2" strokeLinejoin="round" />
               <g transform="translate(-22 56) rotate(210) scale(0.7)">
-                <Hand skin={p.skin} ink={ink} />
+                <End skin={skin} ink={ink} />
               </g>
             </g>
 
@@ -485,13 +890,13 @@ export default function Crag({ state = "primed", size = 300, showBg = true, uid,
                     Q ${46 * p.belly} ${44 + (p.belly - 1) * 30} 0 ${58 + (p.belly - 1) * 26}
                     Q ${-44 * p.belly} ${44 + (p.belly - 1) * 30} ${-44 * p.belly} 8
                     Q ${-40 * p.belly * shoulderW} -44 0 -52 Z`}
-                fill={p.skin} stroke={ink} strokeWidth="3.6" strokeLinejoin="round"
+                fill={skin} stroke={ink} strokeWidth="3.6" strokeLinejoin="round"
               />
               {/* belly plate */}
               <ellipse
                 cx="0" cy={20 + (p.belly - 1) * 22}
                 rx={26 * p.belly} ry={30 + (p.belly - 1) * 22}
-                fill={p.belly > 1.1 ? GRIME.bellyDet : GRIME.belly}
+                fill={p.belly > 1.1 ? pal.bellySoft : pal.belly}
                 stroke={ink} strokeWidth="2.4" opacity="0.95"
               />
               {/* belly hatch segments */}
@@ -521,81 +926,38 @@ export default function Crag({ state = "primed", size = 300, showBg = true, uid,
                   )}
                 </g>
               )}
-              {/* mottle */}
-              <path
-                d="M 0 -52 Q 44 -44 44 8 Q 46 50 0 58 Q -44 50 -44 8 Q -44 -44 0 -52 Z"
-                fill={`url(#spots-${id})`}
-              />
+              {/* coat texture */}
+              {sp.texture === "spots" && <path d={torsoOutline} fill={`url(#spots-${id})`} />}
+              {sp.texture === "fur"   && <path d={torsoOutline} fill={`url(#hatch2-${id})`} opacity="0.4" />}
             </g>
 
             {/* BACK ARM */}
             <g transform={`translate(30 -28) rotate(${p.armR}) scale(${armScale})`}>
-              <circle cx="0" cy="0" r={armR} fill={p.skinSh} stroke={ink} strokeWidth="2.6" />
+              <circle cx="0" cy="0" r={armR} fill={skinSh} stroke={ink} strokeWidth="2.6" />
               <path d="M 0 0 Q 30 6 44 30 Q 50 42 40 48 Q 26 36 6 22 Q -2 10 0 0 Z"
-                fill={p.skinSh} stroke={ink} strokeWidth="3" strokeLinejoin="round" />
+                fill={skinSh} stroke={ink} strokeWidth="3" strokeLinejoin="round" />
               {(p.ripped || absLevel >= 1) && <path d="M 12 10 q 12 8 22 22" fill="none" stroke={ink} strokeWidth="1.6" opacity="0.5" />}
               {absLevel >= 2 && <path d="M 4 2 q 14 -4 20 10" fill="none" stroke={ink} strokeWidth="1.5" opacity="0.5" />}
               <g transform="translate(42 46) rotate(20) scale(0.62)">
-                <Hand skin={p.skinSh} ink={ink} fist={p.grip === "fist"} />
+                <End skin={skinSh} ink={ink} fist={p.grip === "fist"} />
               </g>
             </g>
 
             {/* FRONT ARM */}
             <g transform={`translate(-30 -28) rotate(${p.armL}) scale(${armScale})`}>
-              <circle cx="0" cy="0" r={armR} fill={p.skin} stroke={ink} strokeWidth="2.6" />
+              <circle cx="0" cy="0" r={armR} fill={skin} stroke={ink} strokeWidth="2.6" />
               <path d="M 0 0 Q -30 6 -44 30 Q -50 42 -40 48 Q -26 36 -6 22 Q 2 10 0 0 Z"
-                fill={p.skin} stroke={ink} strokeWidth="3" strokeLinejoin="round" />
+                fill={skin} stroke={ink} strokeWidth="3" strokeLinejoin="round" />
               {(p.ripped || absLevel >= 1) && <path d="M -12 10 q -12 8 -22 22" fill="none" stroke={ink} strokeWidth="1.6" opacity="0.5" />}
               {absLevel >= 2 && <path d="M -4 2 q -14 -4 -20 10" fill="none" stroke={ink} strokeWidth="1.5" opacity="0.5" />}
               <g transform="translate(-42 46) rotate(-20) scale(0.62)">
-                <Hand skin={p.skin} ink={ink} fist={p.grip === "fist"} />
+                <End skin={skin} ink={ink} fist={p.grip === "fist"} />
               </g>
             </g>
 
             {/* HEAD */}
             <g className="mv-head" transform={`translate(2 -84) rotate(${p.headTilt})`}>
-              {/* dorsal crest spikes — drawn first so the skull covers their bases
-                  and only the pointed tips read as a frill */}
-              <g>
-                <path d="M -36 -50 L -26 -80 L -12 -54 Z" fill={p.skinSh} stroke={ink} strokeWidth="2.6" strokeLinejoin="round" />
-                <path d="M -14 -54 L 0 -88 L 16 -56 Z"    fill={p.skin}   stroke={ink} strokeWidth="2.8" strokeLinejoin="round" />
-                <path d="M 14 -54 L 30 -84 L 46 -52 Z"    fill={p.skin}   stroke={ink} strokeWidth="2.8" strokeLinejoin="round" />
-                <path d="M 42 -48 L 54 -72 L 64 -44 Z"    fill={p.skinSh} stroke={ink} strokeWidth="2.6" strokeLinejoin="round" />
-              </g>
-              {/* unified cranium + muzzle silhouette */}
-              <path d="M -58 -12 C -70 -56 -26 -74 16 -70 C 56 -66 84 -46 82 -12
-                       C 81 8 72 22 54 28 C 58 40 52 54 30 58 C 16 62 -2 62 -16 56
-                       C -34 50 -52 42 -58 22 C -64 6 -64 4 -58 -12 Z"
-                fill={p.skin} stroke={ink} strokeWidth="3.8" strokeLinejoin="round" />
-              {/* muzzle crease */}
-              <path d="M -50 16 Q 6 30 60 16" fill="none" stroke={ink} strokeWidth="2" opacity="0.4" />
-              {/* nostrils */}
-              <circle cx="-4" cy="30" r="2.6" fill={ink} />
-              <circle cx="18" cy="31" r="2.6" fill={ink} />
-              {/* brow ridge */}
-              {p.brow === "up"   && <path d="M -38 -36 q 14 -12 30 -6 M 6 -38 q 16 -10 30 -2" fill="none" stroke={ink} strokeWidth="3"   strokeLinecap="round" />}
-              {p.brow === "down" && <path d="M -36 -20 q 16 -8 28 4 M 8 -22 q 14 -8 28 2"    fill="none" stroke={ink} strokeWidth="3.4" strokeLinecap="round" />}
-              {p.brow === "flat" && <path d="M -36 -30 l 28 2 M 8 -30 l 28 0"                fill="none" stroke={ink} strokeWidth="2.6" strokeLinecap="round" />}
-              {/* head crest bumps */}
-              <path d="M -18 -68 q 6 -10 14 -2 q 8 -8 16 0 q 8 -8 16 2"
-                fill="none" stroke={ink} strokeWidth="2.4" opacity="0.6" />
-              {/* sweatband (training) */}
-              {p.band && (
-                <g transform="translate(0 -48)">
-                  <path d="M -58 -6 Q 12 -22 82 -4 L 80 14 Q 12 -4 -56 12 Z"
-                    fill={GRIME.red} stroke={ink} strokeWidth="2.8" strokeLinejoin="round" />
-                  <rect x="-3" y="-16" width="11" height="13" rx="1.5" fill={GRIME.cream} stroke={ink} strokeWidth="1.8" />
-                  <path d="M -56 4 l -17 4 l 4 11 l 15 -7 Z"
-                    fill={GRIME.red} stroke={ink} strokeWidth="2.4" strokeLinejoin="round" />
-                </g>
-              )}
-              {/* eyes sit high on the cranium */}
-              <g transform="translate(0 -34)"><Eyes kind={p.eyes} /></g>
-              {/* mouth centered on the muzzle */}
-              <g transform="translate(6 40)"><Mouth kind={p.mouth} /></g>
-              {/* cheek mottle */}
-              <path d="M -58 -12 C -70 -56 -26 -74 16 -70 C 56 -66 84 -46 82 -12 C 81 8 72 22 54 28 C 58 40 52 54 30 58 C 16 62 -2 62 -16 56 C -34 50 -52 42 -58 22 C -64 6 -64 4 -58 -12 Z"
-                fill={`url(#spots-${id})`} opacity="0.7" />
+              <Head p={p} skin={skin} skinSh={skinSh} pal={pal} uid={id} build={tier} />
             </g>
 
           </g>

@@ -18,6 +18,8 @@ class User(Base):
     # Weekly training goals (Phase Q1) — nullable = unset.
     weekly_session_goal: Mapped[int | None] = mapped_column(Integer)
     weekly_tick_goal: Mapped[int | None] = mapped_column(Integer)
+    # Which animal fronts the climbing buddy (gecko / ibex / galah / wombat).
+    buddy_species: Mapped[str] = mapped_column(String(20), nullable=False, default="gecko")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
 
 

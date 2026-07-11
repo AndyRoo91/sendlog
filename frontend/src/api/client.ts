@@ -350,6 +350,7 @@ export interface AuthUser {
   share_to_feed: boolean;
   weekly_session_goal?: number | null;
   weekly_tick_goal?: number | null;
+  buddy_species?: string;
 }
 
 export interface WeeklyProgress {
@@ -479,6 +480,8 @@ export const api = {
     }),
   setGoals: (payload: { weekly_session_goal?: number | null; weekly_tick_goal?: number | null }) =>
     req<AuthUser>("/auth/me/goals", { method: "POST", body: JSON.stringify(payload) }),
+  setBuddySpecies: (species: string) =>
+    req<AuthUser>("/auth/me/buddy", { method: "POST", body: JSON.stringify({ species }) }),
   getWeeklyProgress: () => req<WeeklyProgress>("/weekly_progress"),
 
   listProtocols: () => req<FingerboardProtocol[]>("/protocols"),

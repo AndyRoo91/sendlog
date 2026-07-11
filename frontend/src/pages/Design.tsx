@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import {
   Ray, StarBurst, Ribbon, Scroll, GradeChip, SessionStrip,
   FeedEntry, StyleRibbonRow, ModeToggle, RecentChip, STYLES,
-  Crag,
+  Crag, CRAG_SPECIES, SPECIES_INFO,
 } from "../ui";
 import type { CragState } from "../ui";
 
@@ -158,6 +158,30 @@ export default function Design() {
             ))}
           </div>
         </div>
+      </Section>
+
+      <Section title="★ CRAG — SPECIES ★">
+        <p className="muted" style={{ fontSize: 12, marginBottom: 4 }}>
+          Buddy species × key states. Ibex horns scale with build (shown at build=3).
+        </p>
+        {CRAG_SPECIES.map((sp) => (
+          <div key={sp} style={{ marginTop: 12 }}>
+            <div style={{ fontFamily: "var(--font-banner)", fontSize: 11, letterSpacing: "0.1em", color: "var(--ink)" }}>
+              {SPECIES_INFO[sp].name} <span className="muted" style={{ fontFamily: "var(--font-hand)", fontSize: 13 }}>{SPECIES_INFO[sp].tagline}</span>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8, marginTop: 6 }}>
+              {(["primed","stoked","training","detrained"] as CragState[]).map((s) => (
+                <div key={s} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+                  <Crag species={sp} state={s} size={165} showBg uid={`design-sp-${sp}-${s}`}
+                    build={s === "training" ? 3 : 0} still />
+                  <div style={{ fontFamily: "var(--font-banner)", fontSize: 9, letterSpacing: "0.1em", color: "var(--ink-2)" }}>
+                    {s}{s === "training" ? " · b3" : ""}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
       </Section>
     </div>
   );
