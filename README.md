@@ -7,10 +7,7 @@ activity feed. Built to self-host on a homelab as a single Docker container with
 It's a PWA, so it installs to your phone's home screen and keeps logging even with no
 signal at the crag.
 
-<!-- Screenshots pending — see docs/screenshots/README.md for the planned set.
-     Once the PNGs land, restore:
-![Dashboard](docs/screenshots/dashboard.png)
--->
+<img src="docs/screenshots/dashboard.png" alt="Dashboard" width="390">
 
 
 ## Features
@@ -67,13 +64,9 @@ signal at the crag.
 
 ## Screenshots
 
-Coming soon — the planned set is listed in [`docs/screenshots/`](docs/screenshots).
-
-<!-- Once the PNGs land, restore:
 | Quick-log | Progress | The feed | Gyms |
 |---|---|---|---|
 | ![Logging](docs/screenshots/logging.png) | ![Progress](docs/screenshots/progress.png) | ![Feed](docs/screenshots/feed.png) | ![Gyms](docs/screenshots/gyms.png) |
--->
 
 ## Running locally
 
