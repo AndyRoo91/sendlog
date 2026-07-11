@@ -252,3 +252,8 @@ def run_migrations() -> None:
                 )
             """))
             conn.execute(text("CREATE INDEX IF NOT EXISTS ix_set_circuits_wall_set_id ON set_circuits(wall_set_id)"))
+
+        # Buddy customisation: which animal fronts the climbing buddy.
+        if "users" in tables and "buddy_species" not in columns("users"):
+            conn.execute(text("ALTER TABLE users ADD COLUMN buddy_species VARCHAR(20)"))
+            conn.execute(text("UPDATE users SET buddy_species = 'gecko' WHERE buddy_species IS NULL"))

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api/client";
 import { useAuth } from "../lib/auth";
-import { Ribbon } from "../ui";
+import { Ribbon, Crag, CRAG_SPECIES, SPECIES_INFO, asSpecies } from "../ui";
 import { onKey } from "../lib/a11y";
 
 /** Parse a `${status}: ${body}` error string into a friendly detail line. */
@@ -195,6 +195,73 @@ function FeedSharingForm() {
   );
 }
 
+function BuddyPickerForm() {
+  const { user, setUser } = useAuth();
+  const current = asSpecies(user?.buddy_species);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function pick(species: string) {
+    if (busy || species === current) return;
+    setError(null);
+    setBusy(true);
+    try {
+      const updated = await api.setBuddySpecies(species);
+      setUser(updated);
+    } catch (err) {
+      setError(friendlyError(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div>
+      <p className="muted" style={{ fontSize: 13, marginBottom: 12 }}>
+        Crag fronts your dashboard, hypes your sends, and judges your rest weeks.
+        Pick who does the job — same moods, same gains, new animal.
+      </p>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+        {CRAG_SPECIES.map((s) => {
+          const selected = s === current;
+          return (
+            <div key={s} role="button" tabIndex={0} aria-pressed={selected}
+              onClick={() => pick(s)} onKeyDown={onKey(() => pick(s))}
+              className="chunky"
+              style={{
+                padding: "10px 6px 8px", cursor: "pointer", textAlign: "center",
+                background: selected ? "var(--cream)" : "transparent",
+                border: "var(--b) solid var(--ink)",
+                boxShadow: selected ? "3px 3px 0 var(--ink)" : "none",
+                opacity: busy ? 0.6 : 1, position: "relative",
+              }}>
+              {selected && (
+                <div style={{
+                  position: "absolute", top: -8, right: -6, transform: "rotate(4deg)",
+                  background: "var(--red)", color: "var(--cream)", padding: "2px 7px",
+                  fontFamily: "var(--font-banner)", fontSize: 9, letterSpacing: "0.08em",
+                }}>ON BELAY</div>
+              )}
+              <div style={{ display: "flex", justifyContent: "center" }}>
+                <Crag species={s} state="primed" size={104} showBg={false} still uid={`pick-${s}`} />
+              </div>
+              <div style={{
+                fontFamily: "var(--font-banner)", fontSize: 12, letterSpacing: "0.1em",
+                color: "var(--ink)", marginTop: 2,
+              }}>{SPECIES_INFO[s].name}</div>
+              <div style={{
+                fontFamily: "var(--font-hand)", fontSize: 13, color: "var(--ink-2)",
+                lineHeight: 1.25, marginTop: 2,
+              }}>{SPECIES_INFO[s].tagline}</div>
+            </div>
+          );
+        })}
+      </div>
+      <FormFeedback error={error} ok={null} />
+    </div>
+  );
+}
+
 function WeeklyGoalsForm() {
   const { user, setUser } = useAuth();
   const [sessionGoal, setSessionGoal] = useState(user?.weekly_session_goal?.toString() ?? "");
@@ -299,6 +366,7 @@ export default function Settings({ onLockNow }: SettingsProps) {
         </Link>
       </Section>
 
+      <Section title="YOUR BUDDY"><BuddyPickerForm /></Section>
       <Section title="WEEKLY GOALS"><WeeklyGoalsForm /></Section>
       <Section title="SHARED FEED"><FeedSharingForm /></Section>
       <Section title="CHANGE PASSWORD"><ChangePasswordForm /></Section>

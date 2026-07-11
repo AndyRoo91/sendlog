@@ -619,11 +619,16 @@ class AuthUser(BaseModel):
     share_to_feed: bool = True
     weekly_session_goal: int | None = None
     weekly_tick_goal: int | None = None
+    buddy_species: str = "gecko"
     model_config = {"from_attributes": True}
 
 
 class FeedSharingUpdate(BaseModel):
     share: bool
+
+
+class BuddySpeciesUpdate(BaseModel):
+    species: str
 
 
 class GoalsUpdate(BaseModel):

@@ -153,6 +153,7 @@ def _user_to_schema(u: models.User) -> schemas.AuthUser:
         share_to_feed=u.share_to_feed if u.share_to_feed is not None else True,
         weekly_session_goal=u.weekly_session_goal,
         weekly_tick_goal=u.weekly_tick_goal,
+        buddy_species=u.buddy_species or "gecko",
     )
 
 
@@ -265,6 +266,24 @@ def set_feed_sharing(
 ):
     """Toggle whether this user's activity appears in the shared instance feed."""
     current_user.share_to_feed = payload.share
+    db.commit()
+    db.refresh(current_user)
+    return _user_to_schema(current_user)
+
+
+BUDDY_SPECIES = {"gecko", "ibex", "galah", "wombat"}
+
+
+@app.post("/api/auth/me/buddy", response_model=schemas.AuthUser)
+def set_buddy_species(
+    payload: schemas.BuddySpeciesUpdate,
+    db: DBSession = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    """Pick which animal fronts the climbing buddy."""
+    if payload.species not in BUDDY_SPECIES:
+        raise HTTPException(status_code=400, detail="Unknown buddy species")
+    current_user.buddy_species = payload.species
     db.commit()
     db.refresh(current_user)
     return _user_to_schema(current_user)

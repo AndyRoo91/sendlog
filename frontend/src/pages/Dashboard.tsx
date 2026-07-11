@@ -3,8 +3,9 @@ import { Link } from "react-router-dom";
 import { api } from "../api/client";
 import type { Achievement, BuddyState, SessionSummary } from "../api/client";
 import { localDay, fmtDay, fmtTime, parseUTC, daysAgo } from "../lib/dates";
-import { ICON, Ribbon, Crag, lobbyCondition } from "../ui";
+import { ICON, Ribbon, Crag, lobbyCondition, asSpecies } from "../ui";
 import type { CragState } from "../ui";
+import { useAuth } from "../lib/auth";
 import { isDuckOn, setDuck, useDuckMode, useKonami } from "../lib/duckMode";
 import WeeklyGoals from "../components/WeeklyGoals";
 import TrainingPlan from "../components/TrainingPlan";
@@ -42,6 +43,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [achievements, setAchievements] = useState<Achievement[]>([]);
   const [buddy, setBuddy] = useState<BuddyState | null>(null);
+  const { user } = useAuth();
   const duck = useDuckMode();
 
   useEffect(() => {
@@ -180,7 +182,7 @@ export default function Dashboard() {
           background: "var(--cream)", border: "3px solid var(--ink)",
           boxShadow: "4px 4px 0 var(--ink)",
         }}>
-          <Crag state={cragState} size={90} showBg={false} uid="dashboard-lobby" build={buddy?.build ?? 0} />
+          <Crag state={cragState} species={asSpecies(user?.buddy_species)} size={90} showBg={false} uid="dashboard-lobby" build={buddy?.build ?? 0} />
           <div style={{ flex: 1 }}>
             <div style={{
               fontFamily: "var(--font-hand)", fontSize: 18, color: "var(--sea)",

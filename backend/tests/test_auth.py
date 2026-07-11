@@ -205,3 +205,23 @@ def test_clear_pin_requires_password(client):
     r = client.request("DELETE", "/api/auth/me/pin", json={"password": "testtest"})
     assert r.status_code == 204
     assert client.get("/api/auth/me").json()["has_pin"] is False
+
+
+# ---------------------------------------------------------------------------
+# Buddy species — which animal fronts the climbing buddy.
+# ---------------------------------------------------------------------------
+
+def test_buddy_species_defaults_to_gecko(client):
+    assert client.get("/api/auth/me").json()["buddy_species"] == "gecko"
+
+
+def test_set_buddy_species(client):
+    r = client.post("/api/auth/me/buddy", json={"species": "wombat"})
+    assert r.status_code == 200
+    assert r.json()["buddy_species"] == "wombat"
+    assert client.get("/api/auth/me").json()["buddy_species"] == "wombat"
+
+
+def test_set_buddy_species_rejects_unknown(client):
+    assert client.post("/api/auth/me/buddy", json={"species": "dropbear"}).status_code == 400
+    assert client.get("/api/auth/me").json()["buddy_species"] == "gecko"
