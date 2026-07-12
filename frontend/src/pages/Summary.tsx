@@ -5,7 +5,7 @@ import { fmtDay, parseUTC } from "../lib/dates";
 import { toPng } from "html-to-image";
 import { api } from "../api/client";
 import type { SessionDetail, BoulderEntry, LeadRouteEntry } from "../api/client";
-import { Ribbon, STYLE_BY_ID, sendTypeToStyle, Crag, asSpecies } from "../ui";
+import { Ribbon, STYLE_BY_ID, sendTypeToStyle, Crag } from "../ui";
 import type { CragState } from "../ui";
 import { useAuth } from "../lib/auth";
 import { BOULDER_GRADES, LEAD_GRADE_OPTIONS } from "../lib/grades";
@@ -149,7 +149,7 @@ export default function Summary() {
 
         {/* Crag — celebrates or shakes off, never sad */}
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, marginBottom: 14 }}>
-          <Crag state={summaryState} species={asSpecies(user?.buddy_species)} size={200} showBg={false} uid="summary-cert" />
+          <Crag state={summaryState} species={user?.buddy_species} size={200} showBg={false} uid="summary-cert" />
           <div style={{
             fontFamily: "var(--font-hand)", fontSize: 22,
             color: summaryState === "stoked" ? "var(--red)" : "var(--sea)",

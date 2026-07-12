@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { api } from "../api/client";
 import type { Achievement, BuddyState, SessionSummary } from "../api/client";
 import { localDay, fmtDay, fmtTime, parseUTC, daysAgo } from "../lib/dates";
-import { ICON, Ribbon, Crag, lobbyCondition, asSpecies } from "../ui";
+import { ICON, Ribbon, Crag, lobbyCondition } from "../ui";
 import type { CragState } from "../ui";
 import { useAuth } from "../lib/auth";
 import { isDuckOn, setDuck, useDuckMode, useKonami } from "../lib/duckMode";
@@ -182,7 +182,7 @@ export default function Dashboard() {
           background: "var(--cream)", border: "3px solid var(--ink)",
           boxShadow: "4px 4px 0 var(--ink)",
         }}>
-          <Crag state={cragState} species={asSpecies(user?.buddy_species)} size={90} showBg={false} uid="dashboard-lobby" build={buddy?.build ?? 0} />
+          <Crag state={cragState} species={user?.buddy_species} size={90} showBg={false} uid="dashboard-lobby" build={buddy?.build ?? 0} />
           <div style={{ flex: 1 }}>
             <div style={{
               fontFamily: "var(--font-hand)", fontSize: 18, color: "var(--sea)",

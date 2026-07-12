@@ -2,6 +2,8 @@
    Lives outside Crag.tsx so the component file only exports components
    (react-refresh) and pages can pull picker copy without the whole rig. */
 
+// Keep in sync with BUDDY_SPECIES in backend/main.py — the server rejects
+// anything outside its set, and asSpecies() maps unknowns back to gecko.
 export type CragSpecies = "gecko" | "ibex" | "galah" | "wombat";
 
 // Picker copy — one voice everywhere the buddy is offered.

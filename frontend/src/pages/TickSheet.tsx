@@ -8,7 +8,7 @@ import {
   SessionStrip, ModeToggle,
   FeedEntry, RecentChip, Ribbon, AfterCommitOverlay, AchievementOverlay, Toast,
   STYLE_BY_ID, STYLE_TO_SEND_TYPE, sendTypeToStyle,
-  Crag, RestTimer, asSpecies,
+  Crag, RestTimer,
 } from "../ui";
 import { useAuth } from "../lib/auth";
 import type { StyleId, CommitTick, ClimbMode } from "../ui";
@@ -663,7 +663,7 @@ export default function TickSheet() {
         </div>
       ) : (
         <div style={{ padding: "24px 16px 0", display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
-          <Crag state="primed" species={asSpecies(user?.buddy_species)} size={180} showBg={false} uid="ticksheet-empty" />
+          <Crag state="primed" species={user?.buddy_species} size={180} showBg={false} uid="ticksheet-empty" />
           <div style={{
             fontFamily: "var(--font-hand)", fontSize: 20, color: "var(--sea)",
             transform: "rotate(-1.2deg)", textAlign: "center", lineHeight: 1.4,
