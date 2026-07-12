@@ -271,6 +271,7 @@ def set_feed_sharing(
     return _user_to_schema(current_user)
 
 
+# Keep in sync with CragSpecies in frontend/src/ui/cragSpecies.ts.
 BUDDY_SPECIES = {"gecko", "ibex", "galah", "wombat"}
 
 

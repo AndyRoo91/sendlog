@@ -9,6 +9,7 @@
 */
 import { useState, useEffect } from "react";
 import type { FC } from "react";
+import { asSpecies } from "./cragSpecies";
 import type { CragSpecies } from "./cragSpecies";
 
 // ---- grimed palette (intentionally slightly different from app tokens) ----
@@ -87,7 +88,7 @@ interface SpeciesConfig {
 
 export interface CragProps {
   state?:   CragState;
-  species?: CragSpecies;  // default "gecko" — the original
+  species?: string;       // server string, e.g. user.buddy_species — coerced via asSpecies, unknown → gecko
   size?:    number;       // px, default 300
   showBg?:  boolean;      // default true; false = transparent
   uid?:     string;       // unique id for SVG filter/pattern defs — use when multiple Crags on one page
@@ -783,10 +784,10 @@ const SPECIES: Record<CragSpecies, SpeciesConfig> = {
 // ===========================================================
 // The buddy
 // ===========================================================
-export default function Crag({ state = "primed", species = "gecko", size = 300, showBg = true, uid, build = 0, still = false }: CragProps) {
+export default function Crag({ state = "primed", species, size = 300, showBg = true, uid, build = 0, still = false }: CragProps) {
   const id = uid ?? state;
   const p = POSES[state];
-  const sp = SPECIES[species] ?? SPECIES.gecko;
+  const sp = SPECIES[asSpecies(species)];
   const pal = sp.pal;
   const skin   = pal[p.tone];
   const skinSh = p.shade === "fit" ? pal.fitSh : pal.softSh;

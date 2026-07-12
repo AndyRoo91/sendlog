@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { relativeTime } from "../lib/dates";
 import { api } from "../api/client";
 import type { FeedEvent, ReactionSummary } from "../api/client";
-import { Ribbon, Toast, PullToRefresh, Crag, asSpecies } from "../ui";
+import { Ribbon, Toast, PullToRefresh, Crag } from "../ui";
 import { useToast } from "../lib/useToast";
 import { usePullToRefresh } from "../lib/usePullToRefresh";
 import { useAuth } from "../lib/auth";
@@ -244,7 +244,7 @@ export default function FeedPage() {
 
       {!loading && events.length === 0 && (
         <div className="card-flat offset-ink" style={{ padding: 20, textAlign: "center" }}>
-          <Crag state="primed" species={asSpecies(user?.buddy_species)} size={90} showBg={false} uid="feed-empty" />
+          <Crag state="primed" species={user?.buddy_species} size={90} showBg={false} uid="feed-empty" />
           <p className="muted" style={{ marginTop: 10 }}>
             Quiet at the crag. Log a session and your crew will see it here.
           </p>
